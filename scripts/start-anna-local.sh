@@ -42,3 +42,7 @@ echo $SPID >> pids
 if [ "$2" = "y" ] || [ "$2" = "yes" ]; then
   ./build/cli/anna-cli conf/anna-local.yml
 fi
+
+if [ "$2" = "t" ] || [ "$2" = "txn" ]; then
+  ./build/cli/anna-txn-cli conf/anna-local.yml
+fi
