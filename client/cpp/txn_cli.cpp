@@ -18,6 +18,7 @@
 #include "yaml-cpp/yaml.h"
 
 #include <assert.h>
+#include <string>
 
 unsigned kRoutingThreadCount;
 
@@ -41,54 +42,29 @@ void handle_request(KvsClientInterface *client, string input) {
     std::exit(EXIT_SUCCESS);
   }
 
-  if (v[0] == "GET") {
-    client->get_async(v[1]);
+  if (v[0] == "START_TXN") {
+    auto client_id = "0";
+    auto id = v[1];
+    uint64_t txn_id = std::stoi(client_id + id);
+    client->start_txn(txn_id);
 
-    vector<KeyResponse> responses = client->receive_async();
+    vector<TxnResponse> responses = client->receive_txn_async();
     while (responses.size() == 0) {
-      responses = client->receive_async();
+      responses = client->receive_txn_async();
     }
 
     if (responses.size() > 1) {
       std::cout << "Error: received more than one response" << std::endl;
     }
 
-    assert(responses[0].tuples(0).lattice_type() == LatticeType::LWW);
-
-    LWWPairLattice<string> lww_lattice =
-        deserialize_lww(responses[0].tuples(0).payload());
-    std::cout << lww_lattice.reveal().value << std::endl;
-  } else if (v[0] == "PUT") {
-
-    Key key = v[1];
-    LWWPairLattice<string> val(
-        TimestampValuePair<string>(generate_timestamp(0), v[2]));
-
-    string rid = client->put_async(key, serialize(val), LatticeType::LWW);
-
-    vector<KeyResponse> responses = client->receive_async();
-    while (responses.size() == 0) {
-      responses = client->receive_async();
-    }
-
-    KeyResponse response = responses[0];
-
-    if (response.response_id() != rid) {
-      std::cout << "Invalid response: ID did not match request ID!"
-                << std::endl;
-    }
-    if (response.error() == AnnaError::NO_ERROR) {
-      std::cout << "Success!" << std::endl;
-    } else {
-      std::cout << "Failure!" << std::endl;
-    }
+    std::cout << responses[0].response() << std::endl;
   }
 }
 
 void run(KvsClientInterface *client) {
   string input;
   while (true) {
-    std::cout << "kvs> ";
+    std::cout << "txn-kvs> ";
 
     getline(std::cin, input);
     handle_request(client, input);
