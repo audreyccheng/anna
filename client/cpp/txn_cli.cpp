@@ -57,7 +57,57 @@ void handle_request(KvsClientInterface *client, string input) {
       std::cout << "Error: received more than one response" << std::endl;
     }
 
-    std::cout << responses[0].response() << std::endl;
+    std::cout << responses[0].txn_id() << std::endl;
+  } else if (v[0] == "TXN_GET") {
+    // client must enter txn_id and key
+    client->txn_get(v[1], v[2]);
+
+    vector<KeyResponse> responses = client->receive_txn_async();
+    while (responses.size() == 0) {
+      responses = client->receive_txn_async();
+    }
+
+    if (responses.size() > 1) {
+      std::cout << "Error: received more than one response" << std::endl;
+    }
+
+    // TODO(@accheng): deserialize payload
+    // LWWPairLattice<string> lww_lattice =
+    //     deserialize_lww(responses[0].tuples(0).payload());
+    // std::cout << lww_lattice.reveal().value << std::endl;
+  } else if (v[0] == "TXN_PUT") {
+    // client must enter txn_id, key, and value
+    string rid = client->txn_put(v[1], v[2], v[3]);
+
+    vector<KeyResponse> responses = client->receive_txn_async();
+    while (responses.size() == 0) {
+      responses = client->receive_txn_async();
+    }
+
+    KeyResponse response = responses[0];
+
+    if (response.response_id() != rid) {
+      std::cout << "Invalid response: ID did not match request ID!"
+                << std::endl;
+    }
+    if (response.error() == AnnaError::NO_ERROR) {
+      std::cout << "Success!" << std::endl;
+    } else {
+      std::cout << "Failure!" << std::endl;
+    }
+  } else if (v[0] == "COMMIT_TXN") {
+    client->commit_txn(v[1]);
+
+    vector<TxnResponse> responses = client->receive_txn_async();
+    while (responses.size() == 0) {
+      responses = client->receive_txn_async();
+    }
+
+    if (responses.size() > 1) {
+      std::cout << "Error: received more than one response" << std::endl;
+    }
+
+    std::cout << responses[0].txn_id() << std::endl;
   }
 }
 

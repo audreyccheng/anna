@@ -45,7 +45,7 @@ class KvsClientInterface {
   virtual void start_txn(const string& txn_id) = 0;
   virtual void txn_get(const string& txn_id, const Key& key) = 0;
   virtual string txn_put(const string& txn_id, const Key& key,
-                       const string& payload) = 0;
+                         const string& payload) = 0;
   virtual vector<KeyResponse> receive_async() = 0;
   virtual vector<TxnResponse> receive_txn_async() = 0;
   virtual zmq::context_t* get_context() = 0;
