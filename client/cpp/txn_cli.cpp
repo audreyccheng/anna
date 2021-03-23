@@ -44,9 +44,9 @@ void handle_request(KvsClientInterface *client, string input) {
 
   if (v[0] == "START_TXN") {
     auto client_id = "0";
-    auto id = v[1];
-    uint64_t txn_id = std::stoi(client_id + id);
-    client->start_txn(txn_id);
+    // auto id = v[1];
+    // uint64_t txn_id = std::stoi(client_id + id);
+    client->start_txn(client_id);
 
     vector<TxnResponse> responses = client->receive_txn_async();
     while (responses.size() == 0) {
