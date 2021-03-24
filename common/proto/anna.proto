@@ -80,6 +80,8 @@ enum AnnaError {
   // This error is returned by the routing tier if no servers are in the
   // cluster.
   NO_SERVERS = 5;
+
+  FAILED_OP = 6;
 }
 
 // ANNA KVS REQUESTS
