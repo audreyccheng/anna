@@ -89,9 +89,12 @@ inline Key get_key_from_user_metadata(Key metadata_key) {
 }
 
 inline string serialize(const vector<Operation>& vec) {
-  TXNValue txn_value;
+  TxnValue txn_value;
   for (auto val : vec) {
-    txn_value.add_values(val.get_string());
+    OperationValue op;
+    op.set_key(val.get_key());
+    op.set_val(val.get_val());
+    txn_value.add_operations(op);
   }
 
   string serialized;
@@ -209,6 +212,13 @@ inline string serialize(const PriorityLattice<double, string>& l) {
   string serialized;
   priority_value.SerializeToString(&serialized);
   return serialized;
+}
+
+inline LWWPairLattice<string> deserialize_op(const string& serialized) {
+  OperationValue op;
+  op.ParseFromString(serialized);
+
+  return Operation(op.key(), op.value());
 }
 
 inline LWWPairLattice<string> deserialize_lww(const string& serialized) {

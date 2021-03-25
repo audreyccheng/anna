@@ -241,10 +241,19 @@ message KeyAddressResponse {
 
 // TRANSACTION SERIALIZATION
 
+// A message representing ...
+message OperationValue {
+  // The name of the key we are referencing.
+  string key = 1;
+
+  // A vector clock for the version of the key we are referencing.
+  string value = 2;
+}
+
 // Serialization of transactions.
-message TXNValue {
+message TxnValue {
   // The actual data stored by this transaction.
-  repeated bytes value = 1;
+  repeated OperationValue operations = 1;
 }
 
 // LATTICE SERIALIZATION
