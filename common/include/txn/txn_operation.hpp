@@ -3,36 +3,36 @@
 
 #include <string>
 
-template <typename T>
+// template <typename T>
 class Operation {
  protected:
   // int type;
   Key key;
-  T value;
+  string value;
 
   // T element;
   // virtual void do_merge(const T &e) = 0;
 
  public:
-  Operation<T>(const Key &k, const T &v) { assign(k, v); }
+  Operation(const Key &k, const string &v) { assign(k, v); }
 
-  Operation<T>(const Operation<T> &other) { assign(other.get_key(), other.get_value()); }
+  Operation(const Operation &other) { assign(other.get_key(), other.get_value()); }
 
-  virtual ~Operation<T>() = default;
-  Operation<T> &operator=(const Operation<T> &rhs) {
-    assign(other.get_key(), other.get_value());
+  virtual ~Operation() = default;
+  Operation &operator=(const Operation &rhs) {
+    assign(rhs.get_key(), rhs.get_value());
     return *this;
   }
 
-  bool operator==(const Operation<T> &rhs) const {
+  bool operator==(const Operation &rhs) const {
     return this->get_key() == rhs.get_key() && this->get_value() == rhs.get_value();
   }
 
   const Key get_key() const { return key; }
 
-  const T get_value() const { return value; }
+  const string get_value() const { return value; }
 
-  void assign(const Key k, const T v) { 
+  void assign(const Key k, const string v) { 
     key = k;
     value = v;
   }

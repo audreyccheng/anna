@@ -34,7 +34,7 @@ void print_set(set<string> set) {
   std::cout << "}" << std::endl;
 }
 
-void handle_request(KvsClientInterface *client, string input) {
+void handle_request(TxnClientInterface *client, string input) {
   vector<string> v;
   split(input, ' ', v);
 
@@ -62,7 +62,7 @@ void handle_request(KvsClientInterface *client, string input) {
     // client must enter txn_id and key
     client->txn_get(v[1], v[2]);
 
-    vector<KeyResponse> responses = client->receive_txn_async();
+    vector<TxnResponse> responses = client->receive_txn_async();
     while (responses.size() == 0) {
       responses = client->receive_txn_async();
     }
@@ -79,12 +79,12 @@ void handle_request(KvsClientInterface *client, string input) {
     // client must enter txn_id, key, and value
     string rid = client->txn_put(v[1], v[2], v[3]);
 
-    vector<KeyResponse> responses = client->receive_txn_async();
+    vector<TxnResponse> responses = client->receive_txn_async();
     while (responses.size() == 0) {
       responses = client->receive_txn_async();
     }
 
-    KeyResponse response = responses[0];
+    TxnResponse response = responses[0];
 
     if (response.response_id() != rid) {
       std::cout << "Invalid response: ID did not match request ID!"
@@ -111,7 +111,7 @@ void handle_request(KvsClientInterface *client, string input) {
   }
 }
 
-void run(KvsClientInterface *client) {
+void run(TxnClientInterface *client) {
   string input;
   while (true) {
     std::cout << "txn-kvs> ";
@@ -121,7 +121,7 @@ void run(KvsClientInterface *client) {
   }
 }
 
-void run(KvsClientInterface *client, string filename) {
+void run(TxnClientInterface *client, string filename) {
   string input;
   std::ifstream infile(filename);
 
@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  KvsClient client(threads, ip, 0, 10000);
+  TxnClient client(threads, ip, 0, 10000);
 
   if (argc == 2) {
     run(&client);

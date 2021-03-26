@@ -37,21 +37,21 @@ struct PendingTxn {
   TxnRequest request_;
 };
 
-class KvsClientInterface {
+class TxnClientInterface {
  public:
   virtual string put_async(const Key& key, const string& payload,
                            LatticeType lattice_type) = 0;
   virtual void get_async(const Key& key) = 0;
-  virtual void start_txn(const string& txn_id) = 0;
+  virtual void start_txn(const string& client_id) = 0;
   virtual void txn_get(const string& txn_id, const Key& key) = 0;
-  virtual string txn_put(const string& txn_id, const Key& key,
-                         const string& payload) = 0;
+  virtual string txn_put(const string& txn_id, const Key& key, const string& payload) = 0;
+  virtual void commit_txn(const string& txn_id) = 0;
   virtual vector<KeyResponse> receive_async() = 0;
   virtual vector<TxnResponse> receive_txn_async() = 0;
   virtual zmq::context_t* get_context() = 0;
 };
 
-class KvsClient : public KvsClientInterface {
+class TxnClient : public TxnClientInterface {
  public:
   /**
    * @addrs A vector of routing addresses.
@@ -60,7 +60,7 @@ class KvsClient : public KvsClientInterface {
    * @tid My client's thread ID
    * @timeout Length of request timeouts in ms
    */
-  KvsClient(vector<UserRoutingThread> routing_threads, string ip,
+  TxnClient(vector<UserRoutingThread> routing_threads, string ip,
             unsigned tid = 0, unsigned timeout = 10000) :
       routing_threads_(routing_threads),
       ut_(UserThread(ip, tid)),
@@ -92,7 +92,7 @@ class KvsClient : public KvsClientInterface {
     rid_ = 0;
   }
 
-  ~KvsClient() {}
+  ~TxnClient() {}
 
  public:
   /**
@@ -126,6 +126,7 @@ class KvsClient : public KvsClientInterface {
   }
 
   void start_txn(const string& client_id) {
+    // TODO(@accheng): only issue start_txn if not in the pending map?
     if (pending_txn_response_map_.find(client_id) ==
         pending_txn_response_map_.end()) {
       TxnRequest request;
@@ -139,25 +140,39 @@ class KvsClient : public KvsClientInterface {
   }
 
   void txn_get(const string& txn_id, const Key& key) {
-    if (pending_txn_response_map_.find(key) ==
-        pending_txn_response_map_.end()) {
+    // // TODO(@accheng): Is this if needed??
+    // if (pending_txn_response_map_.find(key) ==
+    //     pending_txn_response_map_.end()) {
       TxnRequest request;
       prepare_txn_data_request(request, key);
       request.set_type(RequestType::TXN_GET);
       request.set_txn_id(txn_id);
 
       try_txn_request(request);
-    }
+    // }
   }
 
-  string txn_put(const Key& key, const string& payload) {
+  string txn_put(const string& txn_id, const Key& key, const string& payload) {
     TxnRequest request;
-    KeyTuple* tuple = prepare_txn_data_request(request, key);
+    TxnKeyTuple* tuple = prepare_txn_data_request(request, key);
     request.set_type(RequestType::TXN_PUT);
     tuple->set_payload(payload);
 
     try_txn_request(request);
     return request.request_id();
+  }
+
+  void commit_txn(const string& txn_id) {
+    // TODO(@accheng): only issue commit_txn if not in the pending map?
+    if (pending_txn_response_map_.find(txn_id) ==
+        pending_txn_response_map_.end()) {
+      TxnRequest request;
+      prepare_txn_data_request(request, txn_id);
+      request.set_type(RequestType::COMMIT_TXN);
+      request.set_txn_id(txn_id);
+
+      try_txn_request(request);
+    }
   }
 
   vector<KeyResponse> receive_async() {
@@ -342,7 +357,8 @@ class KvsClient : public KvsClientInterface {
       response.ParseFromString(serialized);
       Key key = response.txn_id();
 
-      if (response.type() == RequestType::START_TXN) {
+      if (response.type() == RequestType::START_TXN || 
+          response.type() == RequestType::COMMIT_TXN) {
         if (pending_txn_response_map_.find(key) !=
             pending_txn_response_map_.end()) {
           if (key == "") {
@@ -428,7 +444,7 @@ class KvsClient : public KvsClientInterface {
                 pending_txn_key_response_map_[key_map_pair.first][id_map_pair.first]
                     .tp_)
                 .count() > timeout_) {
-          result.push_back(generate_bad_response(id_map_pair.second.request_));
+          result.push_back(generate_bad_txn_response(id_map_pair.second.request_));
           to_remove_put[key_map_pair.first].insert(id_map_pair.first);
           invalidate_cache_for_worker(id_map_pair.second.worker_addr_);
         }
@@ -534,7 +550,8 @@ class KvsClient : public KvsClientInterface {
 
     // Use client id as key in map of pending responses
     // TODO(@accheng) Ok to assume each client only starts 1 txn at a time?
-    if (request.type() == RequestType::START_TXN) {
+    if (request.type() == RequestType::START_TXN || 
+        request.type() == RequestType::COMMIT_TXN) {
       if (pending_txn_response_map_.find(key) ==
           pending_txn_response_map_.end()) {
         pending_txn_response_map_[key].tp_ = std::chrono::system_clock::now();
@@ -590,12 +607,12 @@ class KvsClient : public KvsClientInterface {
           "Retrying request.",
           key);
 
-      invalidate_cache_for_key(key, tuple);
+      invalidate_txn_cache_for_key(key, tuple);
       return true;
     }
 
     if (tuple.invalidate()) {
-      invalidate_cache_for_key(key, tuple);
+      invalidate_txn_cache_for_key(key, tuple);
 
       log_->info("Server ordered invalidation of key address cache for key {}",
                  key);
@@ -611,6 +628,10 @@ class KvsClient : public KvsClientInterface {
    * information.
    */
   void invalidate_cache_for_key(const Key& key, const KeyTuple& tuple) {
+    key_address_cache_.erase(key);
+  }
+
+  void invalidate_txn_cache_for_key(const Key& key, const TxnKeyTuple& tuple) {
     key_address_cache_.erase(key);
   }
 
@@ -819,7 +840,7 @@ class KvsClient : public KvsClientInterface {
   map<Key, PendingTxn> pending_txn_response_map_;
 
   // keeps track of pending txn put and get responses
-  map<Key, map<string, PendingRequest>> pending_txn_key_response_map_;
+  map<Key, map<string, PendingTxn>> pending_txn_key_response_map_;
 };
 
 #endif  // INCLUDE_ASYNC_TXN_CLIENT_HPP_

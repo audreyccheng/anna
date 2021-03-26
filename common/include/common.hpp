@@ -23,6 +23,7 @@
 #include "lattices/multi_key_causal_lattice.hpp"
 #include "lattices/priority_lattice.hpp"
 #include "lattices/single_key_causal_lattice.hpp"
+#include "txn/txn_operation.hpp"
 #include "types.hpp"
 #include "zmq/socket_cache.hpp"
 #include "zmq/zmq_util.hpp"
@@ -91,10 +92,10 @@ inline Key get_key_from_user_metadata(Key metadata_key) {
 inline string serialize(const vector<Operation>& vec) {
   TxnValue txn_value;
   for (auto val : vec) {
-    OperationValue op;
-    op.set_key(val.get_key());
-    op.set_val(val.get_val());
-    txn_value.add_operations(op);
+    auto op_val = txn_value.add_operations();
+    op_val->set_key(val.get_key());
+    op_val->set_value(val.get_value());
+    
   }
 
   string serialized;
@@ -214,7 +215,7 @@ inline string serialize(const PriorityLattice<double, string>& l) {
   return serialized;
 }
 
-inline LWWPairLattice<string> deserialize_op(const string& serialized) {
+inline Operation deserialize_op(const string& serialized) {
   OperationValue op;
   op.ParseFromString(serialized);
 
