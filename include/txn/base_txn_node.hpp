@@ -12,45 +12,45 @@ public:
 
   TxnNode<K, vector<V>>(map<K, vector<V>> &other) { db = other; }
 
-  V get(const K &k, AnnaError &error) {
-    if (db.find(k) == db.end()) {
+  vector<V> get_ops(const string &txn_id, AnnaError &error) {
+    if (db.find(txn_id) == db.end()) {
       error = AnnaError::TXN_DNE;
-    }
-
-    return db.at(k);
-  }
-
-  void put(const K &k, const V &v) { 
-    bool contains_k = (db.find(k) != db.end());
-    // only update txn if it doesn't yet exist
-    if (!contains_k) {
-      vector<V> vec;
-      vec.push_back(v)
-      db[k] = vec;
     } else {
-      db.at(k).push_back(v);
+      return db.at(txn_id)
     }
-    return contains_k;
+    vector<V> vec;
+    return vec;
   }
 
-  void create_txn(const K &k) {
-    bool contains_k = (db.find(k) != db.end());
-    if (!contains_k) {
-      vector<V> vec;
-      db[k] = vec;
-    }
-    return contains_k;
-  }
-
-  unsigned size(const K &k) { return db.at(k).size(); }
-
-  // unsigned size(const K &k) { return db.at(k).size().reveal(); }
-
-  void remove(const K &k) { 
-    if (db.find(k) != db.end()) {
-      db.erase(k); 
+  void put_op(const string &txn_id, const V &v, AnnaError &error) { 
+    if (db.find(txn_id) == db.end()) {
+      error = AnnaError::TXN_DNE;
+    } else {
+      db.at(txn_id).push_back(v);
     }
   }
+
+  string create_txn(const string &client_id) {
+    // TODO(@accheng): should use time in txn_id?
+    string time = std::to_string(
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count());
+    string txn_id = client_id + ":" + time;
+    vector<V> vec;
+    db[txn_id] = vec;
+    return txn_id;
+  }
+
+  unsigned size(const string &txn_id) { return db.at(txn_id).size(); }
+
+  void commit_txn(const string &txn_id, AnnaError &error) {
+    if (db.find(txn_id) == db.end()) {
+      error = AnnaError::TXN_DNE;
+    } else {
+      db.erase(txn_id);
+    } 
+  }
+
 };
 
 #endif // INCLUDE_TXN_BASE_TXN_NODE_HPP_

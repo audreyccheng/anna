@@ -28,9 +28,10 @@ typedef BaseNode<Key, string> BaseStore;
 
 class TxnSerializer {
 public:
-  virtual string get(const Key &key, AnnaError &error) = 0;
-  virtual unsigned put(const Key &key, const string &serialized) = 0;
-  virtual void create_txn(const K &k) = 0;
+  virtual string get_ops(const string &txn_id, AnnaError &error) = 0;
+  virtual void put_op(const string &txn_id, const string &serialized) = 0;
+  virtual void create_txn(const string &client_id) = 0;
+  virtual void commit_txn(const string &txn_id) = 0;
   virtual void remove(const Key &key) = 0;
   virtual ~TxnSerializer(){};
 };
@@ -41,28 +42,23 @@ class BaseTxnSerializer : public TxnSerializer {
 public:
   BaseTxnSerializer(BaseTxn *base_txn_node_) : base_txn_node_(base_txn_node) {}
 
-  string get(const Key &key, AnnaError &error) {
-    auto vals = base_txn_node_->get(key, error);
-
-    // if (val == "") {
-    //   error = AnnaError::TXN_DNE;
-    // }
-
+  // TODO(@accheng): do we need this?
+  string get_ops(const string &txn_id, AnnaError &error) {
+    auto ops = base_txn_node_->get(key, error);
     return serialize(vals);
   }
 
-  unsigned put(const Key &key, const string &serialized) {
-    Operation val = deserialize_op(serialized);
-    base_txn_node_->put(key, val);
-    return base_txn_node_->size(key);
+  void put_op(const string &txn_id, const Key &k, const string &payload, AnnaError &error) {
+    base_txn_node_->put_op(txn_id, Operation(k, payload), error);
   }
 
-  void create_txn(const Key &key) {
-    base_txn_node_->create_txn(key);
+  string create_txn(const string &client_id) {
+    return base_txn_node_->create_txn(key);
   }
 
-  void remove(const Key &key) { base_txn_node_->remove(key); }
-
+  void commit_txn(const string &txn_id, AnnaError &error) {
+    base_txn_node_->commit_txn(txn_id, error);
+  }
 };
 
 class BaseSerializer {
@@ -103,19 +99,19 @@ public:
 // using SerializerMap =
 //     std::unordered_map<LatticeType, Serializer *, lattice_type_hash>;
 
-// struct PendingRequest {
-//   PendingRequest() {}
-//   PendingRequest(RequestType type, LatticeType lattice_type, string payload,
-//                  Address addr, string response_id)
-//       : type_(type), lattice_type_(std::move(lattice_type)),
-//         payload_(std::move(payload)), addr_(addr), response_id_(response_id) {}
+struct PendingTxnRequest {
+  PendingTxnRequest() {}
+  PendingTxnRequest(RequestType type, string txn_id, string payload,
+                 Address addr, string response_id)
+      : type_(type), txn_id_(std::move(txn_id)),
+        payload_(std::move(payload)), addr_(addr), response_id_(response_id) {}
 
-//   RequestType type_;
-//   LatticeType lattice_type_;
-//   string payload_;
-//   Address addr_;
-//   string response_id_;
-// };
+  RequestType type_;
+  string txn_id_;
+  string payload_;
+  Address addr_;
+  string response_id_;
+};
 
 // struct PendingGossip {
 //   PendingGossip() {}
