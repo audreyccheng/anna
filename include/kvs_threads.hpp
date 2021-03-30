@@ -34,6 +34,10 @@ const unsigned kServerReplicationResponsePort = 6150;
 // The port on which KVS servers listen for requests for data.
 const unsigned kKeyRequestPort = 6200;
 
+const unsigned kTxnRequestPort = 6220;
+
+const unsigned kStorageRequestPort = 6230;
+
 // The port on which KVS servers listen for gossip from other KVS nodes.
 const unsigned kGossipPort = 6250;
 
@@ -158,6 +162,22 @@ public:
 
   Address key_request_bind_address() const {
     return kBindBase + std::to_string(tid_ + kKeyRequestPort);
+  }
+
+  Address txn_request_connect_address() const {
+    return public_base_ + std::to_string(tid_ + kTxnRequestPort);
+  }
+
+  Address txn_request_bind_address() const {
+    return kBindBase + std::to_string(tid_ + kTxnRequestPort);
+  }
+
+  Address storage_request_connect_address() const {
+    return public_base_ + std::to_string(tid_ + kStorageRequestPort);
+  }
+
+  Address storage_request_bind_address() const {
+    return kBindBase + std::to_string(tid_ + kStorageRequestPort);
   }
 
   Address replication_response_connect_address() const {
@@ -308,6 +328,8 @@ public:
     return kBindBase + std::to_string(kFeedbackReportPort);
   }
 };
+
+// TDOD(@accheng): add TxnThread
 
 class BenchmarkThread {
 public:

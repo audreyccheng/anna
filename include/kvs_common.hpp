@@ -33,15 +33,18 @@ const unsigned kSloWorst = 3000;
 extern Tier kSelfTier;
 extern vector<Tier> kSelfTierIdVector;
 
+extern unsigned kTxnNodeCapacity;
 extern unsigned kMemoryNodeCapacity;
 extern unsigned kEbsNodeCapacity;
 
 // the number of threads running in this executable
 extern unsigned kThreadNum;
+extern unsigned kTxnThreadCount;
 extern unsigned kMemoryThreadCount;
 extern unsigned kEbsThreadCount;
 extern unsigned kRoutingThreadCount;
 
+extern unsigned kDefaultGlobalTxnReplication;
 extern unsigned kDefaultGlobalMemoryReplication;
 extern unsigned kDefaultGlobalEbsReplication;
 extern unsigned kDefaultLocalReplication;
