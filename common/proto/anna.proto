@@ -214,6 +214,9 @@ message KeyAddressRequest {
   // A unique ID used by the client to match asynchornous requests with
   // responses.
   string request_id = 3;
+
+  // A boolean to indicate if this is a request for the transactional tier
+  bool txn_tier;
 }
 
 // A 1-to-1 response from the routing tier for individual KeyAddressRequests.

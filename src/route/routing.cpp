@@ -139,7 +139,7 @@ void run(unsigned thread_id, Address ip, vector<Address> monitoring_ips) {
 
     if (pollitems[4].revents & ZMQ_POLLIN) {
       string serialized = kZmqUtil->recv_string(&key_address_puller);
-      address_handler(log, serialized, pushers, rt, global_hash_rings,
+      address_handler(log, serialized, pushers, rt, global_hash_rings, // --> only return txn threads
                       local_hash_rings, key_replication_map, pending_requests,
                       seed);
     }

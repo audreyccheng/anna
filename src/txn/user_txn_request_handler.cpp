@@ -31,9 +31,9 @@ void user_txn_request_handler(
 
     // TODO(@accheng): need to change this
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-        wt.replication_response_connect_address(), key, is_metadata(key),
-        global_hash_rings, local_hash_rings, key_replication_map, pushers,
-        kSelfTierIdVector, succeed, seed);
+        wt.replication_response_connect_address(), key, is_metadata(key), 
+        true /* txn_tier */, global_hash_rings, local_hash_rings, 
+        key_replication_map, pushers, kSelfTierIdVector, succeed, seed);
 
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
@@ -49,7 +49,7 @@ void user_txn_request_handler(
           // if we don't know what threads are responsible, we issue a rep
           // factor request and make the request pending
           // kHashRingUtil->issue_replication_factor_request(
-          //     wt.replication_response_connect_address(), key,
+          //     wt.replication_response_connect_address(), key, true /* txn_tier */, 
           //     global_hash_rings[Tier::MEMORY], local_hash_rings[Tier::MEMORY],
           //     pushers, seed);
 
@@ -80,7 +80,7 @@ void user_txn_request_handler(
           // look at hash ring, find right thread, kZmqUtil->send_string(
           // put in pending request
           // kHashRingUtil->issue_replication_factor_request( --> send TxnRequest to storage tier
-          //     wt.replication_response_connect_address(), key, --> handler for pending request
+          //     wt.replication_response_connect_address(), key, true /* txn_tier */, --> handler for pending request
           //     global_hash_rings[Tier::MEMORY], local_hash_rings[Tier::MEMORY],
           //     pushers, seed);
 

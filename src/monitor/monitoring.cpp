@@ -245,7 +245,7 @@ int main(int argc, char *argv[]) {
         Key key = key_access_pair.first;
         if (!is_metadata(key) &&
             key_replication_map.find(key) == key_replication_map.end()) {
-          init_replication(key_replication_map, key);
+          init_replication(key_replication_map, key); // TODO(@accheng): update
         }
       }
 

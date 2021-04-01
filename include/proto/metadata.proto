@@ -58,6 +58,9 @@ enum Tier {
 
   // The value for the routing tier.
   ROUTING = 3;
+
+  // The value for the transactional layer tier.
+  TXN = 4;
 }
 
 // A message to track which physical servers are a part of which Anna

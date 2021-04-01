@@ -748,9 +748,10 @@ class TxnClient : public TxnClientInterface {
     request.set_request_id(get_request_id());
     request.set_response_address(ut_.key_address_connect_address());
     request.add_keys(key);
+    request.set_txn_tier(true);
 
     Address rt_thread = get_routing_thread();
-    send_request<KeyAddressRequest>(request, socket_cache_[rt_thread]);
+    send_request<KeyAddressRequest>(request, socket_cache_[rt_thread]); // --> this should only return txn threads
   }
 
   /**
@@ -837,10 +838,10 @@ class TxnClient : public TxnClientInterface {
   map<Key, pair<TimePoint, vector<TxnRequest>>> pending_txn_map_;
 
   // keeps track of pending txn start and commit responses
-  map<Key, PendingTxn> pending_txn_response_map_;
+  map<string, PendingTxn> pending_txn_response_map_;
 
   // keeps track of pending txn put and get responses
-  map<Key, map<string, PendingTxn>> pending_txn_key_response_map_;
+  map<string, map<string, PendingTxn>> pending_txn_key_response_map_;
 };
 
 #endif  // INCLUDE_ASYNC_TXN_CLIENT_HPP_
