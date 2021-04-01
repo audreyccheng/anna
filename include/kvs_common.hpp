@@ -25,7 +25,8 @@ const unsigned kVirtualThreadNum = 3000;
 
 const vector<Tier> kAllTiers = {
     Tier::MEMORY,
-    Tier::DISK}; // TODO(vikram): Is there a better way to make this vector?
+    Tier::DISK,
+    Tier::TXN}; // TODO(vikram): Is there a better way to make this vector?
 
 const unsigned kSloWorst = 3000;
 
@@ -62,6 +63,18 @@ inline void prepare_put_tuple(KeyRequest &req, Key key,
   KeyTuple *tp = req.add_tuples();
   tp->set_key(std::move(key));
   tp->set_lattice_type(std::move(lattice_type));
+  tp->set_payload(std::move(payload));
+}
+
+inline void prepare_txn_get_tuple(TxnRequest &req, Key key) {
+  TxnKeyTuple *tp = req.add_tuples();
+  tp->set_key(std::move(key));
+}
+
+inline void prepare_txn_put_tuple(TxnRequest &req, Key key,
+                                  string payload) {
+  TxnKeyTuple *tp = req.add_tuples();
+  tp->set_key(std::move(key));
   tp->set_payload(std::move(payload));
 }
 

@@ -21,7 +21,7 @@
 // get all threads responsible for a key from the "node_type" tier
 // metadata flag = 0 means the key is  metadata; otherwise, it is  regular data
 ServerThreadList HashRingUtil::get_responsible_threads(
-    Address response_address, const Key &key, bool metadata,
+    Address response_address, const Key &key, bool metadata, bool txn_tier,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
     const vector<Tier> &tiers, bool &succeed, unsigned &seed) {
@@ -33,9 +33,15 @@ ServerThreadList HashRingUtil::get_responsible_threads(
     ServerThreadList result;
 
     if (key_replication_map.find(key) == key_replication_map.end()) {
-      kHashRingUtil->issue_replication_factor_request(
-          response_address, key, global_hash_rings[Tier::MEMORY],
-          local_hash_rings[Tier::MEMORY], pushers, seed);
+      if (txn_tier) {
+        kHashRingUtil->issue_replication_factor_request(
+            response_address, key, txn_tier, global_hash_rings[Tier::TXN],
+            local_hash_rings[Tier::TXN], pushers, seed);
+      } else { // TODO(@accheng): should a key start in memory tier?
+        kHashRingUtil->issue_replication_factor_request(
+            response_address, key, txn_tier, global_hash_rings[Tier::MEMORY],
+            local_hash_rings[Tier::MEMORY], pushers, seed);
+      }
       succeed = false;
     } else {
       for (const Tier &tier : tiers) {
@@ -194,7 +200,7 @@ ServerThreadList HashRingUtilInterface::get_responsible_threads_metadata(
 }
 
 void HashRingUtilInterface::issue_replication_factor_request(
-    const Address &response_address, const Key &key,
+    const Address &response_address, const Key &key, bool txn_tier,
     GlobalHashRing &global_memory_hash_ring,
     LocalHashRing &local_memory_hash_ring, SocketCache &pushers,
     unsigned &seed) {
@@ -202,16 +208,38 @@ void HashRingUtilInterface::issue_replication_factor_request(
   auto threads = kHashRingUtil->get_responsible_threads_metadata(
       replication_key, global_memory_hash_ring, local_memory_hash_ring);
 
-  Address target_address =
-      std::next(begin(threads), rand_r(&seed) % threads.size())
-          ->key_request_connect_address();
+  Address target_address;
+  // TODO(@accheng): change from random thread to primary one
+  if (txn_tier) {
+    target_address = std::next(begin(threads), rand_r(&seed) % threads.size())
+      ->txn_request_connect_address();
+  } else {
+    target_address = std::next(begin(threads), rand_r(&seed) % threads.size()) // --> these threads should only be storage threads, NOT txn threads
+      ->storage_request_connect_address();
+          // ->key_request_connect_address(); // -> this should be storage_request_connect_address()
+  }
 
-  KeyRequest key_request;
-  key_request.set_type(RequestType::GET);
+  // KeyRequest key_request;
+  // key_request.set_type(RequestType::GET);
+  // key_request.set_response_address(response_address);
+
+  // prepare_get_tuple(key_request, replication_key, LatticeType::LWW);
+  // string serialized;
+  // key_request.SerializeToString(&serialized);
+
+
+  TxnRequest key_request;
+  // TODO(@accheng): different init for different tiers?
+  if (txn_tier) {
+    key_request.set_type(RequestType::START_TXN);
+  } else {
+    key_request.set_type(RequestType::TXN_GET);
+  }
   key_request.set_response_address(response_address);
 
-  prepare_get_tuple(key_request, replication_key, LatticeType::LWW);
+  prepare_txn_get_tuple(key_request, replication_key);
   string serialized;
   key_request.SerializeToString(&serialized);
   kZmqUtil->send_string(serialized, &pushers[target_address]);
 }
+

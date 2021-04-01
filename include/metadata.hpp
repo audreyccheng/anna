@@ -36,6 +36,12 @@ struct KeyProperty {
   LatticeType type_;
 };
 
+// TODO(@accheng): update
+struct TxnKeyProperty {
+  unsigned num_ops_;
+};
+
+
 inline bool operator==(const KeyReplication &lhs, const KeyReplication &rhs) {
   for (const auto &pair : lhs.global_replication_) {
     Tier id = pair.first;
@@ -185,8 +191,12 @@ inline void warmup_key_replication_map_to_defaults(
 }
 
 inline void init_replication(map<Key, KeyReplication> &key_replication_map,
-                             const Key &key) {
+                             const Key &key, bool txn_tier) {
   for (const Tier &tier : kAllTiers) {
+    if (txn_tier && tier != Tier::TXN ||
+       !txn_tier && tier == Tier::TXN) {
+      continue;
+    }
     key_replication_map[key].global_replication_[tier] =
         kTierMetadata[tier].default_replication_;
     key_replication_map[key].local_replication_[tier] =
