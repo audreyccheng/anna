@@ -32,12 +32,17 @@ MPID=$!
 ./build/target/kvs/anna-route &
 RPID=$!
 export SERVER_TYPE="memory"
-./build/target/kvs/anna-kvs &
+./build/target/kvs/anna-txn &
 SPID=$!
+export SERVER_TYPE="txn"
+./build/target/kvs/anna-txn &
+S2PID=$!
+# ./build/target/kvs/anna-kvs &
 
 echo $MPID > pids
 echo $RPID >> pids
 echo $SPID >> pids
+echo $S2PID >> pids
 
 if [ "$2" = "y" ] || [ "$2" = "yes" ]; then
   ./build/cli/anna-cli conf/anna-local.yml

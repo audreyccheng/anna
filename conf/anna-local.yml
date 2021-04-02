@@ -26,14 +26,17 @@ policy:
   tiering: false
 ebs: ./
 capacities: # in GB
+  txn-cap: 1
   memory-cap: 1 
   ebs-cap: 0
 threads:
+  txn: 1
   memory: 1
   ebs: 1
   routing: 1
   benchmark: 1
 replication:
+  txn: 1
   memory: 1
   ebs: 0
   minimum: 1

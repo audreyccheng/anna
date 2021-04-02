@@ -77,6 +77,7 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
       tp->set_key(key);
       respond = true;
 
+      // TODO(@accheng): should just be 1 thread? separate method for primary thread?
       for (const ServerThread &thread : threads) {
         // send transaction or storage request handler addresses
         if (addr_request.txn_tier()) {
