@@ -58,11 +58,11 @@ void replication_response_handler(
     auto respond_address = rt.replication_response_connect_address();
     if (txn_tier) {
       kHashRingUtil->issue_replication_factor_request(
-        respond_address, key, global_hash_rings[Tier::TXN],
+        respond_address, key, Tier::TXN, global_hash_rings[Tier::TXN],
         local_hash_rings[Tier::TXN], pushers, seed);
     } else {
       kHashRingUtil->issue_replication_factor_request(
-        respond_address, key, global_hash_rings[Tier::MEMORY],
+        respond_address, key, Tier::MEMORY, global_hash_rings[Tier::MEMORY],
         local_hash_rings[Tier::MEMORY], pushers, seed);
     }
     return;
@@ -85,7 +85,7 @@ void replication_response_handler(
       }
 
       threads = kHashRingUtil->get_responsible_threads(
-        rt.replication_response_connect_address(), key, false, txn_tier,
+        rt.replication_response_connect_address(), key, false, tier,
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         {tier}, succeed, seed);
 

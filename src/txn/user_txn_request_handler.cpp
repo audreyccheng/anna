@@ -29,7 +29,6 @@ void user_txn_request_handler(
     Key key = tuple.key();
     string payload = tuple.payload();
 
-    // TODO(@accheng): need to change this
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), key, is_metadata(key), 
         true /* txn_tier */, global_hash_rings, local_hash_rings, 
@@ -39,34 +38,36 @@ void user_txn_request_handler(
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
 
         // TODO(@accheng): update
-        // if (is_metadata(key)) {
-        //   // this means that this node is not responsible for this metadata key
+        if (is_metadata(key)) {
+          // this means that this node is not responsible for this metadata key
           TxnKeyTuple *tp = response.add_tuples();
 
           tp->set_key(key);
           tp->set_error(AnnaError::WRONG_THREAD);
-        // } else {
+        } else {
           // if we don't know what threads are responsible, we issue a rep
           // factor request and make the request pending
-          // kHashRingUtil->issue_replication_factor_request(
-          //     wt.replication_response_connect_address(), key, true /* txn_tier */, 
-          //     global_hash_rings[Tier::MEMORY], local_hash_rings[Tier::MEMORY],
-          //     pushers, seed);
+          kHashRingUtil->issue_replication_factor_request(
+              wt.replication_response_connect_address(), key, Tier::TXN, 
+              global_hash_rings[Tier::TXN], local_hash_rings[Tier::TXN],
+              pushers, seed);
 
-          // pending_requests[key].push_back(
-          //     PendingRequest(request_type, tuple.lattice_type(), payload,
-          //                    response_address, response_id));
-        // }
+          pending_requests[key].push_back(
+              PendingRequest(request_type, tuple.lattice_type(), payload,
+                             response_address, response_id));
+        }
       } else { // if we know the responsible threads, we process the request
         TxnKeyTuple *tp = response.add_tuples();
         tp->set_key(key);
 
         if (request_type == RequestType::START_TXN) {
-          // TODO(@accheng): should there be error?
-          // if (stored_key_map.find(key) == stored_key_map.end()) {
+          if (stored_txn_map.find(request.txn_id()) == stored_txn_map.end()) {
           auto txn_id = process_start_txn(key, serializer, stored_txn_map);
           response.set_txn_id(txn_id);
-          // }
+
+          
+            tp->set_error(AnnaError::TXN_DNE);
+          } 
         } else if (request_type == RequestType::TXN_GET) {
           if (stored_txn_map.find(request.txn_id()) == stored_txn_map.end()) {
             tp->set_error(AnnaError::TXN_DNE);

@@ -57,8 +57,8 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
           }
           threads = kHashRingUtil->get_responsible_threads(
               rt.replication_response_connect_address(), key, is_metadata(key), 
-              addr_request.txn_tier(), global_hash_rings, local_hash_rings, 
-              key_replication_map, pushers, {tier}, succeed, seed);
+              global_hash_rings, local_hash_rings, key_replication_map,
+              pushers, {tier}, succeed, seed);
 
           if (threads.size() > 0) {
             break;

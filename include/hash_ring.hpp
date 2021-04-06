@@ -84,7 +84,7 @@ typedef hmap<Tier, LocalHashRing, TierEnumHash> LocalRingMap;
 class HashRingUtilInterface {
 public:
   virtual ServerThreadList get_responsible_threads(
-      Address respond_address, const Key &key, bool metadata, bool txn_tier,
+      Address respond_address, const Key &key, bool metadata,
       GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
       map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
       const vector<Tier> &tiers, bool &succeed, unsigned &seed) = 0;
@@ -95,7 +95,7 @@ public:
                                    LocalHashRing &local_memory_hash_ring);
 
   void issue_replication_factor_request(const Address &respond_address,
-                                        const Key &key, bool txn_tier,
+                                        const Key &key, const Tier &tier,
                                         GlobalHashRing &global_memory_hash_ring,
                                         LocalHashRing &local_memory_hash_ring,
                                         SocketCache &pushers, unsigned &seed);
