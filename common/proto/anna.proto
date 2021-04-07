@@ -83,7 +83,11 @@ enum AnnaError {
   // cluster.
   NO_SERVERS = 5;
 
+  // The transaction operation was unsuccessful.
   FAILED_OP = 6;
+
+  // The requested log record does not exist.
+  LOG_DNE = 7;
 }
 
 // ANNA KVS REQUESTS

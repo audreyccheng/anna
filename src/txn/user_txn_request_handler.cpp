@@ -29,10 +29,19 @@ void user_txn_request_handler(
     Key key = tuple.key();
     string payload = tuple.payload();
 
-    ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-        wt.replication_response_connect_address(), key, is_metadata(key), 
-        global_hash_rings, local_hash_rings, key_replication_map, 
-        pushers, kSelfTierIdVector, succeed, seed);
+    // a START_TXN request doesn't have a txn_id
+    ServerThreadList threads;
+    if (request_type == RequestType::START_TXN) {
+      threads = kHashRingUtil->get_responsible_threads(
+          wt.replication_response_connect_address(), key, is_metadata(key), 
+          global_hash_rings, local_hash_rings, key_replication_map, 
+          pushers, kSelfTierIdVector, succeed, seed);
+    } else {
+      threads = kHashRingUtil->get_responsible_threads(
+          wt.replication_response_connect_address(), txn_id, is_metadata(txn_id), 
+          global_hash_rings, local_hash_rings, key_replication_map, 
+          pushers, kSelfTierIdVector, succeed, seed);
+    }
 
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
@@ -59,13 +68,13 @@ void user_txn_request_handler(
         tp->set_key(key);
 
         if (request_type == RequestType::START_TXN) {
-          if (stored_txn_map.find(request.txn_id()) == stored_txn_map.end()) {
-          auto txn_id = process_start_txn(key, serializer, stored_txn_map);
-          response.set_txn_id(txn_id);
-
-          
+          // if this is a replication request, signal that this key doesn't yet exist
+          if (stored_txn_map.find(key) == stored_txn_map.end() && is_metadata(key)) {
             tp->set_error(AnnaError::TXN_DNE);
-          } 
+          } else { // TODO(@accheng): update
+            auto txn_id = process_start_txn(key, serializer, stored_txn_map);
+            response.set_txn_id(txn_id);
+          }
         } else if (request_type == RequestType::TXN_GET) {
           if (stored_txn_map.find(request.txn_id()) == stored_txn_map.end()) {
             tp->set_error(AnnaError::TXN_DNE);

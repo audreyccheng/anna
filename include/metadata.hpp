@@ -39,6 +39,7 @@ struct KeyProperty {
 // TODO(@accheng): update
 struct TxnKeyProperty {
   unsigned num_ops_;
+  unsigned lock_; // 0 = no lock, 1 = read lock, 2 = write lock
 };
 
 
@@ -193,6 +194,7 @@ inline void warmup_key_replication_map_to_defaults(
 inline void init_replication(map<Key, KeyReplication> &key_replication_map,
                              const Key &key, bool txn_tier) {
   for (const Tier &tier : kAllTiers) {
+    // TODO(@accheng): should this only be on one tier?
     if (txn_tier && tier != Tier::TXN ||
        !txn_tier && tier == Tier::TXN) {
       continue;

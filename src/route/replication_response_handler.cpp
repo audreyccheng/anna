@@ -53,7 +53,7 @@ void replication_response_handler(
   } else if (error == AnnaError::KEY_DNE) {
     // this means that the receiving thread was responsible for the metadata
     // but didn't have any values stored -- we use the default rep factor
-    init_replication(key_replication_map, key, txn_tier);
+    init_replication(key_replication_map, key, txn_tier); 
   } else if (error == AnnaError::WRONG_THREAD) {
     // this means that the node that received the rep factor request was not
     // responsible for that metadata

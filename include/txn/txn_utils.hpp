@@ -64,7 +64,7 @@ public:
 class BaseSerializer {
 public:
   virtual string get(const Key &key, AnnaError &error) = 0;
-  virtual unsigned put(const Key &key, const string &serialized) = 0;
+  virtual void put(const Key &key, const string &serialized) = 0;
   virtual void remove(const Key &key) = 0;
   virtual ~BaseSerializer(){};
 };
@@ -86,10 +86,10 @@ public:
     return val;
   }
 
-  unsigned put(const Key &key, const string &serialized) {
+  void put(const Key &key, const string &serialized) {
     // Operation val = deserialize_op(serialized);
     base_txn_node_->put(key, serialized);
-    return base_txn_node_->size(key);
+    // return base_txn_node_->size(key);
   }
 
   void remove(const Key &key) { base_node_->remove(key); }

@@ -135,7 +135,7 @@ class TxnClient : public TxnClientInterface {
       // No transaction id yet
       request.set_txn_id("");
 
-      try_txn_request(request);
+      try_txn_request(request, client_id);
     }
   }
 
@@ -148,7 +148,7 @@ class TxnClient : public TxnClientInterface {
       request.set_type(RequestType::TXN_GET);
       request.set_txn_id(txn_id);
 
-      try_txn_request(request);
+      try_txn_request(request, client_id);
     // }
   }
 
@@ -158,7 +158,7 @@ class TxnClient : public TxnClientInterface {
     request.set_type(RequestType::TXN_PUT);
     tuple->set_payload(payload);
 
-    try_txn_request(request);
+    try_txn_request(request, client_id);
     return request.request_id();
   }
 
@@ -171,7 +171,7 @@ class TxnClient : public TxnClientInterface {
       request.set_type(RequestType::COMMIT_TXN);
       request.set_txn_id(txn_id);
 
-      try_txn_request(request);
+      try_txn_request(request, client_id);
     }
   }
 
@@ -494,7 +494,7 @@ class TxnClient : public TxnClientInterface {
     // we only get NULL back for the worker thread if the query to the routing
     // tier timed out, which should never happen.
     Key key = request.tuples(0).key();
-    Address worker = get_worker_thread(key, false);
+    Address worker = get_worker_thread(false);
     if (worker.length() == 0) {
       // this means a key addr request is issued asynchronously
       if (pending_request_map_.find(key) == pending_request_map_.end()) {
@@ -529,11 +529,11 @@ class TxnClient : public TxnClientInterface {
     }
   }
 
-  void try_txn_request(TxnRequest& request) {
+  void try_txn_request(TxnRequest& request, const string &client_id) {
     // we only get NULL back for the worker thread if the query to the routing
     // tier timed out, which should never happen.
     Key key = request.tuples(0).key();
-    Address worker = get_worker_thread(key, true);
+    Address worker = get_worker_thread(client_id, true);
     if (worker.length() == 0) {
       // this means a key addr request is issued asynchronously
       if (pending_txn_map_.find(key) == pending_txn_map_.end()) {
