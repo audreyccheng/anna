@@ -78,4 +78,15 @@ inline void prepare_txn_put_tuple(TxnRequest &req, Key key,
   tp->set_payload(std::move(payload));
 }
 
+inline Tier get_random_tier() {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> distr(0, 1);
+  if (distr(gen) == 0) {
+    return Tier::MEMORY;
+  }
+  return Tier::DISK;
+}
+
+
 #endif // KVS_INCLUDE_KVS_COMMON_HPP_

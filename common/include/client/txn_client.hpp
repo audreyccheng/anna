@@ -130,7 +130,7 @@ class TxnClient : public TxnClientInterface {
     if (pending_txn_response_map_.find(client_id) ==
         pending_txn_response_map_.end()) {
       TxnRequest request;
-      prepare_txn_data_request(request, client_id);
+      prepare_txn_data_request(request, client_id); // TODO(@accheng): change this to txn_id
       request.set_type(RequestType::START_TXN);
       // No transaction id yet
       request.set_txn_id("");

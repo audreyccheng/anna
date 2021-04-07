@@ -31,13 +31,11 @@ void user_txn_request_handler(
 
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), key, is_metadata(key), 
-        true /* txn_tier */, global_hash_rings, local_hash_rings, 
-        key_replication_map, pushers, kSelfTierIdVector, succeed, seed);
+        global_hash_rings, local_hash_rings, key_replication_map, 
+        pushers, kSelfTierIdVector, succeed, seed);
 
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
-
-        // TODO(@accheng): update
         if (is_metadata(key)) {
           // this means that this node is not responsible for this metadata key
           TxnKeyTuple *tp = response.add_tuples();

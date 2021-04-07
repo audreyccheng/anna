@@ -25,12 +25,14 @@ void replication_response_handler(
   // replication factor request
   TxnKeyTuple tuple = response.tuples(0);
 
-  Key key = get_key_from_metadata(tuple.key()); // TODO(@accheng): update?
+  Key key = get_key_from_metadata(tuple.key());
 
   AnnaError error = tuple.error();
 
   bool txn_tier = false;
-  if (response.type() == Tier::TXN) {
+  // if the request type is START_TXN, this request was from the txn tier
+  // otherwise, it was from a storage tier
+  if (response.type() == RequestType::START_TXN) {
     txn_tier = true;
   }
 
@@ -61,9 +63,11 @@ void replication_response_handler(
         respond_address, key, Tier::TXN, global_hash_rings[Tier::TXN],
         local_hash_rings[Tier::TXN], pushers, seed);
     } else {
+      // TODO(@accheng): should we be randomly choosing the tier here?
+      auto key_tier = get_random_tier();
       kHashRingUtil->issue_replication_factor_request(
-        respond_address, key, Tier::MEMORY, global_hash_rings[Tier::MEMORY],
-        local_hash_rings[Tier::MEMORY], pushers, seed);
+        respond_address, key, key_tier, global_hash_rings[key_tier],
+        local_hash_rings[key_tier], pushers, seed);
     }
     return;
   } else {

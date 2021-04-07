@@ -33,7 +33,9 @@ enum RequestType {
 
   TXN_PUT = 5;
 
-  COMMIT_TXN = 6;
+  PREPARE_TXN = 6;
+
+  COMMIT_TXN = 7;
 }
 
 enum LatticeType { 

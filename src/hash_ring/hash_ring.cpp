@@ -78,16 +78,6 @@ ServerThreadList HashRingUtil::get_responsible_threads(
   }
 }
 
-Tier get_random_tier() {
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<> distr(0, 1);
-  if (distr(gen) == 0) {
-    return Tier::MEMORY;
-  }
-  return Tier::DISK;
-}
-
 // assuming the replication factor will never be greater than the number of
 // nodes in a tier return a set of ServerThreads that are responsible for a key
 ServerThreadList responsible_global(const Key &key, unsigned global_rep,
