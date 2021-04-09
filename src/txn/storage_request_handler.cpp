@@ -31,6 +31,7 @@ void user_request_handler(
   response.set_response_id(request.request_id());
 
   response.set_type(request.type());
+  response.set_tier(kSelfTier);
 
   bool succeed;
   RequestType request_type = request.type();

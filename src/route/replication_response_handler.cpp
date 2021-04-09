@@ -26,15 +26,9 @@ void replication_response_handler(
   TxnKeyTuple tuple = response.tuples(0);
 
   Key key = get_key_from_metadata(tuple.key());
+  Tier key_tier = response.tier();
 
   AnnaError error = tuple.error();
-
-  bool txn_tier = false;
-  // if the request type is START_TXN, this request was from the txn tier
-  // otherwise, it was from a storage tier
-  if (response.type() == RequestType::START_TXN) {
-    txn_tier = true;
-  }
 
   if (error == AnnaError::NO_ERROR) {
     LWWValue lww_value;
@@ -53,22 +47,14 @@ void replication_response_handler(
   } else if (error == AnnaError::KEY_DNE) {
     // this means that the receiving thread was responsible for the metadata
     // but didn't have any values stored -- we use the default rep factor
-    init_replication(key_replication_map, key, txn_tier); 
+    init_tier_replication(key_replication_map, key, key_tier); 
   } else if (error == AnnaError::WRONG_THREAD) {
     // this means that the node that received the rep factor request was not
     // responsible for that metadata
     auto respond_address = rt.replication_response_connect_address();
-    if (txn_tier) {
-      kHashRingUtil->issue_replication_factor_request(
-        respond_address, key, Tier::TXN, global_hash_rings[Tier::TXN],
-        local_hash_rings[Tier::TXN], pushers, seed);
-    } else {
-      // TODO(@accheng): should we be randomly choosing the tier here?
-      auto key_tier = get_random_tier();
-      kHashRingUtil->issue_replication_factor_request(
-        respond_address, key, key_tier, global_hash_rings[key_tier],
-        local_hash_rings[key_tier], pushers, seed);
-    }
+    kHashRingUtil->issue_replication_factor_request(
+      respond_address, key, key_tier, global_hash_rings[key_tier],
+      local_hash_rings[key_tier], pushers, seed);
     return;
   } else {
     log->error("Unexpected error type {} in replication factor response.",
@@ -81,17 +67,17 @@ void replication_response_handler(
     bool succeed;
     ServerThreadList threads = {};
 
-    for (const Tier &tier : kAllTiers) {
-      // Only txn tier should serve txn requests and vice versa for storage tiers
-      if (txn_tier && tier != Tier::TXN || 
-         !txn_tier && tier == Tier::TXN) {
-        continue;
-      }
+    // for (const Tier &tier : kAllTiers) {
+    //   // Only txn tier should serve txn requests and vice versa for storage tiers
+    //   if (txn_tier && tier != Tier::TXN || 
+    //      !txn_tier && tier == Tier::TXN) {
+    //     continue;
+    //   }
 
       threads = kHashRingUtil->get_responsible_threads(
-        rt.replication_response_connect_address(), key, false, tier,
+        rt.replication_response_connect_address(), key, false, key_tier,
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
-        {tier}, succeed, seed);
+        {key_tier}, succeed, seed);
 
       if (threads.size() > 0) {
         break;
@@ -101,7 +87,7 @@ void replication_response_handler(
         log->error("Missing replication factor for key {}.", key);
         return;
       }
-    }
+    // }
 
     for (const auto &pending_key_req : pending_requests[key]) {
       KeyAddressResponse key_res;

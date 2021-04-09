@@ -4,7 +4,7 @@ void user_txn_request_handler(
     unsigned &access_count, unsigned &seed, string &serialized, logger log,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     // map<Key, vector<PendingRequest>> &pending_requests,
-    map<string, map<string, PendingRequest>> &pending_requests, // <txn_id, <request_id, PendingTxnRequest>> 
+    map<string, vector<PendingTxnRequest>> &pending_requests, // <txn_id, <request_id, PendingTxnRequest>> 
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
     map<Key, TxnKeyProperty> &stored_txn_map,
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
@@ -17,6 +17,7 @@ void user_txn_request_handler(
   response.set_response_id(request.request_id());
 
   response.set_type(request.type());
+  response.set_tier(kSelfTier);
 
   bool succeed;
   RequestType request_type = request.type();
@@ -26,22 +27,19 @@ void user_txn_request_handler(
   // TODO(@accheng): should only be one tuple?
   for (const auto &tuple : request.tuples()) {
     // first check if the thread is responsible for the key
-    Key key = tuple.key();
+    Key tuple_key = tuple.key();
     string payload = tuple.payload();
 
-    // a START_TXN request doesn't have a txn_id
-    ServerThreadList threads;
+    Key key = txn_id;
     if (request_type == RequestType::START_TXN) {
-      threads = kHashRingUtil->get_responsible_threads(
-          wt.replication_response_connect_address(), key, is_metadata(key), 
-          global_hash_rings, local_hash_rings, key_replication_map, 
-          pushers, kSelfTierIdVector, succeed, seed);
-    } else {
-      threads = kHashRingUtil->get_responsible_threads(
-          wt.replication_response_connect_address(), txn_id, is_metadata(txn_id), 
-          global_hash_rings, local_hash_rings, key_replication_map, 
-          pushers, kSelfTierIdVector, succeed, seed);
+      // a START_TXN request doesn't have a txn_id so we use client_id
+      key = tuple_key;
     }
+
+    ServerThreadList threads = kHashRingUtil->get_responsible_threads(
+        wt.replication_response_connect_address(), key, is_metadata(key), 
+        global_hash_rings, local_hash_rings, key_replication_map, 
+        pushers, kSelfTierIdVector, succeed, seed);
 
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
@@ -59,8 +57,9 @@ void user_txn_request_handler(
               global_hash_rings[Tier::TXN], local_hash_rings[Tier::TXN],
               pushers, seed);
 
-          pending_requests[key].push_back(
-              PendingRequest(request_type, tuple.lattice_type(), payload,
+          // since this is a new client request, key is client_id instead of txn_id
+          pending_requests[key].push_back( 
+              PendingTxnRequest(request_type, key, payload,
                              response_address, response_id));
         }
       } else { // if we know the responsible threads, we process the request
@@ -74,9 +73,21 @@ void user_txn_request_handler(
           } else { // TODO(@accheng): update
             auto txn_id = process_start_txn(key, serializer, stored_txn_map);
             response.set_txn_id(txn_id);
+
+            // make sure all relevant threads know that it is now responsbile for this txn_id
+            kHashRingUtil->issue_replication_factor_request(
+              wt.replication_response_connect_address(), txn_id, Tier::TXN, 
+              global_hash_rings[Tier::TXN], local_hash_rings[Tier::TXN],
+              pushers, seed);
+
+             pending_requests[key].push_back(
+              PendingTxnRequest(request_type, txn_id, payload,
+                             response_address, response_id));
           }
         } else if (request_type == RequestType::TXN_GET) {
-          if (stored_txn_map.find(request.txn_id()) == stored_txn_map.end()) {
+          // TODO(@accheng): check if the START_TXN for this request is still pending ???
+          if (stored_txn_map.find(request.txn_id()) == stored_txn_map.end() &&
+              !pending_requests.contains(txn_id)) {
             tp->set_error(AnnaError::TXN_DNE);
           } else {
             AnnaError error = AnnaError::NO_ERROR;
@@ -129,7 +140,7 @@ void user_txn_request_handler(
       }
     } else {
       pending_requests[key].push_back(
-          PendingRequest(request_type, tuple.lattice_type(), payload,
+          PendingTxnRequest(request_type, key, payload,
                          response_address, response_id));
     }
   }

@@ -15,6 +15,7 @@
 syntax = "proto3";
 
 import "shared.proto";
+import "include/proto/metadata.proto";
 
 // An enum to differentiate between different KVS requests.
 enum RequestType {
@@ -185,7 +186,11 @@ message TxnResponse {
   // request times out.
   AnnaError error = 4;
 
+  // Transaction id associated with this response.
   string txn_id = 5;
+
+  // Tier this response is being sent from.
+  Tier tier = 6;
 }
 
 // A response to a KeyRequest. 

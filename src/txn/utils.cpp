@@ -65,9 +65,16 @@ void process_put(const Key &key, LatticeType lattice_type,
 }
 
 /* Txn functions */
+
 void process_start_txn(const string &client_id, TxnSerializer *serializer,
                        map<Key, TxnKeyProperty> &stored_txn_map) {
   string txn_id = serializer->create_txn(client_id);
+  stored_txn_map[txn_id].num_ops_ = 0;
+}
+
+void process_put_start_txn(const string &txn_id, TxnSerializer *serializer,
+                       map<Key, TxnKeyProperty> &stored_txn_map) {
+  serializer->put_start_txn(txn_id);
   stored_txn_map[txn_id].num_ops_ = 0;
 }
 

@@ -30,6 +30,7 @@ class TxnSerializer {
 public:
   virtual string get_ops(const string &txn_id, AnnaError &error) = 0;
   virtual void put_op(const string &txn_id, const string &serialized) = 0;
+  virtual void put_start_txn(const string &txn_id) = 0;
   virtual void create_txn(const string &client_id) = 0;
   virtual void commit_txn(const string &txn_id) = 0;
   virtual void remove(const Key &key) = 0;
@@ -50,6 +51,10 @@ public:
 
   void put_op(const string &txn_id, const Key &k, const string &payload, AnnaError &error) {
     base_txn_node_->put_op(txn_id, Operation(k, payload), error);
+  }
+
+  void put_start_txn(const string &txn_id) {
+    base_txn_node->put_start_txn(txn_id);
   }
 
   string create_txn(const string &client_id) {

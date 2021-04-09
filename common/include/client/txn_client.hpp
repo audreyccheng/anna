@@ -841,6 +841,7 @@ class TxnClient : public TxnClientInterface {
   map<string, PendingTxn> pending_txn_response_map_;
 
   // keeps track of pending txn put and get responses
+  // map<txn_id, <request_id, PendingTxnRequest>> 
   map<string, map<string, PendingTxn>> pending_txn_key_response_map_;
 };
 

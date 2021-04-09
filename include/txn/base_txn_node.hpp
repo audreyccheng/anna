@@ -41,6 +41,11 @@ public:
     return txn_id;
   }
 
+  void put_start_txn(const string &txn_id) {
+    vector<V> vec;
+    db[txn_id] = vec;
+  }
+
   unsigned size(const string &txn_id) { return db.at(txn_id).size(); }
 
   void commit_txn(const string &txn_id, AnnaError &error) {
