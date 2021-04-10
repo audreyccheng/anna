@@ -106,13 +106,14 @@ public:
 
 struct PendingTxnRequest {
   PendingTxnRequest() {}
-  PendingTxnRequest(RequestType type, string txn_id, string payload,
-                 Address addr, string response_id)
-      : type_(type), txn_id_(std::move(txn_id)),
+  PendingTxnRequest(RequestType type, string txn_id, Key key,
+                    string payload, Address addr, string response_id)
+      : type_(type), txn_id_(std::move(txn_id)), key_(std::move(key)),
         payload_(std::move(payload)), addr_(addr), response_id_(response_id) {}
 
   RequestType type_;
   string txn_id_;
+  Key key_;
   string payload_;
   Address addr_;
   string response_id_;

@@ -253,3 +253,47 @@ void HashRingUtilInterface::issue_replication_factor_request(
   kZmqUtil->send_string(serialized, &pushers[target_address]);
 }
 
+void HashRingUtilInterface::issue_storage_request(
+    const Address &response_address, const string &txn_id, const Key &key, 
+    const Tier &tier, const ServerThread &thread,
+    GlobalHashRing &global_memory_hash_ring,
+    LocalHashRing &local_memory_hash_ring, SocketCache &pushers,
+    unsigned &seed) {
+  auto threads = kHashRingUtil->get_responsible_threads_metadata(
+      replication_key, global_memory_hash_ring, local_memory_hash_ring);
+
+  Address target_address;
+  // TODO(@accheng): change from random thread to primary one
+  if (tier == Tier::TXN) {
+    target_address = std::next(begin(threads), rand_r(&seed) % threads.size())
+      ->txn_request_connect_address();
+  } else {
+    target_address = std::next(begin(threads), rand_r(&seed) % threads.size()) // --> these threads should only be storage threads, NOT txn threads
+      ->storage_request_connect_address();
+          // ->key_request_connect_address(); // -> this should be storage_request_connect_address()
+  }
+
+  // KeyRequest key_request;
+  // key_request.set_type(RequestType::GET);
+  // key_request.set_response_address(response_address);
+
+  // prepare_get_tuple(key_request, replication_key, LatticeType::LWW);
+  // string serialized;
+  // key_request.SerializeToString(&serialized);
+
+
+  TxnRequest key_request;
+  // TODO(@accheng): different init for different tiers?
+  if (tier == Tier::TXN) {
+    key_request.set_type(RequestType::START_TXN);
+  } else {
+    key_request.set_type(RequestType::TXN_GET);
+  }
+  key_request.set_response_address(response_address);
+
+  prepare_txn_get_tuple(key_request, replication_key);
+  string serialized;
+  key_request.SerializeToString(&serialized);
+  kZmqUtil->send_string(serialized, &pushers[target_address]);
+}
+

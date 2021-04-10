@@ -28,6 +28,10 @@ const vector<Tier> kAllTiers = {
     Tier::DISK,
     Tier::TXN}; // TODO(vikram): Is there a better way to make this vector?
 
+const vector<Tier> kStorageTiers = {
+    Tier::MEMORY,
+    Tier::DISK
+}
 const unsigned kSloWorst = 3000;
 
 // run-time constants

@@ -144,6 +144,9 @@ void replication_response_handler(
             auto txn_id = process_start_txn(key, serializer, stored_txn_map);
             response.set_txn_id(txn_id);
 
+            // need to add txn_id to key_rep_map
+            init_tier_replication(key_replication_map, txn_id, kSelfTier);
+
             // TODO(@accheng): is this needed?
             // make sure all relevant threads know that it is now responsbile for this txn_id
             // kHashRingUtil->issue_replication_factor_request(
