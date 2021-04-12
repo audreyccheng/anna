@@ -29,7 +29,9 @@ void replication_response_handler(
   // we assume tuple 0 because there should only be one tuple responding to a
   // replication factor request
   TxnKeyTuple tuple = response.tuples(0);
-  Key key = get_key_from_metadata(tuple.key());
+  // Key key = get_key_from_metadata(tuple.key());
+  Key key = response.txn_id();
+  Key tuple_key = tuple.key();
   Tier key_tier = response.tier();
 
   AnnaError error = tuple.error();
@@ -84,7 +86,7 @@ void replication_response_handler(
       bool responsible =
           std::find(threads.begin(), threads.end(), wt) != threads.end();
 
-      for (const PendingRequest &request : pending_requests[key]) {
+      for (const PendingRequest &request : pending_requests[key]) { // TODO(@accheng): update
         auto now = std::chrono::system_clock::now();
 
         if (!responsible && request.addr_ != "") {
@@ -129,31 +131,71 @@ void replication_response_handler(
             log->error("Received a GET request with no response address.");
           }
         } else if (responsible && request.addr_ != "") {
-          KeyResponse response;
+          TxnResponse rep_response;
 
-          response.set_type(request.type_);
+          rep_response.set_type(request.type_);
 
           if (request.response_id_ != "") {
-            response.set_response_id(request.response_id_);
+            rep_response.set_response_id(request.response_id_);
           }
 
-          KeyTuple *tp = response.add_tuples();
+          KeyTuple *tp = rep_response.add_tuples();
           tp->set_key(key);
 
           if (request.type_ == RequestType::START_TXN) {
             auto txn_id = process_start_txn(key, serializer, stored_txn_map);
-            response.set_txn_id(txn_id);
+            rep_response.set_txn_id(txn_id);
 
             // need to add txn_id to key_rep_map
             init_tier_replication(key_replication_map, txn_id, kSelfTier);
 
-            // TODO(@accheng): is this needed?
-            // make sure all relevant threads know that it is now responsbile for this txn_id
-            // kHashRingUtil->issue_replication_factor_request(
-            //   wt.replication_response_connect_address(), txn_id, Tier::TXN, 
-            //   global_hash_rings[Tier::TXN], local_hash_rings[Tier::TXN],
-            //   pushers, seed);
+            // TODO(@accheng): erase from pending requests
 
+          } else if (request.type_ == RequestType::TXN_GET) {
+            // if this is from txn tier, this request needs to sent to storage tier
+            // otherwise, respond to client
+            if (key_tier == Tier::TXN) {
+              if (stored_txn_map.find(key) == stored_txn_map.end()) {
+                tp->set_error(AnnaError::TXN_DNE);
+              }
+
+              ServerThreadList key_threads = {};
+
+              for (const Tier &tier : kStorageTiers) {
+                key_threads = kHashRingUtil->get_responsible_threads(
+                    wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                    global_hash_rings, local_hash_rings, key_replication_map, 
+                    pushers, {tier}, succeed, seed);
+                if (threads.size() > 0) {
+                  break;
+                }
+
+                if (!succeed) { // this means we don't have the replication factor for
+                                // the key and we can't replicate it
+                  tp->set_error(AnnaError::KEY_DNE);
+                }
+              }
+
+              // TODO(@accheng): should just be one request?
+              // send request to storage tier
+              if (threads.size() > 0) {
+                kHashRingUtil->issue_storage_request(
+                  wt.replication_response_connect_address(), request_type, key, tuple_key, 
+                  payload, threads[0], pushers);
+
+                // add to pending request
+                pending_requests[key].push_back(
+                        PendingTxnRequest(request_type, key, tuple_key, payload,
+                                          response_address, response_id));
+              } else {
+                // TODO(@accheng): erase from pending requests
+              }
+              
+            } else { // store info from storage tier
+              tp->set_key(tuple_key);
+              tp->set_error(AnnaError::NO_ERROR);
+              tp->set_payload(tuple.payload());
+            }
           }
 
           if (request.type_ == RequestType::GET) {
@@ -198,7 +240,7 @@ void replication_response_handler(
           "Missing key replication factor in process pending request routine.");
     }
 
-    pending_requests.erase(key);
+    // pending_requests.erase(key);
   }
 
   if (pending_gossip.find(key) != pending_gossip.end()) {

@@ -82,6 +82,13 @@ inline void prepare_txn_put_tuple(TxnRequest &req, Key key,
   tp->set_payload(std::move(payload));
 }
 
+inline void prepare_txn_put_tuple(TxnRequest &req, Key key,
+                                  string payload) {
+  TxnKeyTuple *tp = req.add_tuples();
+  tp->set_key(std::move(key));
+  tp->set_payload(std::move(payload));
+}
+
 inline Tier get_random_tier() {
   std::random_device rd;
   std::mt19937 gen(rd());

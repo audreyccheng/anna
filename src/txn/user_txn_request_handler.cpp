@@ -68,10 +68,11 @@ void user_txn_request_handler(
 
         if (request_type == RequestType::START_TXN) {
           // if this is a replication request, signal that this key doesn't yet exist
-          if (stored_txn_map.find(key) == stored_txn_map.end() && is_metadata(key)) {
-            tp->set_error(AnnaError::TXN_DNE);
+          // TODO(@accheng): update
+          if (stored_txn_map.find(key) == stored_txn_map.end() && is_metadata(key)) { 
+            tp->set_error(AnnaError::KEY_DNE);
           } else { // TODO(@accheng): update
-            auto txn_id = process_start_txn(key, serializer, stored_txn_map); // add txn_id to stored_key_map
+            auto txn_id = process_start_txn(key, serializer, stored_txn_map); // add txn_id to stored_txn_map
             response.set_txn_id(txn_id);
 
             // need to add txn_id to key_rep_map
@@ -87,17 +88,17 @@ void user_txn_request_handler(
              //  PendingTxnRequest(request_type, txn_id, payload,
              //                 response_address, response_id));
           }
-        } else if (request_type == RequestType::TXN_GET) {
-          // check if the START_TXN for this request is still pending
-          // otherwise, this txn does not exist
-          if (stored_txn_map.find(key) == stored_txn_map.end())
-              if (!pending_requests.contains(txn_id)) {
+        } else if (request_type == RequestType::TXN_GET || 
+                   request_type == RequestType::TXN_PUT) {
+          // check that this txn_id exists
+          if (stored_txn_map.find(key) == stored_txn_map.end()) {
+              // if (!pending_requests.contains(txn_id)) {
                 tp->set_error(AnnaError::TXN_DNE);
-              } else {
-                pending_requests[key].push_back(
-                    PendingTxnRequest(request_type, key, tuple_key, payload,
-                                      response_address, response_id));
-              }
+              // } else {
+              //   pending_requests[key].push_back(
+              //       PendingTxnRequest(request_type, key, tuple_key, payload,
+              //                         response_address, response_id));
+              // }
           } else {
             AnnaError error = AnnaError::NO_ERROR;
             process_put_op(txn_id, key, payload, error, serializer, stored_txn_map);
@@ -116,13 +117,29 @@ void user_txn_request_handler(
 
               if (!succeed) { // this means we don't have the replication factor for
                               // the key
-                // pending_requests[key].push_back(std::pair<Address, string>(
-                //     addr_request.response_address(), addr_request.request_id()));
-                // return;
+                pending_requests[key].push_back(
+                  PendingTxnRequest(request_type, key, tuple_key, payload,
+                                    response_address, response_id));
+                return;
               }
             }
 
-            // send GET request to storage tier
+            // TODO(@accheng): should just be one request?
+            // send request to storage tier
+            kHashRingUtil->issue_storage_request(
+              wt.replication_response_connect_address(), request_type, key, tuple_key, 
+              payload, threads[0], pushers);
+
+            // add to pending request
+            pending_requests[key].push_back(
+                    PendingTxnRequest(request_type, key, tuple_key, payload,
+                                      response_address, response_id));
+
+            if (request_type == RequestType::TXN_PUT) {
+              local_changeset.insert(tuple_key);
+            }
+          }
+                      // send GET request to storage tier
             // look at hash ring, find right thread, kZmqUtil->send_string(
             // put in pending request
             // kHashRingUtil->issue_replication_factor_request( --> send TxnRequest to storage tier
@@ -133,25 +150,11 @@ void user_txn_request_handler(
             // in a separate txn_reponse_handler:
             // replicate result
 
-            for (const ServerThread &thread : threads) {
-              // send GET request to storage tier
-            }
-
-            // add to pending request regardless
-            pending_requests[key].push_back(
-                    PendingTxnRequest(request_type, key, tuple_key, payload,
-                                      response_address, response_id));
-
-            local_changeset.insert(key);
-          }
         } else if (request_type == RequestType::COMMIT_TXN) {
-          if (stored_txn_map.find(request.txn_id()) == stored_txn_map.end()) {
+          if (stored_txn_map.find(key) == stored_txn_map.end()) {
             tp->set_error(AnnaError::TXN_DNE);
           } else {
             // commit logic to storage tiers
-            response.set_error() = error;
-
-
             AnnaError error = AnnaError::NO_ERROR;
             process_commit_txn(txn_id, error, serializer);
             // tp->set_error(error);
