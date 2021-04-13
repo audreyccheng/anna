@@ -266,14 +266,15 @@ void HashRingUtilInterface::issue_storage_request(
   key_request.set_response_address(response_address);
   key_request.set_txn_id(txn_id);
 
-  if (request_type == RequestType::TXN_GET) {
-    prepare_txn_get_tuple(key_request, key);
-  } else if (request_type == RequestType::TXN_GET) { // TODO(@accheng): otherwise?
-    prepare_txn_put_tuple(key_request, key, payload);
-  }
+  prepare_txn_tuple(key_request, key, payload);
+
+  // if (request_type == RequestType::TXN_GET) {
+  //   prepare_txn_get_tuple(key_request, key);
+  // } else if (request_type == RequestType::TXN_GET) { // TODO(@accheng): otherwise?
+  //   prepare_txn_put_tuple(key_request, key, payload);
+  // }
 
   string serialized;
   key_request.SerializeToString(&serialized);
   kZmqUtil->send_string(serialized, &pushers[target_address]);
 }
-

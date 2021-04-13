@@ -70,16 +70,13 @@ inline void prepare_put_tuple(KeyRequest &req, Key key,
   tp->set_payload(std::move(payload));
 }
 
-inline void prepare_txn_get_tuple(TxnRequest &req, Key key) {
+inline void prepare_txn_tuple(TxnRequest &req, Key key,
+                              string payload) {
   TxnKeyTuple *tp = req.add_tuples();
   tp->set_key(std::move(key));
-}
-
-inline void prepare_txn_put_tuple(TxnRequest &req, Key key,
-                                  string payload) {
-  TxnKeyTuple *tp = req.add_tuples();
-  tp->set_key(std::move(key));
-  tp->set_payload(std::move(payload));
+  if (payload != "") {
+    tp->set_payload(std::move(payload));
+  }
 }
 
 inline void prepare_txn_put_tuple(TxnRequest &req, Key key,

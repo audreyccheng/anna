@@ -52,7 +52,8 @@ public:
     if (db.find(txn_id) == db.end()) {
       error = AnnaError::TXN_DNE;
     } else {
-      db.erase(txn_id);
+      // TODO(@accheng): update
+      // db.erase(txn_id);
     } 
   }
 

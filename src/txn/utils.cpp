@@ -86,6 +86,15 @@ void process_put_op(const string &txn_id, const Key &key,
   stored_txn_map[txn_id].num_ops_ += 1;
 }
 
+vector<Operation> process_get_ops(
+          const string &txn_id, AnnaError &error,
+          TxnSerializer *serializer,
+          map<Key, TxnKeyProperty> &stored_txn_map) {
+  auto res = serializer->get_ops(txn_id, error);
+  // stored_txn_map[txn_id].num_ops_ += 1; --> TODO(@accheng): change to prepare phase
+  return std::move(res);
+}
+
 void process_commit_txn(const string &txn_id, AnnaError &error, 
                         TxnSerializer *serializer,
                         map<Key, TxnKeyProperty> &stored_txn_map) {

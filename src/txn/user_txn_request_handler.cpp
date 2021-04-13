@@ -103,6 +103,7 @@ void user_txn_request_handler(
             AnnaError error = AnnaError::NO_ERROR;
             process_put_op(txn_id, key, payload, error, serializer, stored_txn_map);
             tp->set_error(error);
+            // TODO(@accheng): should txn abort if there is an error here?
 
             ServerThreadList key_threads = {};
 
@@ -156,12 +157,56 @@ void user_txn_request_handler(
           } else {
             // commit logic to storage tiers
             AnnaError error = AnnaError::NO_ERROR;
-            process_commit_txn(txn_id, error, serializer);
-            // tp->set_error(error);
+            auto ops = process_get_ops(key, error);
+            tp->set_error(error);
+            // TODO(@accheng): should txn abort if there is an error here?
             if (error != AnnaError::NO_ERROR) {
-              log->error("Unable to find transaction to commit");
+              log->error("Unable to prepare to commit transaction");
             }
-            response.set_error() = error;
+
+            bool abort_txn;
+            for (const Operation &op: ops) {
+              auto op_key = op.get_key();
+              auto op_payload = op.get_value();
+              ServerThreadList key_threads = {};
+
+              for (const Tier &tier : kStorageTiers) {
+                key_threads = kHashRingUtil->get_responsible_threads(
+                    wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                    global_hash_rings, local_hash_rings, key_replication_map, 
+                    pushers, {tier}, succeed, seed);
+                if (threads.size() > 0) {
+                  break;
+                }
+
+                if (!succeed) { // this means we don't have the replication factor for
+                                // the key
+                  // TODO(@accheng): should we abort here?
+                  abort_txn = true;
+                  log->error("Unable to find key to prepare for commit");
+                  break;
+                }
+              }
+
+              if (abort_txn) {
+                break;
+              }
+
+              // send prepare request to storage tier
+              kHashRingUtil->issue_storage_request(
+                wt.replication_response_connect_address(), RequestType::PREPARE_TXN, key, 
+                op_key, op_payload, threads[0], pushers);
+
+              pending_requests[key].push_back(
+                  PendingTxnRequest(RequestType::PREPARE_TXN, key, op_key,
+                                    op_payload, response_address,
+                                    response_id));
+            }
+
+
+            // response.set_error() = error;
+
+            // send PREPARE_TXN requests to storage tiers
           }
         } else {
           log->error("Unknown request type {} in user request handler.",
