@@ -17,9 +17,9 @@
 void user_request_handler(
     unsigned &access_count, unsigned &seed, string &serialized, logger log,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
-    map<Key, vector<PendingRequest>> &pending_requests,
+    map<Key, vector<PendingTxnRequest>> &pending_requests, // <key, <request_id, PendingTxnRequest>> 
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
-    map<Key, TxnKeyProperty> &stored_txn_map,
+    map<Key, TxnKeyProperty> &stored_key_map, // <key, TxnKeyProperty>
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
     ServerThread &wt, SerializerMap &serializers, // TODO(@accheng): update
     SocketCache &pushers) {
@@ -64,39 +64,64 @@ void user_request_handler(
               global_hash_rings[kSelfTier], local_hash_rings[kSelfTier],
               pushers, seed);
 
-          pending_requests[key].push_back(
-              PendingRequest(request_type, tuple.lattice_type(), payload,
-                             response_address, response_id));
+          pending_requests[key].push_back( 
+              PendingTxnRequest(request_type, txn_id, key, payload,
+                                response_address, response_id));
         }
       } else { // if we know the responsible threads, we process the request
         TxnKeyTuple *tp = response.add_tuples();
         tp->set_key(key);
 
         if (request_type == RequestType::TXN_GET) {
-          if (stored_txn_map.find(key) == stored_txn_map.end()) {
+          if (stored_key_map.find(key) == stored_key_map.end()) {
 
             tp->set_error(AnnaError::KEY_DNE);
           } else {
             AnnaError error = AnnaError::NO_ERROR;
             auto res = process_txn_get(txn_id, key, error,
-                                       serializers[stored_txn_map[key].type_], 
-                                       stored_txn_map);
+                                       serializers[stored_key_map[key].type_], 
+                                       stored_key_map);
             tp->set_payload(res);
             tp->set_error(error);
           }
         } else if (request_type == RequestType::TXN_PUT) {
-          if (stored_key_map.find(key) != stored_key_map.end()) {
-            AnnaError error = AnnaError::NO_ERROR;
-            process_txn_put(txn_id, key, error, payload,
-                            serializers[stored_txn_map[key].type_], stored_txn_map);
+          AnnaError error = AnnaError::NO_ERROR;
+          process_txn_put(txn_id, key, error, payload,
+                          serializers[stored_key_map[key].type_], stored_key_map);
+          tp->set_error(error);
 
-            local_changeset.insert(key);
-            // tp->set_lattice_type(tuple.lattice_type());
-          }
+          local_changeset.insert(key);
         } else if (request_type == RequestType::PREPARE_TXN) {
+          if (stored_key_map.find(key) == stored_key_map.end()) {
+            tp->set_error(AnnaError::KEY_DNE);
+          } else {
+            // check lock is still held; nothin actually done here for 2PL
+            AnnaError error = AnnaError::NO_ERROR;
+            process_txn_prepare(txn_id, key, error, 
+                                serializers[stored_key_map[key].type_],
+                                stored_key_map);
+            tp->set_error(error);
 
+            // send replication / log requests
+
+            pending_requests[key].push_back( 
+              PendingTxnRequest(request_type, txn_id, key, payload,
+                                response_address, response_id));
+          }
         } else if (request_type == RequestType::COMMIT_TXN) {
+          // release lock
+          AnnaError error = AnnaError::NO_ERROR;
+          process_txn_commit(txn_id, key, error, 
+                             serializers[stored_key_map[key].type_],
+                             stored_key_map);
 
+          tp->set_error(error);
+
+          // log commit
+
+          pending_requests[key].push_back( 
+              PendingTxnRequest(request_type, txn_id, key, payload,
+                                response_address, response_id));
         } else {
           log->error("Unknown request type {} in user request handler.",
                      request_type);
@@ -112,7 +137,7 @@ void user_request_handler(
       }
     } else {
       pending_requests[key].push_back(
-          PendingTxnRequest(request_type, txn_id, payload,
+          PendingTxnRequest(request_type, txn_id, key, payload,
                             response_address, response_id));
     }
   }

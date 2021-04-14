@@ -22,7 +22,7 @@ public:
     return log.size() - 1;
   }
 
-  unsigned size(const K &k) { return log.size(); }
+  unsigned size() { return log.size(); }
 
   // delete records up to log position l
   void trim(const unsigned &l) { log.erase(0, l); }

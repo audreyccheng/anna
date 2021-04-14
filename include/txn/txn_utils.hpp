@@ -22,6 +22,8 @@
 
 typedef TxnNode<Key, vector<Operation>> BaseTxn;
 typedef BaseNode<Key, string> BaseStore;
+typedef LockNode<Key, LockElement<string>> LockStore;
+typedef LogNode<Operation> BaseLog;
 
 // a map that represents which keys should be sent to which IP-port combinations
 // typedef map<Address, set<Key>> AddressKeysetMap;
@@ -49,7 +51,8 @@ public:
     return serialize(vals);
   }
 
-  void put_op(const string &txn_id, const Key &k, const string &payload, AnnaError &error) {
+  void put_op(const string &txn_id, const Key &k,
+              const string &payload, AnnaError &error) {
     base_txn_node_->put_op(txn_id, Operation(k, payload), error);
   }
 
@@ -68,9 +71,15 @@ public:
 
 class BaseSerializer {
 public:
-  virtual string get(const Key &key, AnnaError &error) = 0;
-  virtual void put(const Key &key, const string &serialized) = 0;
-  virtual void remove(const Key &key) = 0;
+  virtual string get(const string& txn_id, const Key &key,
+                     AnnaError &error) = 0;
+  virtual void put(const string& txn_id, const Key &key,
+                   const string &serialized, AnnaError &error) = 0;
+  virtual void prepare(const string& txn_id, const Key &key,
+                       AnnaError &error) = 0;
+  virtual void commit(const string& txn_id, const Key &key,
+                      AnnaError &error) = 0;
+  virtual void remove(const string& txn_id, const Key &key) = 0;
   virtual ~BaseSerializer(){};
 };
 
@@ -80,7 +89,7 @@ class BaseStoreSerializer : public BaseSerializer {
 public:
   BaseStoreSerializer(BaseStore *base_node_) : base_node_(base_node) {}
 
-  string get(const Key &key, AnnaError &error) {
+  string get(const string& txn_id, const Key &key, AnnaError &error) {
     auto val = base_node_->get(key, error);
 
     if (val == "") {
@@ -91,15 +100,96 @@ public:
     return val;
   }
 
-  void put(const Key &key, const string &serialized) {
+  void put(const string& txn_id, const Key &key,
+           const string &serialized, AnnaError &error) {
     // Operation val = deserialize_op(serialized);
-    base_txn_node_->put(key, serialized);
+    base_node_->put(key, serialized);
     // return base_txn_node_->size(key);
   }
 
-  void remove(const Key &key) { base_node_->remove(key); }
+  void prepare(const string& txn_id, const Key &key, AnnaError &error) {
+    // nothing needs to be done
+  }
+
+  void commit(const string& txn_id, const Key &key, AnnaError &error) {
+    // nothing needs to be done
+  }
+
+  void remove(const string& txn_id, const Key &key) { base_node_->remove(key); }
 
 };
+
+class LockStoreSerializer : public BaseSerializer {
+  LockStore *lock_node_;
+
+public:
+  LockStoreSerializer(LockStore *lock_node_) : lock_node_(lock_node) {}
+
+  string get(const string& txn_id, const Key &key, AnnaError &error) {
+    auto val = lock_node_->get(txn_id, key, error);
+
+    // return serialize(val);
+    return val;
+  }
+
+  void put(const string& txn_id, const Key &key, const string &serialized,
+           AnnaError &error) {
+    // Operation val = deserialize_op(serialized);
+    lock_node_->put(txn_id, key, serialized, error);
+    // return base_txn_node_->size(key);
+  }
+
+  void prepare(const string& txn_id, const Key &key, AnnaError &error) {
+    // nothing needs to be done
+  }
+
+  void commit(const string& txn_id, const Key &key) {
+    lock_node_->release_rlock(txn_id, key);
+    lock_node_->release_wlock(txn_id, key);
+  }
+
+  void remove(const string& txn_id, const Key &key) { lock_node_->remove(key); }
+
+};
+
+class LogSerializer {
+public:
+  virtual unsigned append(const string &serialized) = 0;
+  virtual void trim(const unsigned &l) = 0;
+  virtual string read(const unsigned &l, AnnaError &error) = 0;
+  virtual string subscribe(const unsigned &l, AnnaError &error) = 0;
+  virtual unsigned size() = 0;
+  virtual ~LogSerializer(){};
+};
+
+class BaseLogSerializer : public LogSerializer {
+  BaseLog *base_log_node_;
+
+public:
+  BaseLogerializer(BaseLog *base_log_node_) : base_log_node_(base_log_node) {}
+
+  unsigned append(const string &serialized) {
+
+  }
+  
+  void trim(const unsigned &l) {
+
+  }
+
+  string read(const unsigned &l, AnnaError &error) {
+
+  }
+
+  string subscribe(const unsigned &l, AnnaError &error) {
+
+  }
+
+  unsigned size() {
+
+  }
+};
+
+
 
 // using SerializerMap =
 //     std::unordered_map<LatticeType, Serializer *, lattice_type_hash>;

@@ -124,6 +124,21 @@ void process_txn_put(const string &txn_id, const Key &key,
   }
 }
 
+void process_txn_prepare(const string &txn_id, const Key &key,
+                         AnnaError &error, TxnSerializer *serializer,
+                         map<Key, TxnKeyProperty> &stored_txn_map) {
+  serializer->prepare(txn_id, key, error);
+  // TODO(@accheng): update
+}
+
+void process_txn_commit(const string &txn_id, const Key &key,
+                         AnnaError &error, TxnSerializer *serializer,
+                         map<Key, TxnKeyProperty> &stored_txn_map) {
+  serializer->commit(txn_id, key, error);
+  // TODO(@accheng): update
+}
+
+
 bool is_primary_replica(const Key &key,
                         map<Key, KeyReplication> &key_replication_map,
                         GlobalRingMap &global_hash_rings,

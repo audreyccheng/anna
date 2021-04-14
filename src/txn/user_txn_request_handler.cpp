@@ -6,7 +6,7 @@ void user_txn_request_handler(
     // map<Key, vector<PendingRequest>> &pending_requests,
     map<string, vector<PendingTxnRequest>> &pending_requests, // <txn_id, <request_id, PendingTxnRequest>> 
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
-    map<Key, TxnKeyProperty> &stored_txn_map,
+    map<Key, TxnKeyProperty> &stored_txn_map, // <txn_id, TxnKeyProperty>
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
     ServerThread &wt, TxnSerializer &serializer, SocketCache &pushers) {
   TxnRequest request;
@@ -59,7 +59,7 @@ void user_txn_request_handler(
 
           // since this is a new client request, key is client_id instead of txn_id
           pending_requests[key].push_back( 
-              PendingTxnRequest(request_type, key, payload,
+              PendingTxnRequest(request_type, key, tuple_key, payload,
                              response_address, response_id));
         }
       } else { // if we know the responsible threads, we process the request
@@ -197,8 +197,10 @@ void user_txn_request_handler(
                 wt.replication_response_connect_address(), RequestType::PREPARE_TXN, key, 
                 op_key, op_payload, threads[0], pushers);
 
+              // this is the commit response we want to send back to the client
+              // both key and op_key are txn_id
               pending_requests[key].push_back(
-                  PendingTxnRequest(RequestType::PREPARE_TXN, key, op_key,
+                  PendingTxnRequest(RequestType::COMMIT_TXN, key, op_key,
                                     op_payload, response_address,
                                     response_id));
             }

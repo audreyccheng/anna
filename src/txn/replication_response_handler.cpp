@@ -220,51 +220,72 @@ void replication_response_handler(
               // TODO(@accheng): should txn abort if there is an error here?
               if (error != AnnaError::NO_ERROR) {
                 log->error("Unable to commit transaction");
-              }
+               // find COMMIT_TXN request from client and send response back
+              } else if (request_map.find(RequestType::COMMIT_TXN) == request_map.end() ||
+                         request_map[RequestType::COMMIT_TXN].size() != 1) {
+                log->error("Unable to find client request to commit");
+              } else {
+                TxnResponse commit_response;
+                commit_response.set_type(RequestType::COMMIT_TXN);
+                commit_response.set_txn_id(key);
+                commit_response.set_tier(kSelfTier);
+                TxnKeyTuple *commit_tp = commit_response.add_tuples();
+                string commit_response_addr = request_map[RequestType::COMMIT_TXN][0].response_id_; // TODO(@accheng): should only be 1?
 
+                bool abort_txn;
+                for (const Operation &op: ops) {
+                  auto op_key = op.get_key();
+                  auto op_payload = op.get_value();
+                  ServerThreadList key_threads = {};
 
-              bool abort_txn;
-              for (const Operation &op: ops) {
-                auto op_key = op.get_key();
-                auto op_payload = op.get_value();
-                ServerThreadList key_threads = {};
+                  for (const Tier &tier : kStorageTiers) {
+                    key_threads = kHashRingUtil->get_responsible_threads(
+                        wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                        global_hash_rings, local_hash_rings, key_replication_map, 
+                        pushers, {tier}, succeed, seed);
+                    if (threads.size() > 0) {
+                      break;
+                    }
 
-                for (const Tier &tier : kStorageTiers) {
-                  key_threads = kHashRingUtil->get_responsible_threads(
-                      wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
-                      global_hash_rings, local_hash_rings, key_replication_map, 
-                      pushers, {tier}, succeed, seed);
-                  if (threads.size() > 0) {
-                    break;
+                    if (!succeed) { // this means we don't have the replication factor for
+                                    // the key
+                      // TODO(@accheng): should we abort here?
+                      abort_txn = true;
+                      log->error("Unable to find key to commit");
+                      break;
+                    }
                   }
 
-                  if (!succeed) { // this means we don't have the replication factor for
-                                  // the key
-                    // TODO(@accheng): should we abort here?
-                    abort_txn = true;
-                    log->error("Unable to find key to commit");
+                  if (abort_txn) {
+                    tp->set_error(AnnaError::FAILED_OP); // TODO(@accheng): needed?
                     break;
+                  } else {
+                    // send prepare request to storage tier
+                    kHashRingUtil->issue_storage_request(
+                      wt.replication_response_connect_address(), RequestType::COMMIT_TXN, key, 
+                      op_key, op_payload, threads[0], pushers);
+
+                    pending_requests[key].push_back(
+                        PendingTxnRequest(RequestType::COMMIT_TXN, key, op_key,
+                                          op_payload, response_address,
+                                          response_id)); 
                   }
                 }
 
                 if (!abort_txn) {
-                  // send prepare request to storage tier
-                  kHashRingUtil->issue_storage_request(
-                    wt.replication_response_connect_address(), RequestType::COMMIT_TXN, key, 
-                    op_key, op_payload, threads[0], pushers);
-
-                  pending_requests[key].push_back(
-                      PendingTxnRequest(RequestType::COMMIT_TXN, key, op_key,
-                                        op_payload, response_address,
-                                        response_id));
-
-                  // TODO(@accheng): send response to client?
+                  commit_response.set_error(AnnaError::NO_ERROR);
+                  commit_tp->set_key(key);
+                  commit_tp->set_error(AnnaError::NO_ERROR);
+                } else {
+                  commit_response.set_error(AnnaError::FAILED_OP);
+                  commit_tp->set_key(key);
+                  commit_tp->set_error(AnnaError::FAILED_OP);
                 }
-              }
+
+                string serialized_commit_response;
+                commit_response.SerializeToString(&serialized_commit_response);
+                kZmqUtil->send_string(serialized_commit_response, &pushers[commit_req_addr]);
             }
-
-            
-
           } else if (request.type_ == RequestType::COMMIT_TXN) {
             // check if any commits pending, otherwise finalize commit
             if (request_map[request.type_].size() == 1) {
@@ -280,35 +301,36 @@ void replication_response_handler(
               request_map[request.type_].begin() + index);
           }
 
-          if (request.type_ == RequestType::GET) {
-            if (stored_key_map.find(key) == stored_key_map.end() ||
-                stored_key_map[key].type_ == LatticeType::NONE) {
-              tp->set_error(AnnaError::KEY_DNE);
-            } else {
-              auto res =
-                  process_get(key, serializers[stored_key_map[key].type_]);
-              tp->set_lattice_type(stored_key_map[key].type_);
-              tp->set_payload(res.first);
-              tp->set_error(res.second);
-            }
-          } else {
-            if (request.lattice_type_ == LatticeType::NONE) {
-              log->error("PUT request missing lattice type.");
-            } else if (stored_key_map.find(key) != stored_key_map.end() &&
-                       stored_key_map[key].type_ != LatticeType::NONE &&
-                       stored_key_map[key].type_ != request.lattice_type_) {
-              log->error(
-                  "Lattice type mismatch for key {}: {} from query but {} "
-                  "expected.",
-                  key, LatticeType_Name(request.lattice_type_),
-                  LatticeType_Name(stored_key_map[key].type_));
-            } else {
-              process_put(key, request.lattice_type_, request.payload_,
-                          serializers[request.lattice_type_], stored_key_map);
-              tp->set_lattice_type(request.lattice_type_);
-              local_changeset.insert(key);
-            }
-          }
+          // if (request.type_ == RequestType::GET) {
+          //   if (stored_key_map.find(key) == stored_key_map.end() ||
+          //       stored_key_map[key].type_ == LatticeType::NONE) {
+          //     tp->set_error(AnnaError::KEY_DNE);
+          //   } else {
+          //     auto res =
+          //         process_get(key, serializers[stored_key_map[key].type_]);
+          //     tp->set_lattice_type(stored_key_map[key].type_);
+          //     tp->set_payload(res.first);
+          //     tp->set_error(res.second);
+          //   }
+          // } else {
+          //   if (request.lattice_type_ == LatticeType::NONE) {
+          //     log->error("PUT request missing lattice type.");
+          //   } else if (stored_key_map.find(key) != stored_key_map.end() &&
+          //              stored_key_map[key].type_ != LatticeType::NONE &&
+          //              stored_key_map[key].type_ != request.lattice_type_) {
+          //     log->error(
+          //         "Lattice type mismatch for key {}: {} from query but {} "
+          //         "expected.",
+          //         key, LatticeType_Name(request.lattice_type_),
+          //         LatticeType_Name(stored_key_map[key].type_));
+          //   } else {
+          //     process_put(key, request.lattice_type_, request.payload_,
+          //                 serializers[request.lattice_type_], stored_key_map);
+          //     tp->set_lattice_type(request.lattice_type_);
+          //     local_changeset.insert(key);
+          //   }
+          // }
+
           key_access_tracker[key].insert(now);
           access_count += 1;
 
