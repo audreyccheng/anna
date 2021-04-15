@@ -132,12 +132,17 @@ void process_txn_prepare(const string &txn_id, const Key &key,
 }
 
 void process_txn_commit(const string &txn_id, const Key &key,
-                         AnnaError &error, TxnSerializer *serializer,
-                         map<Key, TxnKeyProperty> &stored_txn_map) {
+                        AnnaError &error, TxnSerializer *serializer,
+                        map<Key, TxnKeyProperty> &stored_txn_map) {
   serializer->commit(txn_id, key, error);
   // TODO(@accheng): update
 }
 
+void process_log(const string &txn_id, const Key &key,
+                 const string &payload, AnnaError &error,
+                 TxnSerializer *serializer) {
+  auto res = serializer->append(txn_id, key, payload); // TODO(@accheng): do we need the pos?
+}
 
 bool is_primary_replica(const Key &key,
                         map<Key, KeyReplication> &key_replication_map,

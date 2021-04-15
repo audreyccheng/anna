@@ -155,6 +155,8 @@ public:
 class LogSerializer {
 public:
   virtual unsigned append(const string &serialized) = 0;
+  virtual unsigned append(const string &txn_id, const Key &key,
+                          const string &payload) = 0;
   virtual void trim(const unsigned &l) = 0;
   virtual string read(const unsigned &l, AnnaError &error) = 0;
   virtual string subscribe(const unsigned &l, AnnaError &error) = 0;
@@ -166,29 +168,36 @@ class BaseLogSerializer : public LogSerializer {
   BaseLog *base_log_node_;
 
 public:
-  BaseLogerializer(BaseLog *base_log_node_) : base_log_node_(base_log_node) {}
+  BaseLogSerializer(BaseLog *base_log_node_) : base_log_node_(base_log_node) {}
 
   unsigned append(const string &serialized) {
-
+    Operation op = deserialize_op(serialized);
+    return base_log_node_->append(op);
   }
-  
-  void trim(const unsigned &l) {
 
+  unsigned append(const string &txn_id, const Key &key,
+                  const string &payload) {
+    return base_log_node_->append(Operation(txn_id, key, payload));
+  }
+
+  void trim(const unsigned &l) {
+    base_log_node_->trim(l);
   }
 
   string read(const unsigned &l, AnnaError &error) {
-
+    auto val = base_log_node_->read(l, error);
+    return serialize(val);
   }
 
   string subscribe(const unsigned &l, AnnaError &error) {
-
+    auto vals = base_log_node_->subscribe(l, error);
+    return serialize(vals);
   }
 
   unsigned size() {
-
+    return base_log_node_->size();
   }
 };
-
 
 
 // using SerializerMap =

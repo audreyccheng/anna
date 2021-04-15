@@ -61,6 +61,9 @@ enum Tier {
 
   // The value for the transactional layer tier.
   TXN = 4;
+
+  // The value for the logging tier.
+  LOG = 5;
 }
 
 // A message to track which physical servers are a part of which Anna

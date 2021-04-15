@@ -112,7 +112,7 @@ void user_txn_request_handler(
                   wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
                   global_hash_rings, local_hash_rings, key_replication_map, 
                   pushers, {tier}, succeed, seed);
-              if (threads.size() > 0) {
+              if (key_threads.size() > 0) {
                 break;
               }
 
@@ -129,7 +129,7 @@ void user_txn_request_handler(
             // send request to storage tier
             kHashRingUtil->issue_storage_request(
               wt.replication_response_connect_address(), request_type, key, tuple_key, 
-              payload, threads[0], pushers);
+              payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
 
             // add to pending request
             pending_requests[key].push_back(
@@ -175,7 +175,7 @@ void user_txn_request_handler(
                     wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
                     pushers, {tier}, succeed, seed);
-                if (threads.size() > 0) {
+                if (key_threads.size() > 0) {
                   break;
                 }
 
@@ -195,7 +195,7 @@ void user_txn_request_handler(
               // send prepare request to storage tier
               kHashRingUtil->issue_storage_request(
                 wt.replication_response_connect_address(), RequestType::PREPARE_TXN, key, 
-                op_key, op_payload, threads[0], pushers);
+                op_key, op_payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
 
               // this is the commit response we want to send back to the client
               // both key and op_key are txn_id

@@ -38,6 +38,8 @@ const unsigned kTxnRequestPort = 6220;
 
 const unsigned kStorageRequestPort = 6230;
 
+const unsigned kLogRequestPort = 6240;
+
 // The port on which KVS servers listen for gossip from other KVS nodes.
 const unsigned kGossipPort = 6250;
 
@@ -178,6 +180,14 @@ public:
 
   Address storage_request_bind_address() const {
     return kBindBase + std::to_string(tid_ + kStorageRequestPort);
+  }
+
+  Address log_request_connect_address() const {
+    return public_base_ + std::to_string(tid_ + kLogRequestPort);
+  }
+
+  Address log_request_bind_address() const {
+    return kBindBase + std::to_string(tid_ + kLogRequestPort);
   }
 
   Address replication_response_connect_address() const {

@@ -14,7 +14,7 @@
 
 #include "kvs/kvs_handlers.hpp"
 
-void user_request_handler(
+void storage_request_handler(
     unsigned &access_count, unsigned &seed, string &serialized, logger log,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     map<Key, vector<PendingTxnRequest>> &pending_requests, // <key, <request_id, PendingTxnRequest>> 
@@ -74,7 +74,6 @@ void user_request_handler(
 
         if (request_type == RequestType::TXN_GET) {
           if (stored_key_map.find(key) == stored_key_map.end()) {
-
             tp->set_error(AnnaError::KEY_DNE);
           } else {
             AnnaError error = AnnaError::NO_ERROR;
@@ -103,6 +102,17 @@ void user_request_handler(
             tp->set_error(error);
 
             // send replication / log requests
+            key_threads = kHashRingUtil->get_responsible_threads(
+                wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                global_hash_rings, local_hash_rings, key_replication_map, 
+                pushers, {Tier::LOG}, succeed, seed);
+
+            // send request to log if possible
+            if (key_threads.size() > 0) {
+              kHashRingUtil->issue_log_request(
+                wt.replication_response_connect_address(), request_type, key,
+                tuple_key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+            }
 
             pending_requests[key].push_back( 
               PendingTxnRequest(request_type, txn_id, key, payload,
@@ -118,6 +128,17 @@ void user_request_handler(
           tp->set_error(error);
 
           // log commit
+          key_threads = kHashRingUtil->get_responsible_threads(
+                wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                global_hash_rings, local_hash_rings, key_replication_map, 
+                pushers, {Tier::LOG}, succeed, seed);
+
+          // send request to log if possible
+          if (key_threads.size() > 0) {
+            kHashRingUtil->issue_log_request(
+              wt.replication_response_connect_address(), request_type, key,
+              tuple_key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+          }
 
           pending_requests[key].push_back( 
               PendingTxnRequest(request_type, txn_id, key, payload,

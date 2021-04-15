@@ -153,6 +153,8 @@ void replication_response_handler(
             rep_response.set_response_id(request.response_id_);
           }
 
+
+          /* TXN tier */
           KeyTuple *tp = rep_response.add_tuples();
           tp->set_key(key);
 
@@ -180,7 +182,7 @@ void replication_response_handler(
                     wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
                     pushers, {tier}, succeed, seed);
-                if (threads.size() > 0) {
+                if (key_threads.size() > 0) {
                   break;
                 }
 
@@ -192,10 +194,10 @@ void replication_response_handler(
 
               // TODO(@accheng): should just be one request?
               // send request to storage tier
-              if (threads.size() > 0) {
+              if (key_threads.size() > 0) {
                 kHashRingUtil->issue_storage_request(
                   wt.replication_response_connect_address(), request_type, key, tuple_key, 
-                  payload, threads[0], pushers);
+                  payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
 
                 // add to pending request
                 pending_requests[key].push_back(
@@ -243,7 +245,7 @@ void replication_response_handler(
                         wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
                         global_hash_rings, local_hash_rings, key_replication_map, 
                         pushers, {tier}, succeed, seed);
-                    if (threads.size() > 0) {
+                    if (key_threads.size() > 0) {
                       break;
                     }
 
@@ -263,7 +265,7 @@ void replication_response_handler(
                     // send prepare request to storage tier
                     kHashRingUtil->issue_storage_request(
                       wt.replication_response_connect_address(), RequestType::COMMIT_TXN, key, 
-                      op_key, op_payload, threads[0], pushers);
+                      op_key, op_payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
 
                     pending_requests[key].push_back(
                         PendingTxnRequest(RequestType::COMMIT_TXN, key, op_key,
@@ -300,6 +302,66 @@ void replication_response_handler(
             request_map[request.type_].erase(
               request_map[request.type_].begin() + index);
           }
+
+
+          /* STORAGE tier */
+          if (request.type_ == RequestType::TXN_GET) {
+            if (stored_key_map.find(key) == stored_key_map.end()) {
+              tp->set_error(AnnaError::KEY_DNE);
+            } else {
+              AnnaError error = AnnaError::NO_ERROR;
+              auto res = process_txn_get(txn_id, key, error,
+                                         serializers[stored_key_map[key].type_], 
+                                         stored_key_map);
+              tp->set_payload(res);
+              tp->set_error(error);
+            }
+          } else if (request_type == RequestType::TXN_PUT) {
+            AnnaError error = AnnaError::NO_ERROR;
+            process_txn_put(txn_id, key, error, payload,
+                            serializers[stored_key_map[key].type_], stored_key_map);
+            tp->set_error(error);
+
+            local_changeset.insert(key);
+          } else if (request_type == RequestType::PREPARE_TXN) {
+            if (stored_key_map.find(key) == stored_key_map.end()) {
+              tp->set_error(AnnaError::KEY_DNE);
+            } else {
+              // check lock is still held; nothin actually done here for 2PL
+              AnnaError error = AnnaError::NO_ERROR;
+              process_txn_prepare(txn_id, key, error, 
+                                  serializers[stored_key_map[key].type_],
+                                  stored_key_map);
+              tp->set_error(error);
+
+              // send replication / log requests
+              key_threads = kHashRingUtil->get_responsible_threads(
+                  wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                  global_hash_rings, local_hash_rings, key_replication_map, 
+                  pushers, {Tier::LOG}, succeed, seed);
+
+              // send request to log if possible
+              if (key_threads.size() > 0) {
+                kHashRingUtil->issue_log_request(
+                  wt.replication_response_connect_address(), request_type, key,
+                  tuple_key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+              }
+
+              pending_requests[key].push_back( 
+                PendingTxnRequest(request_type, txn_id, key, payload,
+                                  response_address, response_id));
+            }
+          }
+
+          /* LOG tier */
+          if (request_type == RequestType::PREPARE_TXN || 
+              request_type == RequestType::COMMIT_TXN) {
+            process_log(txn_id, key, payload, error, serializers[LOG]); // TODO(@accheng): update
+          } else {
+            log->error("Unknown request type {} in user request handler.",
+                       request_type);
+          }
+
 
           // if (request.type_ == RequestType::GET) {
           //   if (stored_key_map.find(key) == stored_key_map.end() ||

@@ -105,6 +105,11 @@ public:
                              const string &txn_id, const Key &key, 
                              const string &payload, const ServerThread &thread, 
                              SocketCache &pushers);
+
+  void issue_log_request(const Address &response_address,
+                         const RequestType &request_type, const string &txn_id,
+                         const Key &key, const vector<Operation> &ops,
+                         const ServerThread &thread, SocketCache &pushers);
 };
 
 class HashRingUtil : public HashRingUtilInterface {

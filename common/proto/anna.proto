@@ -257,11 +257,14 @@ message KeyAddressResponse {
 
 // A message representing ...
 message OperationValue {
-  // The name of the key we are referencing.
-  string key = 1;
+  // The transaction id of the operation we are referencing.
+  string txn_id = 1;
 
-  // A vector clock for the version of the key we are referencing.
-  string value = 2;
+  // The name of the operation we are referencing.
+  string key = 2;
+
+  // The value of the operation we are referencing.
+  string value = 3;
 }
 
 // Serialization of transactions.

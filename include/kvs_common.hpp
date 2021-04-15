@@ -26,7 +26,8 @@ const unsigned kVirtualThreadNum = 3000;
 const vector<Tier> kAllTiers = {
     Tier::MEMORY,
     Tier::DISK,
-    Tier::TXN}; // TODO(vikram): Is there a better way to make this vector?
+    Tier::TXN,
+    Tier::LOG}; // TODO(vikram): Is there a better way to make this vector?
 
 const vector<Tier> kStorageTiers = {
     Tier::MEMORY,
