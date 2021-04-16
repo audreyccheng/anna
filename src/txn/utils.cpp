@@ -50,19 +50,19 @@ void send_gossip(AddressKeysetMap &addr_keyset_map, SocketCache &pushers,
   }
 }
 
-std::pair<string, AnnaError> process_get(const Key &key,
-                                         Serializer *serializer) {
-  AnnaError error = AnnaError::NO_ERROR;
-  auto res = serializer->get(key, error);
-  return std::pair<string, AnnaError>(std::move(res), error);
-}
+// std::pair<string, AnnaError> process_get(const Key &key,
+//                                          Serializer *serializer) {
+//   AnnaError error = AnnaError::NO_ERROR;
+//   auto res = serializer->get(key, error);
+//   return std::pair<string, AnnaError>(std::move(res), error);
+// }
 
-void process_put(const Key &key, LatticeType lattice_type,
-                 const string &payload, Serializer *serializer,
-                 map<Key, KeyProperty> &stored_key_map) {
-  stored_key_map[key].size_ = serializer->put(key, payload);
-  stored_key_map[key].type_ = std::move(lattice_type);
-}
+// void process_put(const Key &key, LatticeType lattice_type,
+//                  const string &payload, Serializer *serializer,
+//                  map<Key, KeyProperty> &stored_key_map) {
+//   stored_key_map[key].size_ = serializer->put(key, payload);
+//   stored_key_map[key].type_ = std::move(lattice_type);
+// }
 
 /* Txn functions */
 
@@ -103,7 +103,7 @@ void process_commit_txn(const string &txn_id, AnnaError &error,
 }
 
 string process_txn_get(const string &txn_id, const Key &key, 
-                       AnnaError &error, TxnSerializer *serializer, 
+                       AnnaError &error, BaseSerializer *serializer, 
                        map<Key, TxnKeyProperty> &stored_txn_map) {
   auto res = serializer->get(txn_id, key, error);
   // if read is successful, read lock is now held
@@ -115,7 +115,7 @@ string process_txn_get(const string &txn_id, const Key &key,
 
 void process_txn_put(const string &txn_id, const Key &key,
                      const string &payload, AnnaError &error,
-                     TxnSerializer *serializer,
+                     BaseSerializer *serializer,
                      map<Key, TxnKeyProperty> &stored_txn_map) {
   serializer->put(txn_id, key, payload, error);
   // if write is successful, write lock is now held
@@ -125,14 +125,14 @@ void process_txn_put(const string &txn_id, const Key &key,
 }
 
 void process_txn_prepare(const string &txn_id, const Key &key,
-                         AnnaError &error, TxnSerializer *serializer,
+                         AnnaError &error, BaseSerializer *serializer,
                          map<Key, TxnKeyProperty> &stored_txn_map) {
   serializer->prepare(txn_id, key, error);
   // TODO(@accheng): update
 }
 
 void process_txn_commit(const string &txn_id, const Key &key,
-                        AnnaError &error, TxnSerializer *serializer,
+                        AnnaError &error, BaseSerializer *serializer,
                         map<Key, TxnKeyProperty> &stored_txn_map) {
   serializer->commit(txn_id, key, error);
   // TODO(@accheng): update
@@ -140,7 +140,7 @@ void process_txn_commit(const string &txn_id, const Key &key,
 
 void process_log(const string &txn_id, const Key &key,
                  const string &payload, AnnaError &error,
-                 TxnSerializer *serializer) {
+                 LogSerializer *serializer) {
   auto res = serializer->append(txn_id, key, payload); // TODO(@accheng): do we need the pos?
 }
 

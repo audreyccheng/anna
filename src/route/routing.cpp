@@ -154,8 +154,10 @@ int main(int argc, char *argv[]) {
 
   YAML::Node conf = YAML::LoadFile("conf/anna-config.yml");
   YAML::Node threads = conf["threads"];
+  unsigned kTxnThreadCount = threads["txn"].as<unsigned>();
   unsigned kMemoryThreadCount = threads["memory"].as<unsigned>();
   unsigned kEbsThreadCount = threads["ebs"].as<unsigned>();
+  unsigned kLogThreadCount = threads["log"].as<unsigned>();
   kRoutingThreadCount = threads["routing"].as<unsigned>();
 
   YAML::Node capacities = conf["capacities"];
@@ -177,12 +179,18 @@ int main(int argc, char *argv[]) {
     monitoring_ips.push_back(address);
   }
 
+  kTierMetadata[Tier::TXN] =
+      TierMetadata(Tier::TXN, kTxnThreadCount,
+                   kDefaultGlobalTxnReplication, kTxnNodeCapacity);
   kTierMetadata[Tier::MEMORY] =
       TierMetadata(Tier::MEMORY, kMemoryThreadCount,
                    kDefaultGlobalMemoryReplication, kMemoryNodeCapacity);
   kTierMetadata[Tier::DISK] =
       TierMetadata(Tier::DISK, kEbsThreadCount, kDefaultGlobalEbsReplication,
                    kEbsNodeCapacity);
+  kTierMetadata[Tier::LOG] =
+      TierMetadata(Tier::LOG, kLogThreadCount,
+                   kDefaultGlobalLogReplication, kLogNodeCapacity);
 
   vector<std::thread> routing_worker_threads;
 

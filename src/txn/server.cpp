@@ -191,19 +191,22 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
     }
   }
 
-  SerializerMap serializers;
+  // SerializerMap serializers;
 
   TxnSerializer txn_serialier;
   BaseSerializer base_serializer;
+  LogSerializer log_serializer;
 
-  if (kSelfTier == Tier::TXN) {
+  if (kSelfTier == Tier::TXN || kSelfTier == Tier::MEMORY || 
+      kSelfTier == Tier::DISK || kSelfTier == Tier::LOG) { // TODO(@accheng): update
     BaseTxn *base_txn_node = new BaseTxn();
     txn_serialier = new BaseTxnSerializer(base_txn_node);
-  } else if (kSelfTier == Tier::MEMORY) {
+
     BaseStore *base_node = new BaseStore();
     base_serializer = new BaseSerializer(base_node);
-  } else if (kSelfTier == Tier::DISK) {
-    // TODO(@accheng): udpate
+
+    BaseLog *base_log_node = new BaseLog();
+    log_serializer = new BaseLogSerializer(base_log_node);
   } else {
     log->info("Invalid node type");
     exit(1);
@@ -232,30 +235,30 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
   zmq::socket_t self_depart_puller(context, ZMQ_PULL);
   self_depart_puller.bind(wt.self_depart_bind_address());
 
-  // responsible for handling requests
-  zmq::socket_t request_puller(context, ZMQ_PULL);
-  request_puller.bind(wt.key_request_bind_address());
+  // // responsible for handling requests
+  // zmq::socket_t request_puller(context, ZMQ_PULL);
+  // request_puller.bind(wt.key_request_bind_address());
 
-  // responsible for processing gossip
-  zmq::socket_t gossip_puller(context, ZMQ_PULL);
-  gossip_puller.bind(wt.gossip_bind_address());
+  // // responsible for processing gossip
+  // zmq::socket_t gossip_puller(context, ZMQ_PULL);
+  // gossip_puller.bind(wt.gossip_bind_address());
 
   // responsible for listening for key replication factor response
   zmq::socket_t replication_response_puller(context, ZMQ_PULL);
   replication_response_puller.bind(wt.replication_response_bind_address());
 
-  // responsible for listening for key replication factor change
-  zmq::socket_t replication_change_puller(context, ZMQ_PULL);
-  replication_change_puller.bind(wt.replication_change_bind_address());
+  // // responsible for listening for key replication factor change
+  // zmq::socket_t replication_change_puller(context, ZMQ_PULL);
+  // replication_change_puller.bind(wt.replication_change_bind_address());
 
-  // responsible for listening for cached keys response messages.
-  zmq::socket_t cache_ip_response_puller(context, ZMQ_PULL);
-  cache_ip_response_puller.bind(wt.cache_ip_response_bind_address());
+  // // responsible for listening for cached keys response messages.
+  // zmq::socket_t cache_ip_response_puller(context, ZMQ_PULL);
+  // cache_ip_response_puller.bind(wt.cache_ip_response_bind_address());
 
-  // responsible for listening for function node IP lookup response messages.
-  zmq::socket_t management_node_response_puller(context, ZMQ_PULL);
-  management_node_response_puller.bind(
-      wt.management_node_response_bind_address());
+  // // responsible for listening for function node IP lookup response messages.
+  // zmq::socket_t management_node_response_puller(context, ZMQ_PULL);
+  // management_node_response_puller.bind(
+  //     wt.management_node_response_bind_address());
 
   zmq::socket_t txn_request_puller(context, ZMQ_PULL);
   txn_request_puller.bind(wt.txn_request_bind_address());
@@ -271,12 +274,12 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       {static_cast<void *>(join_puller), 0, ZMQ_POLLIN, 0},
       {static_cast<void *>(depart_puller), 0, ZMQ_POLLIN, 0},
       {static_cast<void *>(self_depart_puller), 0, ZMQ_POLLIN, 0},
-      {static_cast<void *>(request_puller), 0, ZMQ_POLLIN, 0},
-      {static_cast<void *>(gossip_puller), 0, ZMQ_POLLIN, 0},
+      // {static_cast<void *>(request_puller), 0, ZMQ_POLLIN, 0},
+      // {static_cast<void *>(gossip_puller), 0, ZMQ_POLLIN, 0},
       {static_cast<void *>(replication_response_puller), 0, ZMQ_POLLIN, 0},
-      {static_cast<void *>(replication_change_puller), 0, ZMQ_POLLIN, 0},
-      {static_cast<void *>(cache_ip_response_puller), 0, ZMQ_POLLIN, 0},
-      {static_cast<void *>(management_node_response_puller), 0, ZMQ_POLLIN, 0}
+      // {static_cast<void *>(replication_change_puller), 0, ZMQ_POLLIN, 0},
+      // {static_cast<void *>(cache_ip_response_puller), 0, ZMQ_POLLIN, 0},
+      // {static_cast<void *>(management_node_response_puller), 0, ZMQ_POLLIN, 0}
       {static_cast<void *>(txn_request_puller), 0, ZMQ_POLLIN, 0},
       {static_cast<void *>(storage_request_puller), 0, ZMQ_POLLIN, 0},
       {static_cast<void *>(log_request_puller), 0, ZMQ_POLLIN, 0},
@@ -336,41 +339,41 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       return;
     }
 
-    if (pollitems[3].revents & ZMQ_POLLIN) {
-      auto work_start = std::chrono::system_clock::now();
+    // if (pollitems[3].revents & ZMQ_POLLIN) {
+    //   auto work_start = std::chrono::system_clock::now();
 
-      string serialized = kZmqUtil->recv_string(&request_puller);
-      user_request_handler(access_count, seed, serialized, log,
-                           global_hash_rings, local_hash_rings,
-                           pending_requests, key_access_tracker, stored_key_map,
-                           key_replication_map, local_changeset, wt,
-                           serializers, pushers);
+    //   string serialized = kZmqUtil->recv_string(&request_puller);
+    //   user_request_handler(access_count, seed, serialized, log,
+    //                        global_hash_rings, local_hash_rings,
+    //                        pending_requests, key_access_tracker, stored_key_map,
+    //                        key_replication_map, local_changeset, wt,
+    //                        serializers, pushers);
 
-      auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
-                              std::chrono::system_clock::now() - work_start)
-                              .count();
+    //   auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+    //                           std::chrono::system_clock::now() - work_start)
+    //                           .count();
 
-      working_time += time_elapsed;
-      working_time_map[3] += time_elapsed;
-    }
+    //   working_time += time_elapsed;
+    //   working_time_map[3] += time_elapsed;
+    // }
 
-    if (pollitems[4].revents & ZMQ_POLLIN) {
-      auto work_start = std::chrono::system_clock::now();
+    // if (pollitems[4].revents & ZMQ_POLLIN) {
+    //   auto work_start = std::chrono::system_clock::now();
 
-      string serialized = kZmqUtil->recv_string(&gossip_puller);
-      gossip_handler(seed, serialized, global_hash_rings, local_hash_rings,
-                     pending_gossip, stored_key_map, key_replication_map, wt,
-                     serializers, pushers, log);
+    //   string serialized = kZmqUtil->recv_string(&gossip_puller);
+    //   gossip_handler(seed, serialized, global_hash_rings, local_hash_rings,
+    //                  pending_gossip, stored_key_map, key_replication_map, wt,
+    //                  serializers, pushers, log);
 
-      auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
-                              std::chrono::system_clock::now() - work_start)
-                              .count();
-      working_time += time_elapsed;
-      working_time_map[4] += time_elapsed;
-    }
+    //   auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+    //                           std::chrono::system_clock::now() - work_start)
+    //                           .count();
+    //   working_time += time_elapsed;
+    //   working_time_map[4] += time_elapsed;
+    // }
 
     // receives replication factor response
-    if (pollitems[5].revents & ZMQ_POLLIN) {
+    if (pollitems[3].revents & ZMQ_POLLIN) {
       auto work_start = std::chrono::system_clock::now();
 
       string serialized = kZmqUtil->recv_string(&replication_response_puller);
@@ -387,55 +390,55 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       working_time_map[5] += time_elapsed;
     }
 
-    // receive replication factor change
-    if (pollitems[6].revents & ZMQ_POLLIN) {
-      auto work_start = std::chrono::system_clock::now();
+    // // receive replication factor change
+    // if (pollitems[6].revents & ZMQ_POLLIN) {
+    //   auto work_start = std::chrono::system_clock::now();
 
-      string serialized = kZmqUtil->recv_string(&replication_change_puller);
-      replication_change_handler(
-          public_ip, private_ip, thread_id, seed, log, serialized,
-          global_hash_rings, local_hash_rings, stored_key_map,
-          key_replication_map, local_changeset, wt, serializers, pushers);
+    //   string serialized = kZmqUtil->recv_string(&replication_change_puller);
+    //   replication_change_handler(
+    //       public_ip, private_ip, thread_id, seed, log, serialized,
+    //       global_hash_rings, local_hash_rings, stored_key_map,
+    //       key_replication_map, local_changeset, wt, serializers, pushers);
 
-      auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
-                              std::chrono::system_clock::now() - work_start)
-                              .count();
-      working_time += time_elapsed;
-      working_time_map[6] += time_elapsed;
-    }
+    //   auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+    //                           std::chrono::system_clock::now() - work_start)
+    //                           .count();
+    //   working_time += time_elapsed;
+    //   working_time_map[6] += time_elapsed;
+    // }
 
-    // Receive cache IP lookup response.
-    if (pollitems[7].revents & ZMQ_POLLIN) {
-      auto work_start = std::chrono::system_clock::now();
+    // // Receive cache IP lookup response.
+    // if (pollitems[7].revents & ZMQ_POLLIN) {
+    //   auto work_start = std::chrono::system_clock::now();
 
-      string serialized = kZmqUtil->recv_string(&cache_ip_response_puller);
-      cache_ip_response_handler(serialized, cache_ip_to_keys, key_to_cache_ips);
+    //   string serialized = kZmqUtil->recv_string(&cache_ip_response_puller);
+    //   cache_ip_response_handler(serialized, cache_ip_to_keys, key_to_cache_ips);
 
-      auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
-                              std::chrono::system_clock::now() - work_start)
-                              .count();
-      working_time += time_elapsed;
-      working_time_map[7] += time_elapsed;
-    }
+    //   auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+    //                           std::chrono::system_clock::now() - work_start)
+    //                           .count();
+    //   working_time += time_elapsed;
+    //   working_time_map[7] += time_elapsed;
+    // }
 
-    // Receive management node response.
-    if (pollitems[8].revents & ZMQ_POLLIN) {
-      auto work_start = std::chrono::system_clock::now();
+    // // Receive management node response.
+    // if (pollitems[8].revents & ZMQ_POLLIN) {
+    //   auto work_start = std::chrono::system_clock::now();
 
-      string serialized =
-          kZmqUtil->recv_string(&management_node_response_puller);
-      management_node_response_handler(
-          serialized, extant_caches, cache_ip_to_keys, key_to_cache_ips,
-          global_hash_rings, local_hash_rings, pushers, wt, rid);
+    //   string serialized =
+    //       kZmqUtil->recv_string(&management_node_response_puller);
+    //   management_node_response_handler(
+    //       serialized, extant_caches, cache_ip_to_keys, key_to_cache_ips,
+    //       global_hash_rings, local_hash_rings, pushers, wt, rid);
 
-      auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
-                              std::chrono::system_clock::now() - work_start)
-                              .count();
-      working_time += time_elapsed;
-      working_time_map[8] += time_elapsed;
-    }
+    //   auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+    //                           std::chrono::system_clock::now() - work_start)
+    //                           .count();
+    //   working_time += time_elapsed;
+    //   working_time_map[8] += time_elapsed;
+    // }
 
-    if (pollitems[9].revents & ZMQ_POLLIN) {
+    if (pollitems[4].revents & ZMQ_POLLIN) {
       auto work_start = std::chrono::system_clock::now();
 
       string serialized = kZmqUtil->recv_string(&txn_request_puller);
@@ -453,7 +456,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       working_time_map[3] += time_elapsed;
     }
 
-    if (pollitems[10].revents & ZMQ_POLLIN) {
+    if (pollitems[5].revents & ZMQ_POLLIN) {
       auto work_start = std::chrono::system_clock::now();
 
       string serialized = kZmqUtil->recv_string(&storage_request_puller);
@@ -471,7 +474,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       working_time_map[3] += time_elapsed;
     }
 
-    if (pollitems[10].revents & ZMQ_POLLIN) {
+    if (pollitems[6].revents & ZMQ_POLLIN) {
       auto work_start = std::chrono::system_clock::now();
 
       string serialized = kZmqUtil->recv_string(&log_request_puller);
@@ -820,13 +823,16 @@ int main(int argc, char *argv[]) {
   kTierMetadata[Tier::TXN] =
       TierMetadata(Tier::TXN, kTxnThreadCount,
                    kDefaultGlobalTxnReplication, kTxnNodeCapacity);
-
   kTierMetadata[Tier::MEMORY] =
       TierMetadata(Tier::MEMORY, kMemoryThreadCount,
                    kDefaultGlobalMemoryReplication, kMemoryNodeCapacity);
   kTierMetadata[Tier::DISK] =
       TierMetadata(Tier::DISK, kEbsThreadCount, kDefaultGlobalEbsReplication,
                    kEbsNodeCapacity);
+  kTierMetadata[Tier::LOG] =
+      TierMetadata(Tier::LOG, kLogThreadCount, kDefaultGlobalLogReplication,
+                   kLogNodeCapacity);
+
 
   kThreadNum = kTierMetadata[kSelfTier].thread_number_;
 

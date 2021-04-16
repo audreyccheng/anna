@@ -42,6 +42,7 @@ extern vector<Tier> kSelfTierIdVector;
 extern unsigned kTxnNodeCapacity;
 extern unsigned kMemoryNodeCapacity;
 extern unsigned kEbsNodeCapacity;
+extern unsigned kLogNodeCapacity;
 
 // the number of threads running in this executable
 extern unsigned kThreadNum;
@@ -49,11 +50,13 @@ extern unsigned kTxnThreadCount;
 extern unsigned kMemoryThreadCount;
 extern unsigned kEbsThreadCount;
 extern unsigned kRoutingThreadCount;
+extern unsigned kLogThreadCount;
 
 extern unsigned kDefaultGlobalTxnReplication;
 extern unsigned kDefaultGlobalMemoryReplication;
 extern unsigned kDefaultGlobalEbsReplication;
 extern unsigned kDefaultLocalReplication;
+extern unsigned kDefaultGlobalLogReplication;
 extern unsigned kMinimumReplicaNumber;
 
 inline void prepare_get_tuple(KeyRequest &req, Key key,

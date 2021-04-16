@@ -22,7 +22,8 @@ void replication_response_handler(
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
     map<Key, KeyProperty> &stored_key_map,
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
-    ServerThread &wt, SerializerMap &serializers, SocketCache &pushers) {
+    ServerThread &wt, TxnSerializer &txn_serializer, BaseSerializer &base_serializer, 
+    LogSerializer &log_serializer, SocketCache &pushers) {
   TxnResponse response;
   response.ParseFromString(serialized);
 
@@ -120,30 +121,31 @@ void replication_response_handler(
           response.SerializeToString(&serialized_response);
           kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
         } else if (responsible && request.addr_ == "") {
-          // only put requests should fall into this category
-          if (request.type_ == RequestType::PUT) {
-            if (request.lattice_type_ == LatticeType::NONE) {
-              log->error("PUT request missing lattice type.");
-            } else if (stored_key_map.find(key) != stored_key_map.end() &&
-                       stored_key_map[key].type_ != LatticeType::NONE &&
-                       stored_key_map[key].type_ != request.lattice_type_) {
+          // // only put requests should fall into this category
+          // if (request.type_ == RequestType::PUT) {
+          //   if (request.lattice_type_ == LatticeType::NONE) {
+          //     log->error("PUT request missing lattice type.");
+          //   } else if (stored_key_map.find(key) != stored_key_map.end() &&
+          //              stored_key_map[key].type_ != LatticeType::NONE &&
+          //              stored_key_map[key].type_ != request.lattice_type_) {
 
-              log->error(
-                  "Lattice type mismatch for key {}: query is {} but we expect "
-                  "{}.",
-                  key, LatticeType_Name(request.lattice_type_),
-                  LatticeType_Name(stored_key_map[key].type_));
-            } else {
-              process_put(key, request.lattice_type_, request.payload_,
-                          serializers[request.lattice_type_], stored_key_map);
-              key_access_tracker[key].insert(now);
+          //     log->error(
+          //         "Lattice type mismatch for key {}: query is {} but we expect "
+          //         "{}.",
+          //         key, LatticeType_Name(request.lattice_type_),
+          //         LatticeType_Name(stored_key_map[key].type_));
+          //   } else {
+          //     process_put(key, request.lattice_type_, request.payload_,
+          //                 serializers[request.lattice_type_], stored_key_map);
+          //     key_access_tracker[key].insert(now);
 
-              access_count += 1;
-              local_changeset.insert(key);
-            }
-          } else {
-            log->error("Received a GET request with no response address.");
-          }
+          //     access_count += 1;
+          //     local_changeset.insert(key);
+          //   }
+          // } else {
+          //   log->error("Received a GET request with no response address.");
+          // }
+          log->error("Received a request with no response address.");
         } else if (responsible && request.addr_ != "") {
           TxnResponse rep_response;
 
@@ -153,10 +155,13 @@ void replication_response_handler(
             rep_response.set_response_id(request.response_id_);
           }
 
+          TxnKeyTuple *tp = rep_response.add_tuples();
+          tp->set_key(key);
+
 
           /* TXN tier */
-          KeyTuple *tp = rep_response.add_tuples();
-          tp->set_key(key);
+          if (kSelfTier == Tier::TXN) {
+          auto serializer = txn_serializer;
 
           if (request.type_ == RequestType::START_TXN) {
             auto txn_id = process_start_txn(key, serializer, stored_txn_map);
@@ -304,6 +309,9 @@ void replication_response_handler(
           }
 
 
+        } else if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK) {
+          auto serializer = storage_serializer;
+
           /* STORAGE tier */
           if (request.type_ == RequestType::TXN_GET) {
             if (stored_key_map.find(key) == stored_key_map.end()) {
@@ -311,7 +319,7 @@ void replication_response_handler(
             } else {
               AnnaError error = AnnaError::NO_ERROR;
               auto res = process_txn_get(txn_id, key, error,
-                                         serializers[stored_key_map[key].type_], 
+                                         serializer, 
                                          stored_key_map);
               tp->set_payload(res);
               tp->set_error(error);
@@ -319,7 +327,7 @@ void replication_response_handler(
           } else if (request_type == RequestType::TXN_PUT) {
             AnnaError error = AnnaError::NO_ERROR;
             process_txn_put(txn_id, key, error, payload,
-                            serializers[stored_key_map[key].type_], stored_key_map);
+                            serializer, stored_key_map);
             tp->set_error(error);
 
             local_changeset.insert(key);
@@ -330,7 +338,7 @@ void replication_response_handler(
               // check lock is still held; nothin actually done here for 2PL
               AnnaError error = AnnaError::NO_ERROR;
               process_txn_prepare(txn_id, key, error, 
-                                  serializers[stored_key_map[key].type_],
+                                  serializer,
                                   stored_key_map);
               tp->set_error(error);
 
@@ -353,14 +361,17 @@ void replication_response_handler(
             }
           }
 
+         } else if (kSelfTier == Tier::LOG) {
+          auto serializer = log_serializer;
           /* LOG tier */
           if (request_type == RequestType::PREPARE_TXN || 
               request_type == RequestType::COMMIT_TXN) {
-            process_log(txn_id, key, payload, error, serializers[LOG]); // TODO(@accheng): update
+            process_log(txn_id, key, payload, error, serializer); // TODO(@accheng): update
           } else {
             log->error("Unknown request type {} in user request handler.",
                        request_type);
           }
+        }
 
 
           // if (request.type_ == RequestType::GET) {
@@ -412,53 +423,53 @@ void replication_response_handler(
     }
   }
 
-  if (pending_gossip.find(key) != pending_gossip.end()) {
-    ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-        wt.replication_response_connect_address(), key, is_metadata(key),
-        global_hash_rings, local_hash_rings, key_replication_map, pushers,
-        kSelfTierIdVector, succeed, seed);
+  // if (pending_gossip.find(key) != pending_gossip.end()) {
+  //   ServerThreadList threads = kHashRingUtil->get_responsible_threads(
+  //       wt.replication_response_connect_address(), key, is_metadata(key),
+  //       global_hash_rings, local_hash_rings, key_replication_map, pushers,
+  //       kSelfTierIdVector, succeed, seed);
 
-    if (succeed) {
-      if (std::find(threads.begin(), threads.end(), wt) != threads.end()) {
-        for (const PendingGossip &gossip : pending_gossip[key]) {
-          if (stored_key_map.find(key) != stored_key_map.end() &&
-              stored_key_map[key].type_ != LatticeType::NONE &&
-              stored_key_map[key].type_ != gossip.lattice_type_) {
-            log->error("Lattice type mismatch for key {}: {} from query but {} "
-                       "expected.",
-                       key, LatticeType_Name(gossip.lattice_type_),
-                       LatticeType_Name(stored_key_map[key].type_));
-          } else {
-            process_put(key, gossip.lattice_type_, gossip.payload_,
-                        serializers[gossip.lattice_type_], stored_key_map);
-          }
-        }
-      } else {
-        map<Address, KeyRequest> gossip_map;
+  //   if (succeed) {
+  //     if (std::find(threads.begin(), threads.end(), wt) != threads.end()) {
+  //       for (const PendingGossip &gossip : pending_gossip[key]) {
+  //         if (stored_key_map.find(key) != stored_key_map.end() &&
+  //             stored_key_map[key].type_ != LatticeType::NONE &&
+  //             stored_key_map[key].type_ != gossip.lattice_type_) {
+  //           log->error("Lattice type mismatch for key {}: {} from query but {} "
+  //                      "expected.",
+  //                      key, LatticeType_Name(gossip.lattice_type_),
+  //                      LatticeType_Name(stored_key_map[key].type_));
+  //         } else {
+  //           process_put(key, gossip.lattice_type_, gossip.payload_,
+  //                       serializers[gossip.lattice_type_], stored_key_map);
+  //         }
+  //       }
+  //     } else {
+  //       map<Address, KeyRequest> gossip_map;
 
-        // forward the gossip
-        for (const ServerThread &thread : threads) {
-          gossip_map[thread.gossip_connect_address()].set_type(
-              RequestType::PUT);
+  //       // forward the gossip
+  //       for (const ServerThread &thread : threads) {
+  //         gossip_map[thread.gossip_connect_address()].set_type(
+  //             RequestType::PUT);
 
-          for (const PendingGossip &gossip : pending_gossip[key]) {
-            prepare_put_tuple(gossip_map[thread.gossip_connect_address()], key,
-                              gossip.lattice_type_, gossip.payload_);
-          }
-        }
+  //         for (const PendingGossip &gossip : pending_gossip[key]) {
+  //           prepare_put_tuple(gossip_map[thread.gossip_connect_address()], key,
+  //                             gossip.lattice_type_, gossip.payload_);
+  //         }
+  //       }
 
-        // redirect gossip
-        for (const auto &gossip_pair : gossip_map) {
-          string serialized;
-          gossip_pair.second.SerializeToString(&serialized);
-          kZmqUtil->send_string(serialized, &pushers[gossip_pair.first]);
-        }
-      }
-    } else {
-      log->error(
-          "Missing key replication factor in process pending gossip routine.");
-    }
+  //       // redirect gossip
+  //       for (const auto &gossip_pair : gossip_map) {
+  //         string serialized;
+  //         gossip_pair.second.SerializeToString(&serialized);
+  //         kZmqUtil->send_string(serialized, &pushers[gossip_pair.first]);
+  //       }
+  //     }
+  //   } else {
+  //     log->error(
+  //         "Missing key replication factor in process pending gossip routine.");
+  //   }
 
-    pending_gossip.erase(key);
-  }
+  //   pending_gossip.erase(key);
+  // }
 }
