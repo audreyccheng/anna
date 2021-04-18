@@ -26,7 +26,7 @@ void replication_response_handler(
   TxnKeyTuple tuple = response.tuples(0);
 
   Key key = get_key_from_metadata(tuple.key());
-  Tier key_tier = response.tier();
+  Tier key_tier = get_tier_from_anna_tier(response.tier());
 
   AnnaError error = tuple.error();
 
@@ -75,15 +75,15 @@ void replication_response_handler(
     //   }
 
       threads = kHashRingUtil->get_responsible_threads(
-        rt.replication_response_connect_address(), key, false, key_tier,
+        rt.replication_response_connect_address(), key, false,
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         {key_tier}, succeed, seed);
 
-      if (threads.size() > 0) {
-        break;
-      }
+      // if (threads.size() > 0) {
+      //   break;
+      // }
 
-      if (!succeed) {
+      if (!succeed || threads.size() == 0) { // TOD(@accheng): needed?
         log->error("Missing replication factor for key {}.", key);
         return;
       }

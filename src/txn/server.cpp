@@ -39,6 +39,7 @@ unsigned kDefaultGlobalTxnReplication;
 unsigned kDefaultGlobalMemoryReplication;
 unsigned kDefaultGlobalEbsReplication;
 unsigned kDefaultLocalReplication;
+unsigned kDefaultGlobalLogReplication;
 
 hmap<Tier, TierMetadata, TierEnumHash> kTierMetadata;
 
@@ -191,19 +192,19 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
     }
   }
 
-  // SerializerMap serializers;
+  SerializerMap serializers;
 
-  TxnSerializer txn_serialier;
-  BaseSerializer base_serializer;
-  LogSerializer log_serializer;
+  TxnSerializer *txn_serialier;
+  BaseSerializer *base_serializer;
+  LogSerializer *log_serializer;
 
   if (kSelfTier == Tier::TXN || kSelfTier == Tier::MEMORY || 
       kSelfTier == Tier::DISK || kSelfTier == Tier::LOG) { // TODO(@accheng): update
     BaseTxn *base_txn_node = new BaseTxn();
     txn_serialier = new BaseTxnSerializer(base_txn_node);
 
-    BaseStore *base_node = new BaseStore();
-    base_serializer = new BaseSerializer(base_node);
+    LockStore *base_node = new LockStore();
+    base_serializer = new LockStoreSerializer(base_node);
 
     BaseLog *base_log_node = new BaseLog();
     log_serializer = new BaseLogSerializer(base_log_node);
@@ -788,18 +789,21 @@ int main(int argc, char *argv[]) {
   kTxnThreadCount = threads["txn"].as<unsigned>();
   kMemoryThreadCount = threads["memory"].as<unsigned>();
   kEbsThreadCount = threads["ebs"].as<unsigned>();
+  kLogThreadCount = threads["log"].as<unsigned>();
 
   YAML::Node capacities = conf["capacities"];
   kTxnNodeCapacity = capacities["txn-cap"].as<unsigned>() * 1000000;
   kMemoryNodeCapacity = capacities["memory-cap"].as<unsigned>() * 1000000;
   kEbsNodeCapacity = capacities["ebs-cap"].as<unsigned>() * 1000000;
+  kLogNodeCapacity = capacities["log-cap"].as<unsigned>() * 1000000;
 
   YAML::Node replication = conf["replication"];
   kDefaultGlobalTxnReplication = replication["txn"].as<unsigned>();
   kDefaultGlobalMemoryReplication = replication["memory"].as<unsigned>();
   kDefaultGlobalEbsReplication = replication["ebs"].as<unsigned>();
+  kDefaultGlobalLogReplication = replication["log"].as<unsigned>();
   kDefaultLocalReplication = replication["local"].as<unsigned>();
-
+  
   YAML::Node server = conf["server"];
   Address public_ip = server["public_ip"].as<string>();
   Address private_ip = server["private_ip"].as<string>();

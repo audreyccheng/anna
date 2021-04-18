@@ -3,26 +3,28 @@
 
 #include "anna.pb.h"
 
-template <typename K, typename V> class TxnNode {
+template <typename K> class TxnNode {
 protected:
-  map<K, vector<V>> db;
+  map<K, vector<Operation>> db;
 
 public:
-  TxnNode<K, vector<V>>() {}
+  TxnNode<K, vector<Operation>>() {}
 
-  TxnNode<K, vector<V>>(map<K, vector<V>> &other) { db = other; }
+  TxnNode<K, vector<Operation>>(map<K, vector<Operation>> &other) { 
+    db = other; 
+  }
 
-  vector<V> get_ops(const string &txn_id, AnnaError &error) {
+  vector<Operation> get_ops(const string &txn_id, AnnaError &error) {
     if (db.find(txn_id) == db.end()) {
       error = AnnaError::TXN_DNE;
     } else {
-      return db.at(txn_id)
+      return db.at(txn_id);
     }
-    vector<V> vec;
+    vector<Operation> vec;
     return vec;
   }
 
-  void put_op(const string &txn_id, const V &v, AnnaError &error) { 
+  void put_op(const string &txn_id, const Operation &v, AnnaError &error) { 
     if (db.find(txn_id) == db.end()) {
       error = AnnaError::TXN_DNE;
     } else {
@@ -36,13 +38,13 @@ public:
       std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count());
     string txn_id = client_id + ":" + time;
-    vector<V> vec;
+    vector<Operation> vec;
     db[txn_id] = vec;
     return txn_id;
   }
 
   void put_start_txn(const string &txn_id) {
-    vector<V> vec;
+    vector<Operation> vec;
     db[txn_id] = vec;
   }
 

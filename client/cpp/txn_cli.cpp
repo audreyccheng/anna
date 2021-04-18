@@ -59,8 +59,9 @@ void handle_request(TxnClientInterface *client, string input) {
 
     std::cout << responses[0].txn_id() << std::endl;
   } else if (v[0] == "TXN_GET") {
+    auto client_id = "0";
     // client must enter txn_id and key
-    client->txn_get(v[1], v[2]);
+    client->txn_get(client_id, v[1], v[2]);
 
     vector<TxnResponse> responses = client->receive_txn_async();
     while (responses.size() == 0) {
@@ -76,8 +77,9 @@ void handle_request(TxnClientInterface *client, string input) {
     //     deserialize_lww(responses[0].tuples(0).payload());
     // std::cout << lww_lattice.reveal().value << std::endl;
   } else if (v[0] == "TXN_PUT") {
+    auto client_id = "0";
     // client must enter txn_id, key, and value
-    string rid = client->txn_put(v[1], v[2], v[3]);
+    string rid = client->txn_put(client_id, v[1], v[2], v[3]);
 
     vector<TxnResponse> responses = client->receive_txn_async();
     while (responses.size() == 0) {
@@ -96,7 +98,8 @@ void handle_request(TxnClientInterface *client, string input) {
       std::cout << "Failure!" << std::endl;
     }
   } else if (v[0] == "COMMIT_TXN") {
-    client->commit_txn(v[1]);
+    auto client_id = "0";
+    client->commit_txn(client_id, v[1]);
 
     vector<TxnResponse> responses = client->receive_txn_async();
     while (responses.size() == 0) {

@@ -19,8 +19,10 @@ hmap<Tier, TierMetadata, TierEnumHash> kTierMetadata;
 unsigned kDefaultLocalReplication;
 unsigned kRoutingThreadCount;
 
+unsigned kTxnNodeCapacity;
 unsigned kMemoryNodeCapacity;
 unsigned kEbsNodeCapacity;
+unsigned kLogNodeCapacity;
 
 ZmqUtil zmq_util;
 ZmqUtilInterface *kZmqUtil = &zmq_util;
@@ -161,13 +163,18 @@ int main(int argc, char *argv[]) {
   kRoutingThreadCount = threads["routing"].as<unsigned>();
 
   YAML::Node capacities = conf["capacities"];
+  kTxnNodeCapacity = capacities["txn-cap"].as<unsigned>() * 1000000;
   kMemoryNodeCapacity = capacities["memory-cap"].as<unsigned>() * 1000000;
   kEbsNodeCapacity = capacities["ebs-cap"].as<unsigned>() * 1000000;
+  kLogNodeCapacity = capacities["log-cap"].as<unsigned>() * 1000000;
+
 
   YAML::Node replication = conf["replication"];
+  unsigned kDefaultGlobalTxnReplication = replication["txn"].as<unsigned>();
   unsigned kDefaultGlobalMemoryReplication =
       replication["memory"].as<unsigned>();
   unsigned kDefaultGlobalEbsReplication = replication["ebs"].as<unsigned>();
+  unsigned kDefaultGlobalLogReplication = replication["log"].as<unsigned>();
   kDefaultLocalReplication = replication["local"].as<unsigned>();
 
   YAML::Node routing = conf["routing"];

@@ -37,15 +37,27 @@ struct PendingTxn {
   TxnRequest request_;
 };
 
+inline string get_client_id_from_txn_id(const string& txn_id) {
+  string::size_type n_id;
+  string::size_type n_time;
+
+  n_id = txn_id.find(":"); // TODO(@accheng): update to constant
+  n_time = txn_id.find(":", n_id + 1);
+  string client_id = txn_id.substr(0, n_id);
+  return client_id;
+}
+
 class TxnClientInterface {
  public:
   virtual string put_async(const Key& key, const string& payload,
                            LatticeType lattice_type) = 0;
   virtual void get_async(const Key& key) = 0;
   virtual void start_txn(const string& client_id) = 0;
-  virtual void txn_get(const string& txn_id, const Key& key) = 0;
-  virtual string txn_put(const string& txn_id, const Key& key, const string& payload) = 0;
-  virtual void commit_txn(const string& txn_id) = 0;
+  virtual void txn_get(const string& client_id, const string& txn_id,
+                       const Key& key) = 0;
+  virtual string txn_put(const string& client_id, const string& txn_id,
+                         const Key& key, const string& payload) = 0;
+  virtual void commit_txn(const string& client_id, const string& txn_id) = 0;
   virtual vector<KeyResponse> receive_async() = 0;
   virtual vector<TxnResponse> receive_txn_async() = 0;
   virtual zmq::context_t* get_context() = 0;
@@ -139,7 +151,8 @@ class TxnClient : public TxnClientInterface {
     }
   }
 
-  void txn_get(const string& txn_id, const Key& key) {
+  void txn_get(const string& client_id, const string& txn_id,
+               const Key& key) {
     // // TODO(@accheng): Is this if needed??
     // if (pending_txn_response_map_.find(key) ==
     //     pending_txn_response_map_.end()) {
@@ -152,7 +165,8 @@ class TxnClient : public TxnClientInterface {
     // }
   }
 
-  string txn_put(const string& txn_id, const Key& key, const string& payload) {
+  string txn_put(const string& client_id, const string& txn_id,
+                 const Key& key, const string& payload) {
     TxnRequest request;
     TxnKeyTuple* tuple = prepare_txn_data_request(request, key);
     request.set_type(RequestType::TXN_PUT);
@@ -162,7 +176,7 @@ class TxnClient : public TxnClientInterface {
     return request.request_id();
   }
 
-  void commit_txn(const string& txn_id) {
+  void commit_txn(const string& client_id, const string& txn_id) {
     // TODO(@accheng): only issue commit_txn if not in the pending map?
     if (pending_txn_response_map_.find(txn_id) ==
         pending_txn_response_map_.end()) {
@@ -342,7 +356,7 @@ class TxnClient : public TxnClientInterface {
 
           // handle stuff in pending request map
           for (auto& req : pending_txn_map_[key].second) {
-            try_txn_request(req);
+            try_txn_request(req, get_client_id_from_txn_id(req.txn_id()));
           }
 
           // GC the pending request map
@@ -366,7 +380,9 @@ class TxnClient : public TxnClientInterface {
             pending_txn_response_map_[key].tp_ =
                 std::chrono::system_clock::now();
 
-            try_txn_request(pending_txn_response_map_[key].request_);
+            try_txn_request(pending_txn_response_map_[key].request_,
+              get_client_id_from_txn_id(
+                pending_txn_response_map_[key].request_.txn_id()));
           } else {
             // error no == 0 or 1
             result.push_back(response);
@@ -494,7 +510,7 @@ class TxnClient : public TxnClientInterface {
     // we only get NULL back for the worker thread if the query to the routing
     // tier timed out, which should never happen.
     Key key = request.tuples(0).key();
-    Address worker = get_worker_thread(false);
+    Address worker = get_worker_thread("", false);
     if (worker.length() == 0) {
       // this means a key addr request is issued asynchronously
       if (pending_request_map_.find(key) == pending_request_map_.end()) {

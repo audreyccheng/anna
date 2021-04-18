@@ -6,7 +6,8 @@
 #include <unistd.h> // for ftruncate(2)
 
 #include "base_txn_node.hpp"
-#include "txn_operation.hpp"
+#include "base_store.hpp"
+#include "base_log.hpp"
 #include "common.hpp"
 #include "kvs_common.hpp"
 #include "yaml-cpp/yaml.h"
@@ -20,10 +21,10 @@
 // // Define the gossip period (frequency)
 // #define PERIOD 10000000 // 10 seconds
 
-typedef TxnNode<Key, vector<Operation>> BaseTxn;
+typedef TxnNode<Key> BaseTxn;
 typedef BaseNode<Key, string> BaseStore;
-typedef LockNode<Key, LockElement<string>> LockStore;
-typedef LogNode<Operation> BaseLog;
+typedef LockNode<Key> LockStore;
+// typedef LogNode<Operation> BaseLog;
 
 // a map that represents which keys should be sent to which IP-port combinations
 // typedef map<Address, set<Key>> AddressKeysetMap;
@@ -31,11 +32,12 @@ typedef LogNode<Operation> BaseLog;
 class TxnSerializer {
 public:
   virtual string get_ops(const string &txn_id, AnnaError &error) = 0;
-  virtual void put_op(const string &txn_id, const string &serialized) = 0;
+  virtual void put_op(const string &txn_id, const Key &k,
+                      const string &payload, AnnaError &error) = 0;
   virtual void put_start_txn(const string &txn_id) = 0;
-  virtual void create_txn(const string &client_id) = 0;
-  virtual void commit_txn(const string &txn_id) = 0;
-  virtual void remove(const Key &key) = 0;
+  virtual string create_txn(const string &client_id) = 0;
+  virtual void commit_txn(const string &txn_id, AnnaError &error) = 0;
+  // virtual void remove(const Key &key) = 0;
   virtual ~TxnSerializer(){};
 };
 
@@ -43,25 +45,26 @@ class BaseTxnSerializer : public TxnSerializer {
   BaseTxn *base_txn_node_;
 
 public:
-  BaseTxnSerializer(BaseTxn *base_txn_node_) : base_txn_node_(base_txn_node) {}
+  BaseTxnSerializer(BaseTxn *base_txn_node) : base_txn_node_(base_txn_node) {}
 
   // TODO(@accheng): do we need this?
   string get_ops(const string &txn_id, AnnaError &error) {
-    auto ops = base_txn_node_->get(key, error);
-    return serialize(vals);
+    vector<Operation> ops = base_txn_node_->get_ops(txn_id, error);
+    return serialize(ops);
   }
 
   void put_op(const string &txn_id, const Key &k,
               const string &payload, AnnaError &error) {
-    base_txn_node_->put_op(txn_id, Operation(k, payload), error);
+    auto new_op = Operation(txn_id, k, payload);
+    base_txn_node_->put_op(txn_id, new_op, error);
   }
 
   void put_start_txn(const string &txn_id) {
-    base_txn_node->put_start_txn(txn_id);
+    base_txn_node_->put_start_txn(txn_id);
   }
 
   string create_txn(const string &client_id) {
-    return base_txn_node_->create_txn(key);
+    return base_txn_node_->create_txn(client_id);
   }
 
   void commit_txn(const string &txn_id, AnnaError &error) {
@@ -87,7 +90,7 @@ class BaseStoreSerializer : public BaseSerializer {
   BaseStore *base_node_;
 
 public:
-  BaseStoreSerializer(BaseStore *base_node_) : base_node_(base_node) {}
+  BaseStoreSerializer(BaseStore *base_node) : base_node_(base_node) {}
 
   string get(const string& txn_id, const Key &key, AnnaError &error) {
     auto val = base_node_->get(key, error);
@@ -123,7 +126,7 @@ class LockStoreSerializer : public BaseSerializer {
   LockStore *lock_node_;
 
 public:
-  LockStoreSerializer(LockStore *lock_node_) : lock_node_(lock_node) {}
+  LockStoreSerializer(LockStore *lock_node) : lock_node_(lock_node) {}
 
   string get(const string& txn_id, const Key &key, AnnaError &error) {
     auto val = lock_node_->get(txn_id, key, error);
@@ -143,7 +146,7 @@ public:
     // nothing needs to be done
   }
 
-  void commit(const string& txn_id, const Key &key) {
+  void commit(const string& txn_id, const Key &key, AnnaError &error) {
     lock_node_->release_rlock(txn_id, key);
     lock_node_->release_wlock(txn_id, key);
   }
@@ -168,7 +171,7 @@ class BaseLogSerializer : public LogSerializer {
   BaseLog *base_log_node_;
 
 public:
-  BaseLogSerializer(BaseLog *base_log_node_) : base_log_node_(base_log_node) {}
+  BaseLogSerializer(BaseLog *base_log_node) : base_log_node_(base_log_node) {}
 
   unsigned append(const string &serialized) {
     Operation op = deserialize_op(serialized);

@@ -15,7 +15,28 @@
 syntax = "proto3";
 
 import "shared.proto";
-import "include/proto/metadata.proto";
+// import "include/proto/metadata.proto";
+
+// An enum representing all the tiers the system supports -- currently, a
+// memory tier and a disk-based tier.
+enum AnnaTier {
+  ATIER_UNSPECIFIED = 0;
+
+  // The value for the memory tier.
+  AMEMORY = 1;
+
+  // The value for the disk-based tier.
+  ADISK = 2;
+
+  // The value for the routing tier.
+  AROUTING = 3;
+
+  // The value for the transactional layer tier.
+  ATXN = 4;
+
+  // The value for the logging tier.
+  ALOG = 5;
+}
 
 // An enum to differentiate between different KVS requests.
 enum RequestType {
@@ -84,11 +105,14 @@ enum AnnaError {
   // cluster.
   NO_SERVERS = 5;
 
+  // The requested txn does not exist.
+  TXN_DNE = 6;
+
   // The transaction operation was unsuccessful.
-  FAILED_OP = 6;
+  FAILED_OP = 7;
 
   // The requested log record does not exist.
-  LOG_DNE = 7;
+  LOG_DNE = 8;
 }
 
 // ANNA KVS REQUESTS
@@ -190,7 +214,8 @@ message TxnResponse {
   string txn_id = 5;
 
   // Tier this response is being sent from.
-  Tier tier = 6;
+  // Tier tier = 6;
+  AnnaTier tier = 6;
 }
 
 // A response to a KeyRequest. 
@@ -227,7 +252,7 @@ message KeyAddressRequest {
   string request_id = 3;
 
   // A boolean to indicate if this is a request for the transactional tier
-  bool txn_tier;
+  bool txn_tier = 4;
 }
 
 // A 1-to-1 response from the routing tier for individual KeyAddressRequests.

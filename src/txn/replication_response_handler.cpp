@@ -33,7 +33,7 @@ void replication_response_handler(
   // Key key = get_key_from_metadata(tuple.key());
   Key key = response.txn_id();
   Key tuple_key = tuple.key();
-  Tier key_tier = response.tier();
+  Tier key_tier = get_tier_from_anna_tier(response.tier());
 
   AnnaError error = tuple.error();
 
@@ -235,7 +235,7 @@ void replication_response_handler(
                 TxnResponse commit_response;
                 commit_response.set_type(RequestType::COMMIT_TXN);
                 commit_response.set_txn_id(key);
-                commit_response.set_tier(kSelfTier);
+                commit_response.set_tier(get_anna_tier_from_tier(kSelfTier));
                 TxnKeyTuple *commit_tp = commit_response.add_tuples();
                 string commit_response_addr = request_map[RequestType::COMMIT_TXN][0].response_id_; // TODO(@accheng): should only be 1?
 

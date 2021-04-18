@@ -2,22 +2,24 @@
 #define INCLUDE_TXN_BASE_LOG_HPP_
 
 #include "anna.pb.h"
+#include "common.hpp"
 #include "types.hpp"
 
 // Basic class for storage node using map<key, value>
-template <typename T> class BaseLog {
+// template <typename T> 
+class BaseLog {
 protected:
-  vector<T> log;
+  vector<Operation> log;
   // virtual void get(const K &k, AnnaError &error) = 0;
   // virtual void put(const K &k, const V &v) = 0;
 
 public:
-  BaseLog<T>() {}
+  BaseLog() {}
 
-  BaseLog<T>(vector<T> &other) { log = other; }
+  BaseLog(vector<Operation> &other) { log = other; }
 
   // append an entry and return the log position it occupies
-  unsigned append(const V &v) { 
+  unsigned append(const Operation &v) { 
     log.push_back(v);
     return log.size() - 1;
   }
@@ -25,20 +27,20 @@ public:
   unsigned size() { return log.size(); }
 
   // delete records up to log position l
-  void trim(const unsigned &l) { log.erase(0, l); }
+  void trim(const unsigned &l) { log.erase(log.begin(), log.begin() + l); }
 
-  V read(const unsigned &l, AnnaError &error) {
+  Operation read(const unsigned &l, AnnaError &error) {
     if (l >= log.size()) {
       error = AnnaError::LOG_DNE;
-      return NULL;
+      return Operation();
     }
 
     return log.at(l);
   }
 
   // return all records at and after log position l
-  vector<V> subscribe(const unsigned &l, AnnaError &error) {
-    vector<V> vec;
+  vector<Operation> subscribe(const unsigned &l, AnnaError &error) {
+    vector<Operation> vec;
     if (l >= log.size()) {
       error = AnnaError::LOG_DNE;
       return vec;
@@ -46,7 +48,7 @@ public:
 
     auto index = l;
     while (index < log.size()) {
-      vec.push_back(l.at(index));
+      vec.push_back(log.at(index));
       index++;
     }
     return vec;

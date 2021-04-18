@@ -247,7 +247,7 @@ void HashRingUtilInterface::issue_replication_factor_request(
   }
   key_request.set_response_address(response_address);
 
-  prepare_txn_get_tuple(key_request, replication_key);
+  prepare_txn_tuple(key_request, replication_key, "" /* payload */);
   string serialized;
   key_request.SerializeToString(&serialized);
   kZmqUtil->send_string(serialized, &pushers[target_address]);
@@ -258,7 +258,7 @@ void HashRingUtilInterface::issue_storage_request(
     const string &txn_id, const Key &key, const string &payload,
     const ServerThread &thread, SocketCache &pushers) {
 
-  Address target_address = thread->storage_request_connect_address();
+  Address target_address = thread.storage_request_connect_address();
 
   // TODO(@accheng): do we need request_id?
   TxnRequest key_request;
@@ -284,7 +284,7 @@ void HashRingUtilInterface::issue_log_request(
     const string &txn_id, const Key &key, const string &payload,
     const ServerThread &thread, SocketCache &pushers) {
 
-  Address target_address = thread->log_request_connect_address();
+  Address target_address = thread.log_request_connect_address();
 
   // TODO(@accheng): do we need request_id?
   TxnRequest key_request;

@@ -5,36 +5,36 @@
 #include "types.hpp"
 
 // Basic class for storage node using map<key, value>
-template <typename K, typename V> class BaseStore {
+template <typename K, typename V> class BaseNode {
 protected:
-  Map<K, V> db;
+  map<K, V> db;
   // virtual void get(const K &k, AnnaError &error) = 0;
   // virtual void put(const K &k, const V &v) = 0;
 
 public:
-  BaseStore<K, V>() {}
+  BaseNode<K, V>() {}
 
-  BaseStore<K, V>(Map<K, V> &other) { db = other; }
+  BaseNode<K, V>(map<K, V> &other) { db = other; }
 
   V get(const K &k, AnnaError &error) {
-    if (!db.contains(k).reveal()) {
+    if (db.find(k) == db.end()) {
       error = AnnaError::KEY_DNE;
     }
 
     return db.at(k);
   }
 
-  void put(const K &k, const V &v) { return db[k] = v; }
+  void put(const K &k, const V &v) { db[k] = v; }
 
   // unsigned size(const K &k) { return db.at(k).size().reveal(); }
 
-  void remove(const K &k) { db.remove(k); }
+  void remove(const K &k) { db.erase(k); }
 };
 
-template <typename T>
+// template <typename T>
 class LockElement {
  protected:
-  T element;
+  string element;
   // TODO(@accheng): should this be a vector?
   set<string> rlocks;
   string wlock;
@@ -42,35 +42,35 @@ class LockElement {
  public:
   // LockElement<T>() {}
 
-  LockElement<T>(const T &e) { assign(e); }
+  LockElement(const string &e) { assign(e); }
 
-  LockElement<T>(const LockElement<T> &other) { assign(other.reveal()); }
+  LockElement(const LockElement &other) { assign(other.reveal()); }
 
-  virtual ~LockElement<T>() = default;
-  LockElement<T> &operator=(const LockElement<T> &rhs) {
+  virtual ~LockElement() = default;
+  LockElement &operator=(const LockElement &rhs) {
     assign(rhs.reveal());
     return *this;
   }
 
-  bool operator==(const LockElement<T> &rhs) const {
+  bool operator==(const LockElement &rhs) const {
     return this->reveal() == rhs.reveal();
   }
 
-  const T &reveal() const { return element; }
+  const string &reveal() const { return element; }
 
-  void assign(const T e) { element = e; }
+  void assign(const string &e) { element = e; }
 
-  void assign(const LockElement<T> &e) { element = e.reveal(); }
+  void assign(const LockElement &e) { element = e.reveal(); }
 
-  bool rlock(const string& txn_id) {
+  bool acquire_rlock(const string& txn_id) {
     if (wlock == "") {
-      rlock.insert(txn_id);
+      rlocks.insert(txn_id);
       return true;
     }
     return false;
   }
 
-  bool wlock(const string& txn_id) {
+  bool acquire_wlock(const string& txn_id) {
     if (rlocks.empty() && wlock == "") {
       wlock = txn_id;
       return true;
@@ -92,21 +92,21 @@ class LockElement {
 
 };
 
-template <typename K, LockElement<V>> class LockStore {
+template <typename K> class LockNode {
 protected:
-  Map<K, LockElement<V>> db;
+  map<K, LockElement> db;
 
 public:
-  LockStore<K, LockElement<V>>() {}
+  LockNode<K, LockElement>() {}
 
-  LockStore<K, LockElement<V>>(Map<K, LockElement<V>> &other) { db = other; }
+  LockNode<K, LockElement>(map<K, LockElement> &other) { db = other; }
 
-  V get(const string& txn_id, const K &k, AnnaError &error) {
-    if (!db.contains(k)) {
+  string get(const string& txn_id, const K &k, AnnaError &error) {
+    if (db.find(k) == db.end()) {
       error = AnnaError::KEY_DNE;
     } else {
       // TODO(@accheng): return some value even if no rlock?
-      if (!db.at(k).rlock(txn_id)) {
+      if (!db.at(k).acquire_rlock(txn_id)) {
         error = AnnaError::FAILED_OP;
       }
     }
@@ -115,30 +115,30 @@ public:
   }
 
   void release_rlock(const string& txn_id, const K &k) {
-    if (db.contains(k)) {
+    if (db.find(k) == db.end()) {
       db.at(k).release_rlock(txn_id);
     }
   }
 
-  void put(const string& txn_id, const K &k, const V &v, AnnaError &error) {
+  void put(const string& txn_id, const K &k, const string &v, AnnaError &error) {
     bool acquired_lock;
-    if (!db.contains(k)) {
-      db[k] = LockElement<V>(v);
+    if (db.find(k) == db.end()) {
+      db[k] = LockElement(v);
     }
-    if (!db.at(k).wlock(txn_id)) {
+    if (!db.at(k).acquire_wlock(txn_id)) {
       error = AnnaError::FAILED_OP;
     }
   }
 
   void release_wlock(const string& txn_id, const K &k) {
-    if (db.contains(k)) {
+    if (db.find(k) == db.end()) {
       db.at(k).release_wlock(txn_id);
     }
   }
 
   // unsigned size(const K &k) { return db.at(k).size().reveal(); }
 
-  void remove(const K &k) { db.remove(k); }
+  void remove(const K &k) { db.erase(k); }
 };
 
 

@@ -15,6 +15,8 @@ class Operation {
   // virtual void do_merge(const T &e) = 0;
 
  public:
+  Operation() {}
+  
   Operation(const string &txn_id, const Key &k,
             const string &v) { assign(txn_id, k, v); }
 

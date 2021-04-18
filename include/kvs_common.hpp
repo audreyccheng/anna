@@ -16,7 +16,10 @@
 #define KVS_INCLUDE_KVS_COMMON_HPP_
 
 #include "kvs_types.hpp"
+#include "anna.pb.h"
 #include "metadata.pb.h"
+
+#include <random>
 
 const unsigned kMetadataReplicationFactor = 1;
 const unsigned kMetadataLocalReplicationFactor = 1;
@@ -32,7 +35,8 @@ const vector<Tier> kAllTiers = {
 const vector<Tier> kStorageTiers = {
     Tier::MEMORY,
     Tier::DISK
-}
+};
+
 const unsigned kSloWorst = 3000;
 
 // run-time constants
@@ -100,5 +104,34 @@ inline Tier get_random_tier() {
   return Tier::DISK;
 }
 
+inline Tier get_tier_from_anna_tier(AnnaTier anna_tier) {
+  if (anna_tier == AnnaTier::AMEMORY) {
+    return Tier::MEMORY;
+  } else if (anna_tier == AnnaTier::ADISK) {
+    return Tier::DISK;
+  } else if (anna_tier == AnnaTier::AROUTING) {
+    return Tier::ROUTING;
+  } else if (anna_tier == AnnaTier::ATXN) {
+    return Tier::TXN;
+  } else if (anna_tier == AnnaTier::ALOG) {
+    return Tier::LOG;
+  }
+  return Tier::TIER_UNSPECIFIED;
+}
+
+inline AnnaTier get_anna_tier_from_tier(Tier tier) {
+  if (tier == Tier::MEMORY) {
+    return AnnaTier::AMEMORY;
+  } else if (tier == Tier::DISK) {
+    return AnnaTier::ADISK;
+  } else if (tier == Tier::ROUTING) {
+    return AnnaTier::AROUTING;
+  } else if (tier == Tier::TXN) {
+    return AnnaTier::ATXN;
+  } else if (tier == Tier::LOG) {
+    return AnnaTier::ALOG;
+  }
+  return AnnaTier::ATIER_UNSPECIFIED;
+}
 
 #endif // KVS_INCLUDE_KVS_COMMON_HPP_
