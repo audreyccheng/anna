@@ -157,7 +157,7 @@ void user_txn_request_handler(
           } else {
             // commit logic to storage tiers
             AnnaError error = AnnaError::NO_ERROR;
-            auto ops = process_get_ops(key, error);
+            auto ops = process_get_ops(key, error, serializer, stored_txn_map);
             tp->set_error(error);
             // TODO(@accheng): should txn abort if there is an error here?
             if (error != AnnaError::NO_ERROR) {

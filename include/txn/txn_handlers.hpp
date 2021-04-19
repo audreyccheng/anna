@@ -104,11 +104,18 @@ void management_node_response_handler(string &serialized,
                                       SocketCache &pushers, ServerThread &wt,
                                       unsigned &rid);
 
+std::pair<string, AnnaError> process_get(const Key &key,
+                                         Serializer *serializer);
+
+void process_put(const Key &key, LatticeType lattice_type,
+                 const string &payload, Serializer *serializer,
+                 map<Key, KeyProperty> &stored_key_map);
+
 void send_gossip(AddressKeysetMap &addr_keyset_map, SocketCache &pushers,
                  SerializerMap &serializers,
                  map<Key, KeyProperty> &stored_key_map);
 
-void process_start_txn(const string &client_id, TxnSerializer *serializer,
+string process_start_txn(const string &client_id, TxnSerializer *serializer,
                        map<Key, TxnKeyProperty> &stored_txn_map);
 
 void process_put_start_txn(const string &txn_id, TxnSerializer *serializer,

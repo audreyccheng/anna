@@ -12,7 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-#include "kvs/kvs_handlers.hpp"
+#include "txn/txn_handlers.hpp"
 
 void log_request_handler(
     unsigned &access_count, unsigned &seed, string &serialized, logger log,
@@ -52,7 +52,7 @@ void log_request_handler(
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
         if (is_metadata(key)) {
           // this means that this node is not responsible for this metadata key
-          KeyTuple *tp = response.add_tuples();
+          TxnKeyTuple *tp = response.add_tuples();
 
           tp->set_key(key);
           tp->set_error(AnnaError::WRONG_THREAD);
@@ -74,7 +74,9 @@ void log_request_handler(
 
         if (request_type == RequestType::PREPARE_TXN || 
             request_type == RequestType::COMMIT_TXN) {
+          AnnaError error = AnnaError::NO_ERROR;
           process_log(txn_id, key, payload, error, serializer); // TODO(@accheng): update
+          tp->set_error(error);
         } else {
           log->error("Unknown request type {} in user request handler.",
                      request_type);

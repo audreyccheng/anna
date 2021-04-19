@@ -12,7 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-#include "kvs/kvs_handlers.hpp"
+#include "txn/txn_handlers.hpp"
 
 void send_gossip(AddressKeysetMap &addr_keyset_map, SocketCache &pushers,
                  SerializerMap &serializers,
@@ -50,26 +50,27 @@ void send_gossip(AddressKeysetMap &addr_keyset_map, SocketCache &pushers,
   }
 }
 
-// std::pair<string, AnnaError> process_get(const Key &key,
-//                                          Serializer *serializer) {
-//   AnnaError error = AnnaError::NO_ERROR;
-//   auto res = serializer->get(key, error);
-//   return std::pair<string, AnnaError>(std::move(res), error);
-// }
+std::pair<string, AnnaError> process_get(const Key &key,
+                                         Serializer *serializer) {
+  AnnaError error = AnnaError::NO_ERROR;
+  auto res = serializer->get(key, error);
+  return std::pair<string, AnnaError>(std::move(res), error);
+}
 
-// void process_put(const Key &key, LatticeType lattice_type,
-//                  const string &payload, Serializer *serializer,
-//                  map<Key, KeyProperty> &stored_key_map) {
-//   stored_key_map[key].size_ = serializer->put(key, payload);
-//   stored_key_map[key].type_ = std::move(lattice_type);
-// }
+void process_put(const Key &key, LatticeType lattice_type,
+                 const string &payload, Serializer *serializer,
+                 map<Key, KeyProperty> &stored_key_map) {
+  stored_key_map[key].size_ = serializer->put(key, payload);
+  stored_key_map[key].type_ = std::move(lattice_type);
+}
 
 /* Txn functions */
 
-void process_start_txn(const string &client_id, TxnSerializer *serializer,
+string process_start_txn(const string &client_id, TxnSerializer *serializer,
                        map<Key, TxnKeyProperty> &stored_txn_map) {
   string txn_id = serializer->create_txn(client_id);
   stored_txn_map[txn_id].num_ops_ = 0;
+  return txn_id;
 }
 
 void process_put_start_txn(const string &txn_id, TxnSerializer *serializer,

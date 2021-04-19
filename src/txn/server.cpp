@@ -30,10 +30,12 @@ vector<Tier> kSelfTierIdVector;
 unsigned kTxnThreadCount;
 unsigned kMemoryThreadCount;
 unsigned kEbsThreadCount;
+unsigned kLogThreadCount;
 
 unsigned kTxnNodeCapacity;
 unsigned kMemoryNodeCapacity;
 unsigned kEbsNodeCapacity;
+unsigned kLogNodeCapacity;
 
 unsigned kDefaultGlobalTxnReplication;
 unsigned kDefaultGlobalMemoryReplication;

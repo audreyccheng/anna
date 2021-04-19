@@ -31,7 +31,8 @@ typedef LockNode<Key> LockStore;
 
 class TxnSerializer {
 public:
-  virtual string get_ops(const string &txn_id, AnnaError &error) = 0;
+  virtual vector<Operation> get_ops(const string &txn_id, AnnaError &error) = 0;
+  virtual string get_ops_serialized(const string &txn_id, AnnaError &error) = 0;
   virtual void put_op(const string &txn_id, const Key &k,
                       const string &payload, AnnaError &error) = 0;
   virtual void put_start_txn(const string &txn_id) = 0;
@@ -47,8 +48,12 @@ class BaseTxnSerializer : public TxnSerializer {
 public:
   BaseTxnSerializer(BaseTxn *base_txn_node) : base_txn_node_(base_txn_node) {}
 
+  vector<Operation> get_ops(const string &txn_id, AnnaError &error) {
+    return base_txn_node_->get_ops(txn_id, error);
+  }
+
   // TODO(@accheng): do we need this?
-  string get_ops(const string &txn_id, AnnaError &error) {
+  string get_ops_serialized(const string &txn_id, AnnaError &error) {
     vector<Operation> ops = base_txn_node_->get_ops(txn_id, error);
     return serialize(ops);
   }
@@ -202,6 +207,8 @@ public:
   }
 };
 
+using RequestTypeMap =
+    std::unordered_map<RequestType, vector<unsigned>, request_type_hash>;
 
 // using SerializerMap =
 //     std::unordered_map<LatticeType, Serializer *, lattice_type_hash>;

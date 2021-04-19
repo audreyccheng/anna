@@ -331,4 +331,10 @@ struct lattice_type_hash {
   }
 };
 
+struct request_type_hash {
+  std::size_t operator()(const RequestType& rt) const {
+    return std::hash<string>()(RequestType_Name(rt));
+  }
+};
+
 #endif  // INCLUDE_COMMON_HPP_

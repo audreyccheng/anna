@@ -12,7 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-#include "kvs/kvs_handlers.hpp"
+#include "txn/txn_handlers.hpp"
 
 void replication_response_handler(
     unsigned &seed, unsigned &access_count, logger log, string &serialized,
@@ -20,7 +20,7 @@ void replication_response_handler(
     map<Key, vector<PendingTxnRequest>> &pending_requests,
     map<Key, vector<PendingGossip>> &pending_gossip,
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
-    map<Key, KeyProperty> &stored_key_map,
+    map<Key, TxnKeyProperty> &stored_key_map,
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
     ServerThread &wt, TxnSerializer *txn_serializer, BaseSerializer *base_serializer, 
     LogSerializer *log_serializer, SocketCache &pushers) {
@@ -34,6 +34,7 @@ void replication_response_handler(
   Key key = response.txn_id();
   Key tuple_key = tuple.key();
   Tier key_tier = get_tier_from_anna_tier(response.tier());
+  string payload = tuple.payload();
 
   AnnaError error = tuple.error();
 
@@ -88,8 +89,8 @@ void replication_response_handler(
           std::find(threads.begin(), threads.end(), wt) != threads.end();
 
       // map request types of this transaction
-      map<RequestType, vector<unsigned>> request_map;
-      for (int i = 0; i < pending_requests[key].size(); ++i) {
+      RequestTypeMap request_map;
+      for (unsigned i = 0; i < pending_requests[key].size(); ++i) {
         auto request = pending_requests[key][i];
         if (request_map.find(request.type_) == request_map.end()) {
           vector<unsigned> vec{ i };
@@ -100,7 +101,9 @@ void replication_response_handler(
       }
 
       // for (const PendingRequest &request : pending_requests[key]) { // TODO(@accheng): update
-      for (int i = 0; i < pending_requests[key].size(); ++i) {
+      // for (int i = 0; i < pending_requests[key].size(); ++i) {
+      int i = 0;
+      for (auto it = pending_requests[key].begin(); it != pending_requests[key].end(); ) {
         auto request = pending_requests[key][i];
         auto now = std::chrono::system_clock::now();
 
@@ -161,217 +164,217 @@ void replication_response_handler(
 
           /* TXN tier */
           if (kSelfTier == Tier::TXN) {
-          auto serializer = txn_serializer;
+            auto stored_txn_map = stored_key_map; // TODO(@accheng): update
+            auto serializer = txn_serializer;
 
-          if (request.type_ == RequestType::START_TXN) {
-            auto txn_id = process_start_txn(key, serializer, stored_txn_map);
-            rep_response.set_txn_id(txn_id);
+            if (request.type_ == RequestType::START_TXN) {
+              auto txn_id = process_start_txn(tuple_key, serializer, stored_txn_map);
+              rep_response.set_txn_id(txn_id);
 
-            // need to add txn_id to key_rep_map
-            init_tier_replication(key_replication_map, txn_id, kSelfTier);
+              // need to add txn_id to key_rep_map
+              init_tier_replication(key_replication_map, txn_id, kSelfTier);
 
-            // TODO(@accheng): erase from pending requests
+              // TODO(@accheng): erase from pending requests
 
-          } else if (request.type_ == RequestType::TXN_GET) {
-            // if this is from txn tier, this request needs to sent to storage tier
-            // otherwise, respond to client
-            if (key_tier == Tier::TXN) {
-              if (stored_txn_map.find(key) == stored_txn_map.end()) {
-                tp->set_error(AnnaError::TXN_DNE);
+            } else if (request.type_ == RequestType::TXN_GET) {
+              // if this is from txn tier, this request needs to sent to storage tier
+              // otherwise, respond to client
+              if (key_tier == Tier::TXN) {
+                if (stored_txn_map.find(key) == stored_txn_map.end()) {
+                  tp->set_error(AnnaError::TXN_DNE);
+                }
+
+                ServerThreadList key_threads = {};
+
+                for (const Tier &tier : kStorageTiers) {
+                  key_threads = kHashRingUtil->get_responsible_threads(
+                      wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                      global_hash_rings, local_hash_rings, key_replication_map, 
+                      pushers, {tier}, succeed, seed);
+                  if (key_threads.size() > 0) {
+                    break;
+                  }
+
+                  if (!succeed) { // this means we don't have the replication factor for
+                                  // the key and we can't replicate it
+                    tp->set_error(AnnaError::KEY_DNE);
+                  }
+                }
+
+                // TODO(@accheng): should just be one request?
+                // send request to storage tier
+                if (key_threads.size() > 0) {
+                  kHashRingUtil->issue_storage_request(
+                    wt.replication_response_connect_address(), request.type_, key, tuple_key, 
+                    payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+
+                  // add to pending request
+                  pending_requests[key].push_back(
+                          PendingTxnRequest(request.type_, key, tuple_key, payload,
+                                            request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
+                } else {
+                  // TODO(@accheng): erase from pending requests
+                }
+                
+              } else { // store info from storage tier
+                tp->set_key(tuple_key);
+                tp->set_error(AnnaError::NO_ERROR);
+                tp->set_payload(tuple.payload());
+              }
+            } else if (request.type_ == RequestType::PREPARE_TXN) {
+              // check if any PREPARE_TXNs are still pending
+              // if not, move onto commit phase
+              if (request_map[request.type_].size() == 1) {
+                AnnaError error = AnnaError::NO_ERROR;
+                auto ops = process_get_ops(key, error, serializer, stored_txn_map);
+                tp->set_error(error);
+                // TODO(@accheng): should txn abort if there is an error here?
+                if (error != AnnaError::NO_ERROR) {
+                  log->error("Unable to commit transaction");
+                 // find COMMIT_TXN request from client and send response back
+                } else if (request_map.find(RequestType::COMMIT_TXN) == request_map.end() ||
+                           request_map[RequestType::COMMIT_TXN].size() != 1) {
+                  log->error("Unable to find client request to commit");
+                } else {
+                  TxnResponse commit_response;
+                  commit_response.set_type(RequestType::COMMIT_TXN);
+                  commit_response.set_txn_id(key);
+                  commit_response.set_tier(get_anna_tier_from_tier(kSelfTier));
+                  TxnKeyTuple *commit_tp = commit_response.add_tuples();
+                  unsigned commit_index = request_map[RequestType::COMMIT_TXN][0];
+                  string commit_response_addr = pending_requests[key][commit_index].response_id_; // TODO(@accheng): should only be 1?
+
+                  bool abort_txn;
+                  for (const Operation &op: ops) {
+                    auto op_key = op.get_key();
+                    auto op_payload = op.get_value();
+                    ServerThreadList key_threads = {};
+
+                    for (const Tier &tier : kStorageTiers) {
+                      key_threads = kHashRingUtil->get_responsible_threads(
+                          wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                          global_hash_rings, local_hash_rings, key_replication_map, 
+                          pushers, {tier}, succeed, seed);
+                      if (key_threads.size() > 0) {
+                        break;
+                      }
+
+                      if (!succeed) { // this means we don't have the replication factor for
+                                      // the key
+                        // TODO(@accheng): should we abort here?
+                        abort_txn = true;
+                        log->error("Unable to find key to commit");
+                        break;
+                      }
+                    }
+
+                    if (abort_txn) {
+                      tp->set_error(AnnaError::FAILED_OP); // TODO(@accheng): needed?
+                      break;
+                    } else {
+                      // send prepare request to storage tier
+                      kHashRingUtil->issue_storage_request(
+                        wt.replication_response_connect_address(), RequestType::COMMIT_TXN, key, 
+                        op_key, op_payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+
+                      pending_requests[key].push_back(
+                          PendingTxnRequest(RequestType::COMMIT_TXN, key, op_key, op_payload,
+                                            request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
+                    }
+                  }
+
+                  if (!abort_txn) {
+                    commit_response.set_error(AnnaError::NO_ERROR);
+                    commit_tp->set_key(key);
+                    commit_tp->set_error(AnnaError::NO_ERROR);
+                  } else {
+                    commit_response.set_error(AnnaError::FAILED_OP);
+                    commit_tp->set_key(key);
+                    commit_tp->set_error(AnnaError::FAILED_OP);
+                  }
+
+                  string serialized_commit_response;
+                  commit_response.SerializeToString(&serialized_commit_response);
+                  kZmqUtil->send_string(serialized_commit_response, &pushers[commit_response_addr]);
+                }
+              } else if (request.type_ == RequestType::COMMIT_TXN) {
+                // check if any commits pending, otherwise finalize commit
+                if (request_map[request.type_].size() == 1) {
+                  // process_commit_txn(txn_id, error, serializer);
+                }
               }
 
-              ServerThreadList key_threads = {};
+          } else if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK) {
+            auto serializer = base_serializer;
 
-              for (const Tier &tier : kStorageTiers) {
-                key_threads = kHashRingUtil->get_responsible_threads(
+            /* STORAGE tier */
+            if (request.type_ == RequestType::TXN_GET) {
+              if (stored_key_map.find(key) == stored_key_map.end()) {
+                tp->set_error(AnnaError::KEY_DNE);
+              } else {
+                AnnaError error = AnnaError::NO_ERROR;
+                auto res = process_txn_get(key, tuple_key, error,
+                                           serializer, 
+                                           stored_key_map);
+                tp->set_payload(res);
+                tp->set_error(error);
+              }
+            } else if (request.type_ == RequestType::TXN_PUT) {
+              AnnaError error = AnnaError::NO_ERROR;
+              process_txn_put(key, tuple_key, payload, error,
+                              serializer, stored_key_map);
+              tp->set_error(error);
+
+              local_changeset.insert(key);
+            } else if (request.type_ == RequestType::PREPARE_TXN) {
+              if (stored_key_map.find(key) == stored_key_map.end()) {
+                tp->set_error(AnnaError::KEY_DNE);
+              } else {
+                // check lock is still held; nothin actually done here for 2PL
+                AnnaError error = AnnaError::NO_ERROR;
+                process_txn_prepare(key, tuple_key, error, 
+                                    serializer, stored_key_map);
+                tp->set_error(error);
+
+                // send replication / log requests
+                ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
                     wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
-                    pushers, {tier}, succeed, seed);
+                    pushers, {Tier::LOG}, succeed, seed);
+
+                // send request to log if possible
                 if (key_threads.size() > 0) {
-                  break;
+                  kHashRingUtil->issue_log_request(
+                    wt.replication_response_connect_address(), request.type_, key,
+                    tuple_key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
                 }
 
-                if (!succeed) { // this means we don't have the replication factor for
-                                // the key and we can't replicate it
-                  tp->set_error(AnnaError::KEY_DNE);
-                }
+                pending_requests[key].push_back( 
+                  PendingTxnRequest(request.type_, key, tuple_key, payload,
+                                    request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
               }
-
-              // TODO(@accheng): should just be one request?
-              // send request to storage tier
-              if (key_threads.size() > 0) {
-                kHashRingUtil->issue_storage_request(
-                  wt.replication_response_connect_address(), request_type, key, tuple_key, 
-                  payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
-
-                // add to pending request
-                pending_requests[key].push_back(
-                        PendingTxnRequest(request_type, key, tuple_key, payload,
-                                          response_address, response_id));
-              } else {
-                // TODO(@accheng): erase from pending requests
-              }
-              
-            } else { // store info from storage tier
-              tp->set_key(tuple_key);
-              tp->set_error(AnnaError::NO_ERROR);
-              tp->set_payload(tuple.payload());
             }
-          } else if (request.type_ == RequestType::PREPARE_TXN) {
-            // check if any PREPARE_TXNs are still pending
-            // if not, move onto commit phase
-            if (request_map[request.type_].size() == 1) {
-              AnnaError error = AnnaError::NO_ERROR;
-              auto ops = process_get_ops(key, error);
-              tp->set_error(error);
-              // TODO(@accheng): should txn abort if there is an error here?
-              if (error != AnnaError::NO_ERROR) {
-                log->error("Unable to commit transaction");
-               // find COMMIT_TXN request from client and send response back
-              } else if (request_map.find(RequestType::COMMIT_TXN) == request_map.end() ||
-                         request_map[RequestType::COMMIT_TXN].size() != 1) {
-                log->error("Unable to find client request to commit");
-              } else {
-                TxnResponse commit_response;
-                commit_response.set_type(RequestType::COMMIT_TXN);
-                commit_response.set_txn_id(key);
-                commit_response.set_tier(get_anna_tier_from_tier(kSelfTier));
-                TxnKeyTuple *commit_tp = commit_response.add_tuples();
-                string commit_response_addr = request_map[RequestType::COMMIT_TXN][0].response_id_; // TODO(@accheng): should only be 1?
 
-                bool abort_txn;
-                for (const Operation &op: ops) {
-                  auto op_key = op.get_key();
-                  auto op_payload = op.get_value();
-                  ServerThreadList key_threads = {};
-
-                  for (const Tier &tier : kStorageTiers) {
-                    key_threads = kHashRingUtil->get_responsible_threads(
-                        wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
-                        global_hash_rings, local_hash_rings, key_replication_map, 
-                        pushers, {tier}, succeed, seed);
-                    if (key_threads.size() > 0) {
-                      break;
-                    }
-
-                    if (!succeed) { // this means we don't have the replication factor for
-                                    // the key
-                      // TODO(@accheng): should we abort here?
-                      abort_txn = true;
-                      log->error("Unable to find key to commit");
-                      break;
-                    }
-                  }
-
-                  if (abort_txn) {
-                    tp->set_error(AnnaError::FAILED_OP); // TODO(@accheng): needed?
-                    break;
-                  } else {
-                    // send prepare request to storage tier
-                    kHashRingUtil->issue_storage_request(
-                      wt.replication_response_connect_address(), RequestType::COMMIT_TXN, key, 
-                      op_key, op_payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
-
-                    pending_requests[key].push_back(
-                        PendingTxnRequest(RequestType::COMMIT_TXN, key, op_key,
-                                          op_payload, response_address,
-                                          response_id)); 
-                  }
-                }
-
-                if (!abort_txn) {
-                  commit_response.set_error(AnnaError::NO_ERROR);
-                  commit_tp->set_key(key);
-                  commit_tp->set_error(AnnaError::NO_ERROR);
-                } else {
-                  commit_response.set_error(AnnaError::FAILED_OP);
-                  commit_tp->set_key(key);
-                  commit_tp->set_error(AnnaError::FAILED_OP);
-                }
-
-                string serialized_commit_response;
-                commit_response.SerializeToString(&serialized_commit_response);
-                kZmqUtil->send_string(serialized_commit_response, &pushers[commit_req_addr]);
-            }
-          } else if (request.type_ == RequestType::COMMIT_TXN) {
-            // check if any commits pending, otherwise finalize commit
-            if (request_map[request.type_].size() == 1) {
-              // process_commit_txn(txn_id, error, serializer);
+          } else if (kSelfTier == Tier::LOG) {
+            auto serializer = log_serializer;
+            /* LOG tier */
+            if (request.type_ == RequestType::PREPARE_TXN || 
+                request.type_ == RequestType::COMMIT_TXN) {
+              process_log(key, tuple_key, payload, error, serializer); // TODO(@accheng): update
+            } else {
+              log->error("Unknown request type {} in user request handler.",
+                         request.type_);
             }
           }
 
+          // TODO(@accheng): should this be here?
           // erase this request from pending_requests and requests_map
-          pending_requests[key].erase(pending_requests[key].begin() + i);
-          auto index = request_map[request.type_].find(i);
-          if (index != request_map[request.type_].end()) {
-            request_map[request.type_].erase(
-              request_map[request.type_].begin() + index);
+          it = pending_requests[key].erase(it);
+          auto vit = find(request_map[request.type_].begin(), request_map[request.type_].end(), i);
+          if (vit != request_map[request.type_].end()) {
+            request_map[request.type_].erase(vit);
           }
-
-
-        } else if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK) {
-          auto serializer = storage_serializer;
-
-          /* STORAGE tier */
-          if (request.type_ == RequestType::TXN_GET) {
-            if (stored_key_map.find(key) == stored_key_map.end()) {
-              tp->set_error(AnnaError::KEY_DNE);
-            } else {
-              AnnaError error = AnnaError::NO_ERROR;
-              auto res = process_txn_get(txn_id, key, error,
-                                         serializer, 
-                                         stored_key_map);
-              tp->set_payload(res);
-              tp->set_error(error);
-            }
-          } else if (request_type == RequestType::TXN_PUT) {
-            AnnaError error = AnnaError::NO_ERROR;
-            process_txn_put(txn_id, key, error, payload,
-                            serializer, stored_key_map);
-            tp->set_error(error);
-
-            local_changeset.insert(key);
-          } else if (request_type == RequestType::PREPARE_TXN) {
-            if (stored_key_map.find(key) == stored_key_map.end()) {
-              tp->set_error(AnnaError::KEY_DNE);
-            } else {
-              // check lock is still held; nothin actually done here for 2PL
-              AnnaError error = AnnaError::NO_ERROR;
-              process_txn_prepare(txn_id, key, error, 
-                                  serializer,
-                                  stored_key_map);
-              tp->set_error(error);
-
-              // send replication / log requests
-              key_threads = kHashRingUtil->get_responsible_threads(
-                  wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
-                  global_hash_rings, local_hash_rings, key_replication_map, 
-                  pushers, {Tier::LOG}, succeed, seed);
-
-              // send request to log if possible
-              if (key_threads.size() > 0) {
-                kHashRingUtil->issue_log_request(
-                  wt.replication_response_connect_address(), request_type, key,
-                  tuple_key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
-              }
-
-              pending_requests[key].push_back( 
-                PendingTxnRequest(request_type, txn_id, key, payload,
-                                  response_address, response_id));
-            }
-          }
-
-         } else if (kSelfTier == Tier::LOG) {
-          auto serializer = log_serializer;
-          /* LOG tier */
-          if (request_type == RequestType::PREPARE_TXN || 
-              request_type == RequestType::COMMIT_TXN) {
-            process_log(txn_id, key, payload, error, serializer); // TODO(@accheng): update
-          } else {
-            log->error("Unknown request type {} in user request handler.",
-                       request_type);
-          }
-        }
+          i++;
 
 
           // if (request.type_ == RequestType::GET) {
@@ -410,6 +413,7 @@ void replication_response_handler(
           string serialized_response;
           response.SerializeToString(&serialized_response);
           kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
+        }
         }
       }
     } else {
