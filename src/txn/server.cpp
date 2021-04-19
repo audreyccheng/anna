@@ -12,7 +12,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-#include "kvs/kvs_handlers.hpp"
+// #include "kvs/kvs_handlers.hpp"
 #include "txn/txn_handlers.hpp"
 #include "yaml-cpp/yaml.h"
 
@@ -105,11 +105,12 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
   map<Key, set<Address>> key_to_cache_ips;
 
   // pending events for asynchrony
-  map<Key, vector<PendingRequest>> pending_requests;
+  map<Key, vector<PendingTxnRequest>> pending_requests;
   map<Key, vector<PendingGossip>> pending_gossip;
 
   // this map contains all keys that are actually stored in the KVS
   map<Key, KeyProperty> stored_key_map;
+  map<Key, TxnKeyProperty> stored_txn_map;
 
   map<Key, KeyReplication> key_replication_map;
 
@@ -381,8 +382,8 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       replication_response_handler(
           seed, access_count, log, serialized, global_hash_rings,
           local_hash_rings, pending_requests, pending_gossip,
-          key_access_tracker, stored_key_map, key_replication_map,
-          local_changeset, wt, serializers, pushers);
+          key_access_tracker, stored_txn_map, key_replication_map,
+          local_changeset, wt, txn_serialier, base_serializer, log_serializer, pushers);
 
       auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
                               std::chrono::system_clock::now() - work_start)
@@ -445,9 +446,9 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       string serialized = kZmqUtil->recv_string(&txn_request_puller);
       user_txn_request_handler(access_count, seed, serialized, log,
                            global_hash_rings, local_hash_rings,
-                           pending_requests, key_access_tracker, stored_key_map,
+                           pending_requests, key_access_tracker, stored_txn_map,
                            key_replication_map, local_changeset, wt,
-                           serializers, pushers);
+                           txn_serialier, pushers);
 
       auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
                               std::chrono::system_clock::now() - work_start)
@@ -463,9 +464,9 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       string serialized = kZmqUtil->recv_string(&storage_request_puller);
       storage_request_handler(access_count, seed, serialized, log,
                            global_hash_rings, local_hash_rings,
-                           pending_requests, key_access_tracker, stored_key_map,
+                           pending_requests, key_access_tracker, stored_txn_map,
                            key_replication_map, local_changeset, wt,
-                           serializers, pushers);
+                           base_serializer, pushers);
 
       auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
                               std::chrono::system_clock::now() - work_start)
@@ -481,9 +482,9 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       string serialized = kZmqUtil->recv_string(&log_request_puller);
       log_request_handler(access_count, seed, serialized, log,
                            global_hash_rings, local_hash_rings,
-                           pending_requests, key_access_tracker, stored_key_map,
+                           pending_requests, key_access_tracker, stored_txn_map,
                            key_replication_map, local_changeset, wt,
-                           serializers, pushers);
+                           log_serializer, pushers);
 
       auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
                               std::chrono::system_clock::now() - work_start)

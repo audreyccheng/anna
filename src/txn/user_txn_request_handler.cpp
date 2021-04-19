@@ -8,7 +8,7 @@ void user_txn_request_handler(
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
     map<Key, TxnKeyProperty> &stored_txn_map, // <txn_id, TxnKeyProperty>
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
-    ServerThread &wt, TxnSerializer &serializer, SocketCache &pushers) {
+    ServerThread &wt, TxnSerializer *serializer, SocketCache &pushers) {
   TxnRequest request;
   request.ParseFromString(serialized);
 

@@ -21,7 +21,7 @@ void log_request_handler(
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
     map<Key, TxnKeyProperty> &stored_key_map, // <key, TxnKeyProperty>
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
-    ServerThread &wt, LogSerializer &serializer,
+    ServerThread &wt, LogSerializer *serializer,
     SocketCache &pushers) {
   TxnRequest request;
   request.ParseFromString(serialized);

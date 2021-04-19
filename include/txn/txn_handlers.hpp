@@ -4,6 +4,7 @@
 #include "hash_ring.hpp"
 #include "metadata.pb.h"
 #include "requests.hpp"
+#include "kvs/server_utils.hpp" // TODO(@accheng): refactor this
 #include "txn_utils.hpp"
 
 void node_join_handler(unsigned thread_id, unsigned &seed, Address public_ip,
@@ -37,23 +38,23 @@ void user_txn_request_handler(
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
     map<Key, TxnKeyProperty> &stored_txn_map,
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
-    ServerThread &wt, TxnSerializer &serializer, SocketCache &pushers);
+    ServerThread &wt, TxnSerializer *serializer, SocketCache &pushers);
 
 void storage_request_handler(
     unsigned &access_count, unsigned &seed, string &serialized, logger log,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     map<Key, vector<PendingTxnRequest>> &pending_requests,
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
-    map<Key, TxnKeyProperty> &stored_key_map,
+    map<Key, TxnKeyProperty> &stored_txn_map, // TODO(@accheng): update
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
-    ServerThread &wt, BaseSerializer &serializer,
+    ServerThread &wt, BaseSerializer *serializer,
     SocketCache &pushers);
 
 void gossip_handler(unsigned &seed, string &serialized,
                     GlobalRingMap &global_hash_rings,
                     LocalRingMap &local_hash_rings,
                     map<Key, vector<PendingGossip>> &pending_gossip,
-                    map<Key, KeyProperty> &stored_key_map,
+                    map<Key, KeyProperty> &stored_key_map, 
                     map<Key, KeyReplication> &key_replication_map,
                     ServerThread &wt, SerializerMap &serializers,
                     SocketCache &pushers, logger log);
@@ -63,21 +64,21 @@ void log_request_handler(
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     map<Key, vector<PendingTxnRequest>> &pending_requests, 
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
-    map<Key, TxnKeyProperty> &stored_key_map,
+    map<Key, TxnKeyProperty> &stored_txn_map, // TODO(@accheng): update
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
-    ServerThread &wt, LogSerializer &serializer,
+    ServerThread &wt, LogSerializer *serializer,
     SocketCache &pushers);
 
 void replication_response_handler(
     unsigned &seed, unsigned &access_count, logger log, string &serialized,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
-    map<Key, vector<PendingRequest>> &pending_requests,
+    map<Key, vector<PendingTxnRequest>> &pending_requests,
     map<Key, vector<PendingGossip>> &pending_gossip,
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
-    map<Key, KeyProperty> &stored_key_map,
+    map<Key, TxnKeyProperty> &stored_txn_map,
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
-    ServerThread &wt, TxnSerializer &txn_serializer, BaseSerializer &base_serializer, 
-    LogSerializer &log_serializer, SocketCache &pushers);
+    ServerThread &wt, TxnSerializer *txn_serializer, BaseSerializer *base_serializer, 
+    LogSerializer *log_serializer, SocketCache &pushers);
 
 void replication_change_handler(
     Address public_ip, Address private_ip, unsigned thread_id, unsigned &seed,

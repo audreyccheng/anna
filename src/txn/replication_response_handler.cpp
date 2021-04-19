@@ -17,13 +17,13 @@
 void replication_response_handler(
     unsigned &seed, unsigned &access_count, logger log, string &serialized,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
-    map<Key, vector<PendingRequest>> &pending_requests,
+    map<Key, vector<PendingTxnRequest>> &pending_requests,
     map<Key, vector<PendingGossip>> &pending_gossip,
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
     map<Key, KeyProperty> &stored_key_map,
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
-    ServerThread &wt, TxnSerializer &txn_serializer, BaseSerializer &base_serializer, 
-    LogSerializer &log_serializer, SocketCache &pushers) {
+    ServerThread &wt, TxnSerializer *txn_serializer, BaseSerializer *base_serializer, 
+    LogSerializer *log_serializer, SocketCache &pushers) {
   TxnResponse response;
   response.ParseFromString(serialized);
 

@@ -40,13 +40,13 @@ class LockElement {
   string wlock;
 
  public:
-  // LockElement<T>() {}
+  LockElement() {}
 
   LockElement(const string &e) { assign(e); }
 
   LockElement(const LockElement &other) { assign(other.reveal()); }
 
-  virtual ~LockElement() = default;
+  // virtual ~LockElement() = default;
   LockElement &operator=(const LockElement &rhs) {
     assign(rhs.reveal());
     return *this;
@@ -58,7 +58,7 @@ class LockElement {
 
   const string &reveal() const { return element; }
 
-  void assign(const string &e) { element = e; }
+  void assign(const string e) { element = e; }
 
   void assign(const LockElement &e) { element = e.reveal(); }
 
@@ -97,21 +97,20 @@ protected:
   map<K, LockElement> db;
 
 public:
-  LockNode<K, LockElement>() {}
+  LockNode<K>() {}
 
-  LockNode<K, LockElement>(map<K, LockElement> &other) { db = other; }
+  LockNode<K>(map<K, LockElement> &other) { db = other; }
 
   string get(const string& txn_id, const K &k, AnnaError &error) {
     if (db.find(k) == db.end()) {
       error = AnnaError::KEY_DNE;
-    } else {
-      // TODO(@accheng): return some value even if no rlock?
-      if (!db.at(k).acquire_rlock(txn_id)) {
-        error = AnnaError::FAILED_OP;
-      }
+      return ""; // TODO(@accheng): return some value even if no rlock?
+    } 
+      
+    if (!db.at(k).acquire_rlock(txn_id)) {
+      error = AnnaError::FAILED_OP;
     }
-
-    return db[k].reveal();
+    return db.at(k).reveal();
   }
 
   void release_rlock(const string& txn_id, const K &k) {
