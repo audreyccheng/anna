@@ -148,7 +148,7 @@ public:
   }
 
   void prepare(const string& txn_id, const Key &key, AnnaError &error) {
-    // nothing needs to be done
+    // nothing needs to be done?
   }
 
   void commit(const string& txn_id, const Key &key, AnnaError &error) {

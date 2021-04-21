@@ -45,8 +45,10 @@ public:
   void SetUp() {
     // reset all global variables
     kDefaultLocalReplication = 1;
+    kDefaultGlobalTxnReplication = 1;
     kDefaultGlobalMemoryReplication = 1;
     kDefaultGlobalEbsReplication = 1;
+    kDefaultGlobalLogReplication = 1;
     kThreadNum = 1;
   }
 
@@ -59,10 +61,14 @@ public:
 
   void warmup_key_replication_map_to_defaults(vector<string> keys) {
     for (string key : keys) {
+      key_replication_map[key].global_replication_[Tier::TXN] =
+          kDefaultGlobalTxnReplication;
       key_replication_map[key].global_replication_[Tier::MEMORY] =
           kDefaultGlobalMemoryReplication;
       key_replication_map[key].global_replication_[Tier::DISK] =
           kDefaultGlobalEbsReplication;
+      key_replication_map[key].global_replication_[Tier::LOG] =
+          kDefaultGlobalLogReplication;
       key_replication_map[key].local_replication_[Tier::MEMORY] =
           kDefaultLocalReplication;
       key_replication_map[key].local_replication_[Tier::DISK] =

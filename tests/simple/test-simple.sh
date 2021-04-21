@@ -32,7 +32,8 @@ echo "Starting local server..."
 ./scripts/start-anna-local.sh $BUILD n
 
 echo "Running tests..."
-./build/cli/anna-cli conf/anna-local.yml tests/simple/input > tmp.out
+# ./build/cli/anna-cli conf/anna-local.yml tests/simple/input > tmp.out
+./build/cli/anna-txn-cli conf/anna-local.yml tests/simple/input > tmp.out
 
 DIFF=`diff tmp.out tests/simple/expected`
 

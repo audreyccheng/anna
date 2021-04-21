@@ -39,7 +39,12 @@ export SERVER_TYPE="txn"
 S2PID=$!
 # ./build/target/kvs/anna-kvs &
 
-echo $MPID > pids
+echo $MPID 
+echo $RPID 
+echo $SPID 
+echo $S2PID 
+
+echo $MPID >> pids
 echo $RPID >> pids
 echo $SPID >> pids
 echo $S2PID >> pids

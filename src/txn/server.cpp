@@ -808,6 +808,10 @@ int main(int argc, char *argv[]) {
   kDefaultLocalReplication = replication["local"].as<unsigned>();
   
   YAML::Node server = conf["server"];
+  if (kSelfTier == Tier::TXN) {
+    server = conf["txn-server"];
+  }
+
   Address public_ip = server["public_ip"].as<string>();
   Address private_ip = server["private_ip"].as<string>();
 

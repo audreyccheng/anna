@@ -31,8 +31,10 @@
 #include "test_seed_handler.hpp"
 
 unsigned kDefaultLocalReplication = 1;
+unsigned kDefaultGlobalTxnReplication = 1;
 unsigned kDefaultGlobalMemoryReplication = 1;
 unsigned kDefaultGlobalEbsReplication = 1;
+unsigned kDefaultGlobalLogReplication = 1;
 unsigned kThreadNum = 1;
 
 Tier kSelfTier = Tier::ROUTING;
@@ -42,6 +44,8 @@ hmap<Tier, TierMetadata, TierEnumHash> kTierMetadata = {};
 
 unsigned kEbsThreadNum = 1;
 unsigned kMemoryThreadNum = 1;
+unsigned kTxnThreadNum = 1;
+// unsigned kLogThreadNum = 1;
 unsigned kRoutingThreadCount = 1;
 
 int main(int argc, char *argv[]) {

@@ -19,9 +19,11 @@ TEST_F(RoutingHandlerTest, Address) {
 
   unsigned seed = 0;
 
+  // Test storage tier
   KeyAddressRequest req;
   req.set_request_id("1");
   req.set_response_address("tcp://127.0.0.1:5000");
+  req.set_txn_tier(false);
   req.add_keys("key");
 
   string serialized;
@@ -46,7 +48,40 @@ TEST_F(RoutingHandlerTest, Address) {
     string key = addr.key();
     EXPECT_EQ(key, "key");
     for (const string &ip : addr.ips()) {
-      EXPECT_EQ(ip, "tcp://127.0.0.1:6200");
+      EXPECT_EQ(ip, "tcp://127.0.0.1:6230");
+    }
+  }
+
+  // Test transactional tier
+  KeyAddressRequest txn_req;
+  txn_req.set_request_id("2");
+  txn_req.set_response_address("tcp://127.0.0.1:5000");
+  txn_req.set_txn_tier(false);
+  txn_req.add_keys("txn_key");
+
+  string txn_serialized;
+  txn_req.SerializeToString(&txn_serialized);
+
+  address_handler(log_, txn_serialized, pushers, rt, global_hash_rings,
+                  local_hash_rings, key_replication_map, pending_requests,
+                  seed);
+
+  vector<string> txn_messages = get_zmq_messages();
+
+  EXPECT_EQ(txn_messages.size(), 1);
+  string txn_serialized_resp = txn_messages[1];
+
+  KeyAddressResponse txn_resp;
+  txn_resp.ParseFromString(txn_serialized_resp);
+
+  EXPECT_EQ(txn_resp.response_id(), "2");
+  EXPECT_EQ(txn_resp.error(), 0);
+
+  for (const KeyAddressResponse_KeyAddress &addr : txn_resp.addresses()) {
+    string key = addr.key();
+    EXPECT_EQ(key, "txn_key");
+    for (const string &ip : addr.ips()) {
+      EXPECT_EQ(ip, "tcp://127.0.0.1:6220");
     }
   }
 }
