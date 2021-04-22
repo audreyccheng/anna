@@ -33,11 +33,24 @@ TEST_F(RoutingHandlerTest, Address) {
                   local_hash_rings, key_replication_map, pending_requests,
                   seed);
 
+  // Test transactional tier
+  KeyAddressRequest txn_req;
+  txn_req.set_request_id("2");
+  txn_req.set_response_address("tcp://127.0.0.1:5000");
+  txn_req.set_txn_tier(true);
+  txn_req.add_keys("txn_key");
+
+  string txn_serialized;
+  txn_req.SerializeToString(&txn_serialized);
+
+  address_handler(log_, txn_serialized, pushers, rt, global_hash_rings,
+                  local_hash_rings, key_replication_map, pending_requests,
+                  seed);
+
   vector<string> messages = get_zmq_messages();
+  EXPECT_EQ(messages.size(), 2);
 
-  EXPECT_EQ(messages.size(), 1);
   string serialized_resp = messages[0];
-
   KeyAddressResponse resp;
   resp.ParseFromString(serialized_resp);
 
@@ -52,25 +65,7 @@ TEST_F(RoutingHandlerTest, Address) {
     }
   }
 
-  // Test transactional tier
-  KeyAddressRequest txn_req;
-  txn_req.set_request_id("2");
-  txn_req.set_response_address("tcp://127.0.0.1:5000");
-  txn_req.set_txn_tier(false);
-  txn_req.add_keys("txn_key");
-
-  string txn_serialized;
-  txn_req.SerializeToString(&txn_serialized);
-
-  address_handler(log_, txn_serialized, pushers, rt, global_hash_rings,
-                  local_hash_rings, key_replication_map, pending_requests,
-                  seed);
-
-  vector<string> txn_messages = get_zmq_messages();
-
-  EXPECT_EQ(txn_messages.size(), 1);
-  string txn_serialized_resp = txn_messages[1];
-
+  string txn_serialized_resp = messages[1];
   KeyAddressResponse txn_resp;
   txn_resp.ParseFromString(txn_serialized_resp);
 

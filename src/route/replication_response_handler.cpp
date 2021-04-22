@@ -31,10 +31,10 @@ void replication_response_handler(
   AnnaError error = tuple.error();
 
   if (error == AnnaError::NO_ERROR) {
-    LWWValue lww_value;
-    lww_value.ParseFromString(tuple.payload());
+    // LWWValue lww_value;
+    // lww_value.ParseFromString(tuple.payload());
     ReplicationFactor rep_data;
-    rep_data.ParseFromString(lww_value.value());
+    rep_data.ParseFromString(tuple.payload());
 
     for (const auto &global : rep_data.global()) {
       key_replication_map[key].global_replication_[global.tier()] =
