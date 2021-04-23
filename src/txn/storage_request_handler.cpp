@@ -29,6 +29,7 @@ void storage_request_handler(
   TxnResponse response;
   string response_id = request.request_id();
   response.set_response_id(request.request_id());
+  response.set_txn_id(request.txn_id());
 
   response.set_type(request.type());
   response.set_tier(get_anna_tier_from_tier(kSelfTier));

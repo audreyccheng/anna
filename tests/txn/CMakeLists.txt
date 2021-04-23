@@ -25,4 +25,4 @@ TARGET_LINK_LIBRARIES(run_server_handler_tests gtest gmock
   anna-hash-ring zmq anna-mock hydro-zmq-mock)
 ADD_DEPENDENCIES(run_server_handler_tests gtest)
 
-ADD_TEST(NAME ServerTests COMMAND run_server_handler_tests)
+ADD_TEST(NAME TxnServerTests COMMAND run_server_handler_tests)

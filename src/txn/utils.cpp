@@ -105,11 +105,11 @@ void process_commit_txn(const string &txn_id, AnnaError &error,
 
 string process_txn_get(const string &txn_id, const Key &key, 
                        AnnaError &error, BaseSerializer *serializer, 
-                       map<Key, TxnKeyProperty> &stored_txn_map) {
+                       map<Key, TxnKeyProperty> &stored_key_map) {
   auto res = serializer->get(txn_id, key, error);
   // if read is successful, read lock is now held
   if (error == AnnaError::NO_ERROR) {
-    stored_txn_map[txn_id].lock_ = 1;
+    stored_key_map[key].lock_ = 1;
   }
   return std::move(res);
 }
@@ -117,24 +117,24 @@ string process_txn_get(const string &txn_id, const Key &key,
 void process_txn_put(const string &txn_id, const Key &key,
                      const string &payload, AnnaError &error,
                      BaseSerializer *serializer,
-                     map<Key, TxnKeyProperty> &stored_txn_map) {
+                     map<Key, TxnKeyProperty> &stored_key_map) {
   serializer->put(txn_id, key, payload, error);
   // if write is successful, write lock is now held
   if (error == AnnaError::NO_ERROR) {
-    stored_txn_map[txn_id].lock_ = 2;
+    stored_key_map[key].lock_ = 2;
   }
 }
 
 void process_txn_prepare(const string &txn_id, const Key &key,
                          AnnaError &error, BaseSerializer *serializer,
-                         map<Key, TxnKeyProperty> &stored_txn_map) {
+                         map<Key, TxnKeyProperty> &stored_key_map) {
   serializer->prepare(txn_id, key, error);
   // TODO(@accheng): update
 }
 
 void process_txn_commit(const string &txn_id, const Key &key,
                         AnnaError &error, BaseSerializer *serializer,
-                        map<Key, TxnKeyProperty> &stored_txn_map) {
+                        map<Key, TxnKeyProperty> &stored_key_map) {
   serializer->commit(txn_id, key, error);
   // TODO(@accheng): update
 }

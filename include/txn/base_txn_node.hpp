@@ -2,6 +2,7 @@
 #define INCLUDE_TXN_BASE_TXN_NODE_HPP_
 
 #include "anna.pb.h"
+#include "common.hpp"
 
 template <typename K> class TxnNode {
 protected:

@@ -137,20 +137,20 @@ void process_commit_txn(const string &txn_id, AnnaError &error,
 
 string process_txn_get(const string &txn_id, const Key &key, 
                        AnnaError &error, BaseSerializer *serializer, 
-                       map<Key, TxnKeyProperty> &stored_txn_map);
+                       map<Key, TxnKeyProperty> &stored_key_map);
 
 void process_txn_put(const string &txn_id, const Key &key,
                      const string &payload, AnnaError &error,
                      BaseSerializer *serializer,
-                     map<Key, TxnKeyProperty> &stored_txn_map);
+                     map<Key, TxnKeyProperty> &stored_key_map);
 
 void process_txn_prepare(const string &txn_id, const Key &key,
                          AnnaError &error, BaseSerializer *serializer,
-                         map<Key, TxnKeyProperty> &stored_txn_map);
+                         map<Key, TxnKeyProperty> &stored_key_map);
 
 void process_txn_commit(const string &txn_id, const Key &key,
                         AnnaError &error, BaseSerializer *serializer,
-                        map<Key, TxnKeyProperty> &stored_txn_map);
+                        map<Key, TxnKeyProperty> &stored_key_map);
 
 void process_log(const string &txn_id, const Key &key,
                  const string &payload, AnnaError &error,

@@ -87,6 +87,7 @@ public:
                        AnnaError &error) = 0;
   virtual void commit(const string& txn_id, const Key &key,
                       AnnaError &error) = 0;
+  virtual unsigned size() = 0;
   virtual void remove(const string& txn_id, const Key &key) = 0;
   virtual ~BaseSerializer(){};
 };
@@ -123,6 +124,8 @@ public:
     // nothing needs to be done
   }
 
+  unsigned size() { return base_node_->size(); }
+
   void remove(const string& txn_id, const Key &key) { base_node_->remove(key); }
 
 };
@@ -151,10 +154,12 @@ public:
     // nothing needs to be done?
   }
 
-  void commit(const string& txn_id, const Key &key, AnnaError &error) {
+  void commit(const string& txn_id, const Key &key, AnnaError &error) { // TODO(@accheng): what to do with error?
     lock_node_->release_rlock(txn_id, key);
     lock_node_->release_wlock(txn_id, key);
   }
+
+  unsigned size() { return lock_node_->size(); }
 
   void remove(const string& txn_id, const Key &key) { lock_node_->remove(key); }
 
@@ -168,6 +173,7 @@ class DiskLockStoreSerializer : public BaseSerializer {
 public:
   DiskLockStoreSerializer(unsigned &tid,
                           LockStore *lock_node) : tid_(tid), lock_node_(lock_node) {
+    // TODO(@accheng): should locks and values be kept in memory?
     YAML::Node conf = YAML::LoadFile("conf/anna-config.yml");
 
     ebs_root_ = conf["ebs"].as<string>();
@@ -221,11 +227,11 @@ public:
     // if (!input) { // in this case, this key has never been seen before, so we
                   // attempt to create a new file for it
 
-      // ios::trunc means that we overwrite the existing file
-      std::fstream output(fname,
-                          std::ios::out | std::ios::trunc | std::ios::binary);
+    // ios::trunc means that we overwrite the existing file
+    std::fstream output(fname,
+                        std::ios::out | std::ios::trunc | std::ios::binary);
 
-      output << serialized;
+    output << serialized;
       // if (!serialized.SerializeToOstream(&output)) {
       //   std::cerr << "Failed to write payload." << std::endl;
       // }
@@ -267,6 +273,7 @@ public:
       return; // nothing needs to be done if this was only a read operation
     } else {
       getline(tinput, value);
+      std::remove(tfname.c_str());
     }
 
     if (value != "") {

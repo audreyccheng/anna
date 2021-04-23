@@ -26,7 +26,7 @@ public:
 
   void put(const K &k, const V &v) { db[k] = v; }
 
-  // unsigned size(const K &k) { return db.at(k).size().reveal(); }
+  unsigned size() { return db.size(); }
 
   void remove(const K &k) { db.erase(k); }
 };
@@ -104,9 +104,10 @@ public:
   string get(const string& txn_id, const K &k, AnnaError &error) {
     if (db.find(k) == db.end()) {
       error = AnnaError::KEY_DNE;
-      return ""; // TODO(@accheng): return some value even if no rlock?
+      return ""; 
     } 
-      
+    
+    // TODO(@accheng): return some value even if no rlock?
     if (!db.at(k).acquire_rlock(txn_id)) {
       error = AnnaError::FAILED_OP;
     }
@@ -114,7 +115,7 @@ public:
   }
 
   void release_rlock(const string& txn_id, const K &k) {
-    if (db.find(k) == db.end()) {
+    if (db.find(k) != db.end()) {
       db.at(k).release_rlock(txn_id);
     }
   }
@@ -130,12 +131,12 @@ public:
   }
 
   void release_wlock(const string& txn_id, const K &k) {
-    if (db.find(k) == db.end()) {
+    if (db.find(k) != db.end()) {
       db.at(k).release_wlock(txn_id);
     }
   }
 
-  // unsigned size(const K &k) { return db.at(k).size().reveal(); }
+  unsigned size() { return db.size(); }
 
   void remove(const K &k) { db.erase(k); }
 };
