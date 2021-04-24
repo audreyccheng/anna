@@ -114,6 +114,8 @@ TEST_F(ServerHandlerTest, StorageTxnPutAndGetTest) {
   EXPECT_EQ(key_access_tracker[key].size(), 2);
 }
 
+// Test prepare and commit
+
   // string commit_request = txn_commit_key_request(kTxnId, key, ip);
 
   // storage_request_handler(access_count, seed, commit_request, log_, global_hash_rings,

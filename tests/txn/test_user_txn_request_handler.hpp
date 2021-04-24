@@ -32,3 +32,99 @@ TEST_F(ServerHandlerTest, UserTxnStartTest) {
   EXPECT_EQ(response.tuples().size(), 1);
 
 }
+
+TEST_F(ServerHandlerTest, UserTxnStartAndPutTest) {
+  kSelfTier = Tier::TXN;
+  string client_id = "0";
+  AnnaError error = AnnaError::NO_ERROR;
+
+  // Assume this client has already sent requests before
+  stored_key_map[client_id].num_ops_ = 0;
+
+  string start_request = txn_start_request(client_id, ip);
+
+  unsigned access_count = 0;
+  unsigned seed = 0;
+
+  user_txn_request_handler(access_count, seed, start_request, log_, global_hash_rings,
+                           local_hash_rings, pending_requests, key_access_tracker,
+                           stored_key_map, key_replication_map, local_changeset, wt,
+                           txn_serializer, pushers);
+
+  vector<string> messages = get_zmq_messages();
+  EXPECT_EQ(messages.size(), 1);
+
+  TxnResponse response;
+  response.ParseFromString(messages[0]);
+  string txn_id = response.txn_id();
+
+  EXPECT_NE(txn_id, "");
+  EXPECT_NE(stored_key_map.find(txn_id), stored_key_map.end());
+  EXPECT_EQ(response.response_id(), kRequestId);
+  EXPECT_EQ(response.tier(), AnnaTier::ATXN);
+  EXPECT_EQ(response.tuples().size(), 1);
+
+  Key key = "key";
+  string value = "value";
+  // since replication_response_handler should be called from storage node
+  // kSelfTier = Tier::MEMORY;
+
+  string put_request = txn_put_key_request(txn_id, key, value, ip);
+
+  user_txn_request_handler(access_count, seed, put_request, log_, global_hash_rings,
+                           local_hash_rings, pending_requests, key_access_tracker,
+                           stored_key_map, key_replication_map, local_changeset, wt,
+                           txn_serializer, pushers);
+
+  messages = get_zmq_messages();
+  EXPECT_EQ(messages.size(), 3);
+
+  // first message is a request to replication_response_handler
+  TxnRequest request;
+  request.ParseFromString(messages[1]);
+
+  EXPECT_EQ(request.txn_id(), txn_id);
+  EXPECT_EQ(request.type(), RequestType::TXN_PUT);
+  EXPECT_EQ(request.tuples().size(), 1);
+
+  TxnKeyTuple rtp = request.tuples(0);
+
+  EXPECT_EQ(rtp.key(), key);
+  EXPECT_EQ(rtp.error(), 0);
+
+  // second message is the return from replication_response_handler
+  TxnResponse put_response;
+  put_response.ParseFromString(messages[2]);
+
+  // std::cerr << put_response << std::endl;
+
+  EXPECT_EQ(put_response.txn_id(), txn_id);
+  EXPECT_EQ(put_response.type(), RequestType::TXN_PUT);
+  EXPECT_EQ(put_response.response_id(), kRequestId);
+  EXPECT_EQ(put_response.tier(), AnnaTier::AMEMORY);
+  EXPECT_EQ(put_response.tuples().size(), 1);
+
+  rtp = put_response.tuples(0);
+
+  EXPECT_EQ(rtp.key(), key);
+  EXPECT_EQ(rtp.error(), 0);
+
+  EXPECT_EQ(local_changeset.size(), 1);
+  EXPECT_NE(stored_key_map.find(key), stored_key_map.end());
+  EXPECT_EQ(base_serializer->size(), 1);
+  EXPECT_EQ(base_serializer->get(txn_id, key, error), value);
+
+  // string get_request = txn_get_key_request(txn_id, key, ip);
+
+  // user_txn_request_handler(access_count, seed, get_request, log_, global_hash_rings,
+  //                          local_hash_rings, pending_requests, key_access_tracker,
+  //                          stored_key_map, key_replication_map, local_changeset, wt,
+  //                          txn_serializer, pushers);
+
+
+
+
+}
+
+// Test put, get, commit
+

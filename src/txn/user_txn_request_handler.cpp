@@ -48,7 +48,7 @@ void user_txn_request_handler(
           // this means that this node is not responsible for this metadata key
           TxnKeyTuple *tp = response.add_tuples();
 
-          tp->set_key(key);
+          tp->set_key(tuple_key);
           tp->set_error(AnnaError::WRONG_THREAD);
         } else {
           // if we don't know what threads are responsible, we issue a rep
@@ -65,7 +65,7 @@ void user_txn_request_handler(
         }
       } else { // if we know the responsible threads, we process the request
         TxnKeyTuple *tp = response.add_tuples();
-        tp->set_key(key);
+        tp->set_key(tuple_key);
 
         if (request_type == RequestType::START_TXN) {
           // if this is a replication request, signal that this key doesn't yet exist

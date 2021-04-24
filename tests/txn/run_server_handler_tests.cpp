@@ -29,6 +29,8 @@
 // #include "test_self_depart_handler.hpp"
 #include "test_user_txn_request_handler.hpp"
 #include "test_storage_request_handler.hpp"
+#include "test_log_request_handler.hpp"
+#include "test_rep_factor_response_handler.hpp"
 
 unsigned kDefaultLocalReplication = 1;
 Tier kSelfTier = Tier::MEMORY;

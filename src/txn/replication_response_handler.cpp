@@ -117,7 +117,7 @@ void replication_response_handler(
           }
 
           KeyTuple *tp = response.add_tuples();
-          tp->set_key(key);
+          tp->set_key(tuple_key);
           tp->set_error(AnnaError::WRONG_THREAD);
 
           string serialized_response;
@@ -159,7 +159,7 @@ void replication_response_handler(
           }
 
           TxnKeyTuple *tp = rep_response.add_tuples();
-          tp->set_key(key);
+          tp->set_key(tuple_key);
 
 
           /* TXN tier */
@@ -285,11 +285,11 @@ void replication_response_handler(
 
                   if (!abort_txn) {
                     commit_response.set_error(AnnaError::NO_ERROR);
-                    commit_tp->set_key(key);
+                    commit_tp->set_key(tuple_key);
                     commit_tp->set_error(AnnaError::NO_ERROR);
                   } else {
                     commit_response.set_error(AnnaError::FAILED_OP);
-                    commit_tp->set_key(key);
+                    commit_tp->set_key(tuple_key);
                     commit_tp->set_error(AnnaError::FAILED_OP);
                   }
 
@@ -410,6 +410,7 @@ void replication_response_handler(
           key_access_tracker[key].insert(now);
           access_count += 1;
 
+          response.set_txn_id("lol");
           string serialized_response;
           response.SerializeToString(&serialized_response);
           kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
