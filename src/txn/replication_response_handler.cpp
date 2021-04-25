@@ -410,7 +410,6 @@ void replication_response_handler(
           key_access_tracker[key].insert(now);
           access_count += 1;
 
-          response.set_txn_id("lol");
           string serialized_response;
           response.SerializeToString(&serialized_response);
           kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);

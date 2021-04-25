@@ -136,6 +136,7 @@ void process_txn_commit(const string &txn_id, const Key &key,
                         AnnaError &error, BaseSerializer *serializer,
                         map<Key, TxnKeyProperty> &stored_key_map) {
   serializer->commit(txn_id, key, error);
+  stored_key_map[key].lock_ = 0;
   // TODO(@accheng): update
 }
 

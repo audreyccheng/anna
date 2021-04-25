@@ -28,27 +28,27 @@ void user_txn_request_handler(
   // TODO(@accheng): should only be one tuple?
   for (const auto &tuple : request.tuples()) {
     // first check if the thread is responsible for the key
-    Key tuple_key = tuple.key();
+    Key key = tuple.key();
     string payload = tuple.payload();
 
-    Key key = txn_id;
+    // Key key = txn_id;
     if (request_type == RequestType::START_TXN) {
       // a START_TXN request doesn't have a txn_id so we use client_id
-      key = tuple_key;
+      txn_id = key;
     }
 
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-        wt.replication_response_connect_address(), key, is_metadata(key), 
+        wt.replication_response_connect_address(), txn_id, is_metadata(txn_id), 
         global_hash_rings, local_hash_rings, key_replication_map, 
         pushers, kSelfTierIdVector, succeed, seed);
 
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
-        if (is_metadata(key)) {
+        if (is_metadata(txn_id)) {
           // this means that this node is not responsible for this metadata key
           TxnKeyTuple *tp = response.add_tuples();
 
-          tp->set_key(tuple_key);
+          tp->set_key(key);
           tp->set_error(AnnaError::WRONG_THREAD);
         } else {
           // if we don't know what threads are responsible, we issue a rep
@@ -59,22 +59,22 @@ void user_txn_request_handler(
               pushers, seed);
 
           // since this is a new client request, key is client_id instead of txn_id
-          pending_requests[key].push_back( 
-              PendingTxnRequest(request_type, key, tuple_key, payload,
+          pending_requests[txn_id].push_back( 
+              PendingTxnRequest(request_type, txn_id, key, payload,
                              response_address, response_id));
         }
       } else { // if we know the responsible threads, we process the request
         TxnKeyTuple *tp = response.add_tuples();
-        tp->set_key(tuple_key);
+        tp->set_key(key);
 
         if (request_type == RequestType::START_TXN) {
           // if this is a replication request, signal that this key doesn't yet exist
           // TODO(@accheng): update
-          if (stored_txn_map.find(key) == stored_txn_map.end() && is_metadata(key)) { 
+          if (stored_txn_map.find(txn_id) == stored_txn_map.end() && is_metadata(txn_id)) { 
             tp->set_error(AnnaError::KEY_DNE);
           } else { // TODO(@accheng): update
-            auto txn_id = process_start_txn(key, serializer, stored_txn_map); // add txn_id to stored_txn_map
-            response.set_txn_id(txn_id);
+            auto new_txn_id = process_start_txn(txn_id, serializer, stored_txn_map); // add txn_id to stored_txn_map
+            response.set_txn_id(new_txn_id);
 
             // need to add txn_id to key_rep_map
             init_tier_replication(key_replication_map, txn_id, kSelfTier);
@@ -92,7 +92,7 @@ void user_txn_request_handler(
         } else if (request_type == RequestType::TXN_GET || 
                    request_type == RequestType::TXN_PUT) {
           // check that this txn_id exists
-          if (stored_txn_map.find(key) == stored_txn_map.end()) {
+          if (stored_txn_map.find(txn_id) == stored_txn_map.end()) {
               // if (!pending_requests.contains(txn_id)) {
                 tp->set_error(AnnaError::TXN_DNE);
               // } else {
@@ -110,7 +110,7 @@ void user_txn_request_handler(
 
             for (const Tier &tier : kStorageTiers) {
               key_threads = kHashRingUtil->get_responsible_threads(
-                  wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                  wt.replication_response_connect_address(), key, is_metadata(key), 
                   global_hash_rings, local_hash_rings, key_replication_map, 
                   pushers, {tier}, succeed, seed);
               if (key_threads.size() > 0) {
@@ -119,8 +119,8 @@ void user_txn_request_handler(
 
               if (!succeed) { // this means we don't have the replication factor for
                               // the key
-                pending_requests[key].push_back(
-                  PendingTxnRequest(request_type, key, tuple_key, payload,
+                pending_requests[txn_id].push_back(
+                  PendingTxnRequest(request_type, txn_id, key, payload,
                                     response_address, response_id));
                 return;
               }
@@ -129,16 +129,16 @@ void user_txn_request_handler(
             // TODO(@accheng): should just be one request?
             // send request to storage tier
             kHashRingUtil->issue_storage_request(
-              wt.replication_response_connect_address(), request_type, key, tuple_key, 
+              wt.replication_response_connect_address(), request_type, txn_id, key, 
               payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
 
             // add to pending request
-            pending_requests[key].push_back(
-                    PendingTxnRequest(request_type, key, tuple_key, payload,
+            pending_requests[txn_id].push_back(
+                    PendingTxnRequest(request_type, txn_id, key, payload,
                                       response_address, response_id));
 
             if (request_type == RequestType::TXN_PUT) {
-              local_changeset.insert(tuple_key);
+              local_changeset.insert(key);
             }
           }
                       // send GET request to storage tier
@@ -153,12 +153,12 @@ void user_txn_request_handler(
             // replicate result
 
         } else if (request_type == RequestType::COMMIT_TXN) {
-          if (stored_txn_map.find(key) == stored_txn_map.end()) {
+          if (stored_txn_map.find(txn_id) == stored_txn_map.end()) {
             tp->set_error(AnnaError::TXN_DNE);
           } else {
             // commit logic to storage tiers
             AnnaError error = AnnaError::NO_ERROR;
-            auto ops = process_get_ops(key, error, serializer, stored_txn_map);
+            auto ops = process_get_ops(txn_id, error, serializer, stored_txn_map);
             tp->set_error(error);
             // TODO(@accheng): should txn abort if there is an error here?
             if (error != AnnaError::NO_ERROR) {
@@ -173,7 +173,7 @@ void user_txn_request_handler(
 
               for (const Tier &tier : kStorageTiers) {
                 key_threads = kHashRingUtil->get_responsible_threads(
-                    wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                    wt.replication_response_connect_address(), key, is_metadata(key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
                     pushers, {tier}, succeed, seed);
                 if (key_threads.size() > 0) {
@@ -195,13 +195,13 @@ void user_txn_request_handler(
 
               // send prepare request to storage tier
               kHashRingUtil->issue_storage_request(
-                wt.replication_response_connect_address(), RequestType::PREPARE_TXN, key, 
+                wt.replication_response_connect_address(), RequestType::PREPARE_TXN, txn_id, 
                 op_key, op_payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
 
               // this is the commit response we want to send back to the client
               // both key and op_key are txn_id
-              pending_requests[key].push_back(
-                  PendingTxnRequest(RequestType::COMMIT_TXN, key, op_key,
+              pending_requests[txn_id].push_back(
+                  PendingTxnRequest(RequestType::COMMIT_TXN, txn_id, op_key,
                                     op_payload, response_address,
                                     response_id));
             }
@@ -221,17 +221,18 @@ void user_txn_request_handler(
           tp->set_invalidate(true);
         }
 
-        key_access_tracker[key].insert(std::chrono::system_clock::now());
+        key_access_tracker[txn_id].insert(std::chrono::system_clock::now());
         access_count += 1;
       }
     } else {
-      pending_requests[key].push_back(
-          PendingTxnRequest(request_type, key, tuple_key, payload,
+      pending_requests[txn_id].push_back(
+          PendingTxnRequest(request_type, txn_id, key, payload,
                             response_address, response_id));
     }
   }
 
-  if (response.tuples_size() > 0 && request.response_address() != "") {
+  if (response.tuples_size() > 0 && request.response_address() != "" && 
+      request_type == RequestType::START_TXN) { // only return immediately for txn start
     string serialized_response;
     response.SerializeToString(&serialized_response);
     kZmqUtil->send_string(serialized_response,

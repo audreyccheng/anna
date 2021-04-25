@@ -20,6 +20,7 @@
 class MockZmqUtil : public ZmqUtilInterface {
  public:
   vector<string> sent_messages;
+  vector<string> received_messages;
 
   virtual void send_string(const string &s, zmq::socket_t *socket);
   virtual string recv_string(zmq::socket_t *socket);

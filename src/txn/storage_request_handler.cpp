@@ -94,7 +94,7 @@ void storage_request_handler(
           if (stored_key_map.find(key) == stored_key_map.end()) {
             tp->set_error(AnnaError::KEY_DNE);
           } else {
-            // check lock is still held; nothin actually done here for 2PL
+            // check lock is still held; nothing actually done here for 2PL
             AnnaError error = AnnaError::NO_ERROR;
             process_txn_prepare(txn_id, key, error, serializer, stored_key_map);
             tp->set_error(error);
@@ -108,7 +108,7 @@ void storage_request_handler(
             // send request to log if possible
             if (key_threads.size() > 0) {
               kHashRingUtil->issue_log_request(
-                wt.replication_response_connect_address(), request_type, key,
+                wt.replication_response_connect_address(), request_type, txn_id,
                 key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
             }
 
@@ -119,9 +119,7 @@ void storage_request_handler(
         } else if (request_type == RequestType::COMMIT_TXN) {
           // release lock
           AnnaError error = AnnaError::NO_ERROR;
-          process_txn_commit(txn_id, key, error, 
-                             serializer,
-                             stored_key_map);
+          process_txn_commit(txn_id, key, error, serializer, stored_key_map);
 
           tp->set_error(error);
 
@@ -134,7 +132,7 @@ void storage_request_handler(
           // send request to log if possible
           if (key_threads.size() > 0) {
             kHashRingUtil->issue_log_request(
-              wt.replication_response_connect_address(), request_type, key,
+              wt.replication_response_connect_address(), request_type, txn_id,
               key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
           }
 
@@ -161,7 +159,8 @@ void storage_request_handler(
     }
   }
 
-  if (response.tuples_size() > 0 && request.response_address() != "") {
+  if (response.tuples_size() > 0 && request.response_address() != "" &&
+      request_type != RequestType::PREPARE_TXN) { // need to wait for operation to be saved durably
     string serialized_response;
     response.SerializeToString(&serialized_response);
     kZmqUtil->send_string(serialized_response,

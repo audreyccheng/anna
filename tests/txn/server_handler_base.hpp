@@ -140,6 +140,21 @@ public:
     return request_str;
   }
 
+  string txn_prepare_key_request(string txn_id, Key key, string ip) {
+    TxnRequest request;
+    request.set_type(RequestType::PREPARE_TXN);
+    request.set_response_address(UserThread(ip, 0).response_connect_address());
+    request.set_request_id(kRequestId);
+    request.set_txn_id(txn_id);
+
+    TxnKeyTuple *tp = request.add_tuples();
+    tp->set_key(std::move(key));
+
+    string request_str;
+    request.SerializeToString(&request_str);
+
+    return request_str;
+  }
 
   string txn_commit_key_request(string txn_id, Key key, string ip) {
     TxnRequest request;
