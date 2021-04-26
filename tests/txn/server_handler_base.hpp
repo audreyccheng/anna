@@ -78,6 +78,11 @@ public:
   void SetUp() {
     // reset all global variables
     kDefaultLocalReplication = 1;
+    kDefaultGlobalTxnReplication = 1;
+    kDefaultGlobalMemoryReplication = 1;
+    kDefaultGlobalEbsReplication = 1;
+    
+    kDefaultLocalReplication = 1;
     kSelfTier = Tier::MEMORY;
     kThreadNum = 1;
     kSelfTierIdVector = {kSelfTier};
@@ -89,6 +94,27 @@ public:
   }
 
   vector<string> get_zmq_messages() { return mock_zmq_util.sent_messages; }
+
+  void warmup_key_replication_map_to_defaults(vector<string> keys) {
+    for (string key : keys) {
+      key_replication_map[key].global_replication_[Tier::TXN] =
+          kDefaultGlobalTxnReplication;
+      key_replication_map[key].global_replication_[Tier::MEMORY] =
+          kDefaultGlobalMemoryReplication;
+      key_replication_map[key].global_replication_[Tier::DISK] =
+          kDefaultGlobalEbsReplication;
+      // key_replication_map[key].global_replication_[Tier::LOG] =
+      //     kDefaultGlobalLogReplication;
+      key_replication_map[key].local_replication_[Tier::TXN] =
+          kDefaultLocalReplication;
+      key_replication_map[key].local_replication_[Tier::MEMORY] =
+          kDefaultLocalReplication;
+      key_replication_map[key].local_replication_[Tier::DISK] =
+          kDefaultLocalReplication;
+      // key_replication_map[key].local_replication_[Tier::LOG] =
+      //     kDefaultLocalReplication;
+    }
+  }
 
   string txn_start_request(string client_id, string ip) {
     TxnRequest request;

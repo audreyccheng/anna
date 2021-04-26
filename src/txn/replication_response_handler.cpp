@@ -18,7 +18,7 @@ void replication_response_handler(
     unsigned &seed, unsigned &access_count, logger log, string &serialized,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     map<Key, vector<PendingTxnRequest>> &pending_requests,
-    map<Key, vector<PendingGossip>> &pending_gossip,
+    // map<Key, vector<PendingGossip>> &pending_gossip, // TODO(@accheng): update
     map<Key, std::multiset<TimePoint>> &key_access_tracker,
     map<Key, TxnKeyProperty> &stored_key_map,
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
@@ -32,7 +32,10 @@ void replication_response_handler(
   TxnKeyTuple tuple = response.tuples(0);
   // Key key = get_key_from_metadata(tuple.key());
   Key key = response.txn_id();
-  Key tuple_key = tuple.key();
+  Key tuple_key = get_key_from_metadata(tuple.key());
+  if (kSelfTier != Tier::TXN) {
+    key = tuple_key;
+  }
   Tier key_tier = get_tier_from_anna_tier(response.tier());
   string payload = tuple.payload();
 

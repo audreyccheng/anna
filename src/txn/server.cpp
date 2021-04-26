@@ -383,7 +383,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       string serialized = kZmqUtil->recv_string(&replication_response_puller);
       replication_response_handler(
           seed, access_count, log, serialized, global_hash_rings,
-          local_hash_rings, pending_requests, pending_gossip,
+          local_hash_rings, pending_requests, // pending_gossip,
           key_access_tracker, stored_txn_map, key_replication_map,
           local_changeset, wt, txn_serialier, base_serializer, log_serializer, pushers);
 

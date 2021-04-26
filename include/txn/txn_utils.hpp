@@ -362,12 +362,11 @@ struct PendingTxnRequest {
   string response_id_;
 };
 
-// struct PendingGossip {
-//   PendingGossip() {}
-//   PendingGossip(LatticeType lattice_type, string payload)
-//       : lattice_type_(std::move(lattice_type)), payload_(std::move(payload)) {}
-//   LatticeType lattice_type_;
-//   string payload_;
-// };
+struct PendingTxnGossip {
+  PendingTxnGossip() {}
+  PendingTxnGossip(string payload)
+      : payload_(std::move(payload)) {}
+  string payload_;
+};
 
 #endif // INCLUDE_TXN_TXN_UTILS_HPP_

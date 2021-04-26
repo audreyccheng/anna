@@ -70,23 +70,23 @@ void log_request_handler(
                                 response_address, response_id));
         }
       } else { // if we know the responsible threads, we process the request
-        TxnKeyTuple *tp = response.add_tuples();
-        tp->set_key(key);
-
         if (request_type == RequestType::PREPARE_TXN || 
             request_type == RequestType::COMMIT_TXN) {
+          TxnKeyTuple *tp = response.add_tuples();
+          tp->set_key(key);
+
           AnnaError error = AnnaError::NO_ERROR;
           process_log(txn_id, key, payload, error, serializer); // TODO(@accheng): update
           tp->set_error(error);
+
+          if (tuple.address_cache_size() > 0 &&
+              tuple.address_cache_size() != threads.size()) {
+            tp->set_invalidate(true);
+          }
         } else {
           log->error("Unknown request type {} in user request handler.",
                      request_type);
         }
-
-        // if (tuple.address_cache_size() > 0 &&
-        //     tuple.address_cache_size() != threads.size()) {
-        //   tp->set_invalidate(true);
-        // }
 
         key_access_tracker[key].insert(std::chrono::system_clock::now());
         access_count += 1;
