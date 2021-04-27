@@ -191,6 +191,51 @@ TEST_F(ServerHandlerTest, StorageReplicationResponse) {
   // EXPECT_EQ(key_replication_map[key].local_replication_[Tier::LOG], 0);
 }
 
+TEST_F(ServerHandlerTest, TxnStartReplicationResponse) {
+  kSelfTier = Tier::TXN;
+  string client_id = "0";
+  AnnaError error = AnnaError::NO_ERROR;
+
+  // Assume this client has already sent requests before
+  stored_key_map[client_id].num_ops_ = 0;
+  pending_requests[client_id].push_back(
+  	PendingTxnRequest(RequestType::START_TXN, client_id, client_id, "",
+                      UserThread(ip, 0).response_connect_address(), kRequestId));
+
+  TxnResponse response;
+  response.set_type(RequestType::START_TXN);
+  response.set_response_id(kRequestId);
+  response.set_tier(AnnaTier::ATXN);
+
+  TxnKeyTuple *tp = response.add_tuples();
+  tp->set_key(get_metadata_key(client_id, MetadataType::replication));
+
+  string start_response;
+  response.SerializeToString(&start_response);
+
+  unsigned access_count = 0;
+  unsigned seed = 0;
+
+  replication_response_handler(seed, access_count, log_, start_response, global_hash_rings,
+                               local_hash_rings, pending_requests, // pending_gossip,
+                               key_access_tracker, stored_key_map, key_replication_map,
+                               local_changeset, wt, txn_serializer, base_serializer,
+                               log_serializer, pushers);
+
+  vector<string> messages = get_zmq_messages();
+  EXPECT_EQ(messages.size(), 1);
+
+  TxnResponse rep_response;
+  rep_response.ParseFromString(messages[0]);
+  string txn_id = rep_response.txn_id();
+
+  EXPECT_NE(txn_id, "");
+  EXPECT_NE(stored_key_map.find(txn_id), stored_key_map.end());
+  EXPECT_EQ(rep_response.response_id(), kRequestId);
+  EXPECT_EQ(rep_response.tier(), AnnaTier::ATXN);
+  EXPECT_EQ(rep_response.tuples().size(), 1);
+}
+
 // Test txn, storage, and log requests
 
 

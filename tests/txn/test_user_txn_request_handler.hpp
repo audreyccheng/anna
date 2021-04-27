@@ -30,7 +30,6 @@ TEST_F(ServerHandlerTest, UserTxnStartTest) {
   EXPECT_EQ(response.response_id(), kRequestId);
   EXPECT_EQ(response.tier(), AnnaTier::ATXN);
   EXPECT_EQ(response.tuples().size(), 1);
-
 }
 
 TEST_F(ServerHandlerTest, UserTxnStartAndPutTest) {

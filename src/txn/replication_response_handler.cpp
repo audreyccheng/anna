@@ -33,7 +33,7 @@ void replication_response_handler(
   // Key key = get_key_from_metadata(tuple.key());
   Key key = response.txn_id();
   Key tuple_key = get_key_from_metadata(tuple.key());
-  if (kSelfTier != Tier::TXN) {
+  if (kSelfTier != Tier::TXN || key == "") {
     key = tuple_key;
   }
   Tier key_tier = get_tier_from_anna_tier(response.tier());
@@ -111,47 +111,31 @@ void replication_response_handler(
         auto now = std::chrono::system_clock::now();
 
         if (!responsible && request.addr_ != "") {
-          KeyResponse response;
+          TxnResponse response;
 
           response.set_type(request.type_);
+          response.set_txn_id(request.txn_id_);
 
           if (request.response_id_ != "") {
             response.set_response_id(request.response_id_);
           }
 
-          KeyTuple *tp = response.add_tuples();
+          TxnKeyTuple *tp = response.add_tuples();
           tp->set_key(tuple_key);
+          tp->set_payload(request.payload_);
           tp->set_error(AnnaError::WRONG_THREAD);
 
           string serialized_response;
           response.SerializeToString(&serialized_response);
           kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
         } else if (responsible && request.addr_ == "") {
-          // // only put requests should fall into this category
-          // if (request.type_ == RequestType::PUT) {
-          //   if (request.lattice_type_ == LatticeType::NONE) {
-          //     log->error("PUT request missing lattice type.");
-          //   } else if (stored_key_map.find(key) != stored_key_map.end() &&
-          //              stored_key_map[key].type_ != LatticeType::NONE &&
-          //              stored_key_map[key].type_ != request.lattice_type_) {
+          // TODO(@accheng): only storage COMMIT_TXN?
+          if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK &&
+              request.type_ == RequestType::COMMIT_TXN) {
 
-          //     log->error(
-          //         "Lattice type mismatch for key {}: query is {} but we expect "
-          //         "{}.",
-          //         key, LatticeType_Name(request.lattice_type_),
-          //         LatticeType_Name(stored_key_map[key].type_));
-          //   } else {
-          //     process_put(key, request.lattice_type_, request.payload_,
-          //                 serializers[request.lattice_type_], stored_key_map);
-          //     key_access_tracker[key].insert(now);
-
-          //     access_count += 1;
-          //     local_changeset.insert(key);
-          //   }
-          // } else {
-          //   log->error("Received a GET request with no response address.");
-          // }
-          log->error("Received a request with no response address.");
+          } else {
+            log->error("Received a request with no response address.");
+          }
         } else if (responsible && request.addr_ != "") {
           TxnResponse rep_response;
 
@@ -163,7 +147,6 @@ void replication_response_handler(
 
           TxnKeyTuple *tp = rep_response.add_tuples();
           tp->set_key(tuple_key);
-
 
           /* TXN tier */
           if (kSelfTier == Tier::TXN) {
@@ -180,6 +163,8 @@ void replication_response_handler(
               // TODO(@accheng): erase from pending requests
 
             } else if (request.type_ == RequestType::TXN_GET) {
+              rep_response.set_txn_id(request.txn_id_);
+
               // if this is from txn tier, this request needs to sent to storage tier
               // otherwise, respond to client
               if (key_tier == Tier::TXN) {
@@ -225,6 +210,8 @@ void replication_response_handler(
                 tp->set_payload(tuple.payload());
               }
             } else if (request.type_ == RequestType::PREPARE_TXN) {
+              rep_response.set_txn_id(request.txn_id_);
+
               // check if any PREPARE_TXNs are still pending
               // if not, move onto commit phase
               if (request_map[request.type_].size() == 1) {
@@ -309,6 +296,7 @@ void replication_response_handler(
 
           } else if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK) {
             auto serializer = base_serializer;
+            rep_response.set_txn_id(request.txn_id_);
 
             /* STORAGE tier */
             if (request.type_ == RequestType::TXN_GET) {
@@ -360,6 +348,8 @@ void replication_response_handler(
 
           } else if (kSelfTier == Tier::LOG) {
             auto serializer = log_serializer;
+            rep_response.set_txn_id(request.txn_id_);
+
             /* LOG tier */
             if (request.type_ == RequestType::PREPARE_TXN || 
                 request.type_ == RequestType::COMMIT_TXN) {

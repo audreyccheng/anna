@@ -137,8 +137,8 @@ void storage_request_handler(
           }
 
           pending_requests[key].push_back( 
-              PendingTxnRequest(request_type, txn_id, key, payload,
-                                response_address, response_id));
+              PendingTxnRequest(request_type, txn_id, key, payload, "", /* response_address */
+                                response_id));
         } else {
           log->error("Unknown request type {} in user request handler.",
                      request_type);

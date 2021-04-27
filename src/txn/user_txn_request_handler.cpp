@@ -61,7 +61,7 @@ void user_txn_request_handler(
           // since this is a new client request, key is client_id instead of txn_id
           pending_requests[txn_id].push_back( 
               PendingTxnRequest(request_type, txn_id, key, payload,
-                             response_address, response_id));
+                                response_address, response_id));
         }
       } else { // if we know the responsible threads, we process the request
         TxnKeyTuple *tp = response.add_tuples();
