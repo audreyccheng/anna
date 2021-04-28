@@ -229,15 +229,6 @@ void HashRingUtilInterface::issue_replication_factor_request(
           // ->key_request_connect_address(); // -> this should be storage_request_connect_address()
   }
 
-  // KeyRequest key_request;
-  // key_request.set_type(RequestType::GET);
-  // key_request.set_response_address(response_address);
-
-  // prepare_get_tuple(key_request, replication_key, LatticeType::LWW);
-  // string serialized;
-  // key_request.SerializeToString(&serialized);
-
-
   TxnRequest key_request;
   // TODO(@accheng): different init for different tiers?
   if (tier == Tier::TXN) {
@@ -257,6 +248,7 @@ void HashRingUtilInterface::issue_storage_request(
     const Address &response_address, const RequestType &request_type,
     const string &txn_id, const Key &key, const string &payload,
     const ServerThread &thread, SocketCache &pushers) {
+  // Key replication_key = get_metadata_key(key, MetadataType::replication);
 
   Address target_address = thread.storage_request_connect_address();
 
@@ -283,6 +275,7 @@ void HashRingUtilInterface::issue_log_request(
     const Address &response_address, const RequestType &request_type,
     const string &txn_id, const Key &key, const string &payload,
     const ServerThread &thread, SocketCache &pushers) {
+  // Key replication_key = get_metadata_key(key, MetadataType::replication);
 
   Address target_address = thread.log_request_connect_address();
 

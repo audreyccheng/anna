@@ -164,6 +164,15 @@ inline Key get_key_from_metadata(Key metadata_key) {
   return "";
 }
 
+// Parse key if it is a metadata_key, otherwise just return key
+inline Key get_txn_key_from_metadata(Key key) {
+  string rep_key = get_key_from_metadata(key);
+  if (rep_key == "") {
+    return key;
+  }
+  return rep_key;
+}
+
 // Precondition: key is from the non-data-key version of get_metadata_key.
 inline vector<string> split_metadata_key(Key key) {
   vector<string> tokens;

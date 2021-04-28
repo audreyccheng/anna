@@ -234,6 +234,69 @@ TEST_F(ServerHandlerTest, TxnStartReplicationResponse) {
   EXPECT_EQ(rep_response.response_id(), kRequestId);
   EXPECT_EQ(rep_response.tier(), AnnaTier::ATXN);
   EXPECT_EQ(rep_response.tuples().size(), 1);
+
+  TxnKeyTuple rtp = rep_response.tuples(0);
+
+  EXPECT_EQ(rtp.key(), client_id);
+  EXPECT_EQ(rtp.error(), 0);
+
+  EXPECT_EQ(pending_requests.size(), 0);
+}
+
+TEST_F(ServerHandlerTest, TxnPutReplicationResponse) {
+  kSelfTier = Tier::TXN;
+  string txn_id = "0:0";
+  Key key = "key";
+  string value = "value";
+  AnnaError error = AnnaError::NO_ERROR;
+
+  // Assume this txn exists
+  stored_key_map[txn_id].num_ops_ = 0;
+  pending_requests[txn_id].push_back(
+  	PendingTxnRequest(RequestType::TXN_PUT, txn_id, key, value,
+                      UserThread(ip, 0).response_connect_address(), kRequestId));
+
+  TxnResponse response;
+  response.set_type(RequestType::TXN_PUT);
+  response.set_response_id(kRequestId);
+  response.set_tier(AnnaTier::AMEMORY);
+  response.set_txn_id(txn_id);
+
+  TxnKeyTuple *tp = response.add_tuples();
+  tp->set_key(key);
+  tp->set_error(AnnaError::NO_ERROR);
+  tp->set_payload(value);
+
+  string put_response;
+  response.SerializeToString(&put_response);
+
+  unsigned access_count = 0;
+  unsigned seed = 0;
+
+  replication_response_handler(seed, access_count, log_, put_response, global_hash_rings,
+                               local_hash_rings, pending_requests, // pending_gossip,
+                               key_access_tracker, stored_key_map, key_replication_map,
+                               local_changeset, wt, txn_serializer, base_serializer,
+                               log_serializer, pushers);
+
+  vector<string> messages = get_zmq_messages();
+  EXPECT_EQ(messages.size(), 1);
+
+  TxnResponse rep_response;
+  rep_response.ParseFromString(messages[0]);
+
+  EXPECT_EQ(rep_response.txn_id(), txn_id);
+  EXPECT_EQ(rep_response.response_id(), kRequestId);
+  EXPECT_EQ(rep_response.tier(), AnnaTier::ATXN);
+  EXPECT_EQ(rep_response.tuples().size(), 1);
+
+  TxnKeyTuple rtp = rep_response.tuples(0);
+
+  EXPECT_EQ(rtp.key(), key);
+  EXPECT_EQ(rtp.payload(), value);
+  EXPECT_EQ(rtp.error(), 0);
+
+  EXPECT_EQ(pending_requests.size(), 0);
 }
 
 // Test txn, storage, and log requests
