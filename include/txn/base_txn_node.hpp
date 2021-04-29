@@ -49,14 +49,19 @@ public:
     db[txn_id] = vec;
   }
 
-  unsigned size(const string &txn_id) { return db.at(txn_id).size(); }
+  unsigned size(const string &txn_id) {
+    if (db.find(txn_id) == db.end()) {
+      return 0;
+    }
+    return db.at(txn_id).size(); 
+  }
 
   void commit_txn(const string &txn_id, AnnaError &error) {
     if (db.find(txn_id) == db.end()) {
       error = AnnaError::TXN_DNE;
     } else {
       // TODO(@accheng): update
-      // db.erase(txn_id);
+      db.erase(txn_id);
     } 
   }
 

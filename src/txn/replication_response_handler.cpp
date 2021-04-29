@@ -138,6 +138,8 @@ void replication_response_handler(
             log->error("Received a request with no response address.");
           }
         } else if (responsible && request.addr_ != "") {
+          bool send_response = true;
+
           TxnResponse rep_response;
           rep_response.set_type(request.type_);
           rep_response.set_tier(get_anna_tier_from_tier(kSelfTier));
@@ -197,9 +199,12 @@ void replication_response_handler(
                       payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
 
                     // add to pending request
-                    pending_requests[key].push_back(
-                            PendingTxnRequest(request.type_, key, tuple_key, payload,
-                                              request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
+                    // pending_requests[key].push_back(
+                    //         PendingTxnRequest(request.type_, key, tuple_key, payload,
+                    //                           request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
+                    it++;
+                    i++;
+                    continue;
                   } else {
                     // TODO(@accheng): erase from pending requests
                   }
@@ -212,6 +217,12 @@ void replication_response_handler(
                   tp->set_error(AnnaError::NO_ERROR);
                   tp->set_payload(tuple.payload());
                 }
+              }
+            } else if (request.type_ == RequestType::COMMIT_TXN) {
+              send_response = false;
+              // check if any commits pending, otherwise finalize commit
+              if (request_map[request.type_].size() == 1) {
+                process_commit_txn(key, tuple_key, error, serializer);
               }
             }
 
@@ -227,9 +238,11 @@ void replication_response_handler(
             key_access_tracker[key].insert(now);
             access_count += 1;
 
-            string serialized_response;
-            rep_response.SerializeToString(&serialized_response);
-            kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
+            if (send_response) {
+              string serialized_response;
+              rep_response.SerializeToString(&serialized_response);
+              kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
+            }
           }
         }
       }
