@@ -33,7 +33,7 @@ void replication_response_handler(
   // Key key = get_key_from_metadata(tuple.key());
   Key key = response.txn_id();
   Key tuple_key = get_txn_key_from_metadata(tuple.key());
-  if (kSelfTier != Tier::TXN || key == "") { // TODO(@accheng): is this correct?
+  if (kSelfTier != Tier::TXN || key == "") { // TODO(@accheng): is this correct? 
     key = tuple_key;
   }
   Tier key_tier = get_tier_from_anna_tier(response.tier());
@@ -91,10 +91,13 @@ void replication_response_handler(
       bool responsible =
           std::find(threads.begin(), threads.end(), wt) != threads.end();
 
-      // map request types of this transaction
-      RequestTypeMap request_map;
+      vector<unsigned> indices; // get requests with this tuple_key
+      RequestTypeMap request_map; // map request types of this transaction
       for (unsigned i = 0; i < pending_requests[key].size(); ++i) {
         auto request = pending_requests[key][i];
+        if (request.key_ == tuple_key) {
+          indices.push_back(i);
+        }
         if (request_map.find(request.type_) == request_map.end()) {
           vector<unsigned> vec{ i };
           request_map[request.type_] = vec;
@@ -105,9 +108,12 @@ void replication_response_handler(
 
       // for (const PendingRequest &request : pending_requests[key]) { // TODO(@accheng): update
       // for (int i = 0; i < pending_requests[key].size(); ++i) {
-      int i = 0;
-      for (auto it = pending_requests[key].begin(); it != pending_requests[key].end(); ) {
-        auto request = pending_requests[key].at(i);
+      // int i = 0;
+      // for (auto it = pending_requests[key].begin(); it != pending_requests[key].end(); ) {
+
+      unsigned erase_count = 0; // update index as requests are removed
+      for (const unsigned &index : indices) {
+        auto request = pending_requests[key].at(index - erase_count);
         auto now = std::chrono::system_clock::now();
 
         if (!responsible && request.addr_ != "") {
@@ -202,8 +208,8 @@ void replication_response_handler(
                     // pending_requests[key].push_back(
                     //         PendingTxnRequest(request.type_, key, tuple_key, payload,
                     //                           request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
-                    it++;
-                    i++;
+                    // it++;
+                    // i++;
                     continue;
                   } else {
                     // TODO(@accheng): erase from pending requests
@@ -219,31 +225,91 @@ void replication_response_handler(
                 }
               }
             } else if (request.type_ == RequestType::COMMIT_TXN) {
+              // response sent to client after prepare phase
               send_response = false;
               // check if any commits pending, otherwise finalize commit
               if (request_map[request.type_].size() == 1) {
-                process_commit_txn(key, tuple_key, error, serializer);
+                process_commit_txn(key, error, serializer, stored_key_map);
               }
             }
+          } else if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK) {
+            auto serializer = base_serializer;
+            rep_response.set_txn_id(request.txn_id_);
 
-            // TODO(@accheng): should this be here?
-            // erase this request from pending_requests and requests_map
-            it = pending_requests[key].erase(it);
-            auto vit = find(request_map[request.type_].begin(), request_map[request.type_].end(), i);
-            if (vit != request_map[request.type_].end()) {
-              request_map[request.type_].erase(vit);
-            }
-            i++;
+            /* STORAGE tier */
+            if (request.type_ == RequestType::TXN_GET) {
+              if (stored_key_map.find(key) == stored_key_map.end()) {
+                tp->set_error(AnnaError::KEY_DNE);
+              } else {
+                AnnaError error = AnnaError::NO_ERROR;
+                auto res = process_txn_get(request.txn_id_, key, error,
+                                           serializer, 
+                                           stored_key_map);
+                tp->set_payload(res);
+                tp->set_error(error);
+              }
+            } else if (request.type_ == RequestType::TXN_PUT) {
+              AnnaError error = AnnaError::NO_ERROR;
+              process_txn_put(request.txn_id_, key, payload, error,
+                              serializer, stored_key_map);
+              tp->set_error(error);
 
-            key_access_tracker[key].insert(now);
-            access_count += 1;
+              local_changeset.insert(key);
+            } else if (request.type_ == RequestType::PREPARE_TXN) {
+              if (key_tier == kSelfTier) {
+                if (stored_key_map.find(key) == stored_key_map.end()) {
+                  tp->set_error(AnnaError::KEY_DNE);
+                } else {
+                  // check lock is still held; nothing actually done here for 2PL
+                  AnnaError error = AnnaError::NO_ERROR;
+                  process_txn_prepare(key, tuple_key, error, 
+                                      serializer, stored_key_map);
+                  tp->set_error(error);
 
-            if (send_response) {
-              string serialized_response;
-              rep_response.SerializeToString(&serialized_response);
-              kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
+                  // send replication / log requests
+                  ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
+                      wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                      global_hash_rings, local_hash_rings, key_replication_map, 
+                      pushers, {Tier::LOG}, succeed, seed);
+
+                  // send request to log if possible
+                  if (key_threads.size() > 0) {
+                    kHashRingUtil->issue_log_request(
+                      wt.replication_response_connect_address(), request.type_, key,
+                      tuple_key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+                  }
+
+                  // pending_requests[key].push_back( 
+                  //   PendingTxnRequest(request.type_, key, tuple_key, payload,
+                  //                     request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
+                  continue;
+                }
+              } else { // ack from log tier
+                
+              }
             }
           }
+
+          // TODO(@accheng): should this be here?
+          // erase this request from pending_requests and requests_map
+          // it = pending_requests[key].erase(it);
+          pending_requests[key].erase(pending_requests[key].begin() + index);
+          auto vit = find(request_map[request.type_].begin(), request_map[request.type_].end(), index);
+          if (vit != request_map[request.type_].end()) {
+            request_map[request.type_].erase(vit);
+          }
+          erase_count++;
+          // i++;
+
+          key_access_tracker[key].insert(now);
+          access_count += 1;
+
+          if (send_response) {
+            string serialized_response;
+            rep_response.SerializeToString(&serialized_response);
+            kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
+          }
+
         }
       }
     } else {

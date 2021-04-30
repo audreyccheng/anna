@@ -38,6 +38,7 @@ public:
   virtual void put_start_txn(const string &txn_id) = 0;
   virtual string create_txn(const string &client_id) = 0;
   virtual void commit_txn(const string &txn_id, AnnaError &error) = 0;
+  virtual unsigned size(const string &txn_id) = 0;
   // virtual void remove(const Key &key) = 0;
   virtual ~TxnSerializer(){};
 };
@@ -74,6 +75,10 @@ public:
 
   void commit_txn(const string &txn_id, AnnaError &error) {
     base_txn_node_->commit_txn(txn_id, error);
+  }
+
+  unsigned size(const string &txn_id) {
+    return base_txn_node_->size(txn_id);
   }
 };
 
