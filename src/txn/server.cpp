@@ -273,6 +273,9 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
   zmq::socket_t log_request_puller(context, ZMQ_PULL);
   log_request_puller.bind(wt.log_request_bind_address());
 
+  zmq::socket_t request_response_puller(context, ZMQ_PULL);
+  request_response_puller.bind(wt.request_response_bind_address());
+
   //  Initialize poll set
   vector<zmq::pollitem_t> pollitems = {
       {static_cast<void *>(join_puller), 0, ZMQ_POLLIN, 0},
@@ -287,6 +290,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       {static_cast<void *>(txn_request_puller), 0, ZMQ_POLLIN, 0},
       {static_cast<void *>(storage_request_puller), 0, ZMQ_POLLIN, 0},
       {static_cast<void *>(log_request_puller), 0, ZMQ_POLLIN, 0},
+      {static_cast<void *>(request_response_puller), 0, ZMQ_POLLIN, 0},
     };
 
   auto gossip_start = std::chrono::system_clock::now();
@@ -496,6 +500,22 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       working_time_map[3] += time_elapsed;
     }
 
+    if (pollitems[7].revents & ZMQ_POLLIN) {
+      auto work_start = std::chrono::system_clock::now();
+
+      string serialized = kZmqUtil->recv_string(&request_response_puller);
+      request_response_handler(
+          seed, access_count, log, serialized, global_hash_rings,
+          local_hash_rings, pending_requests, // pending_gossip,
+          key_access_tracker, stored_txn_map, key_replication_map,
+          local_changeset, wt, txn_serialier, base_serializer, log_serializer, pushers);
+
+      auto time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                              std::chrono::system_clock::now() - work_start)
+                              .count();
+      working_time += time_elapsed;
+      working_time_map[5] += time_elapsed;
+    }
 
     // gossip updates to other threads
     // gossip_end = std::chrono::system_clock::now();

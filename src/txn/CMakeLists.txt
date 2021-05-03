@@ -28,7 +28,8 @@ SET(TXN_SOURCE
   utils.cpp
   user_txn_request_handler.cpp
   storage_request_handler.cpp
-  log_request_handler.cpp)
+  log_request_handler.cpp
+  request_response_handler.cpp)
 
 ADD_EXECUTABLE(anna-txn ${TXN_SOURCE})
 TARGET_LINK_LIBRARIES(anna-txn anna-hash-ring ${KV_LIBRARY_DEPENDENCIES})

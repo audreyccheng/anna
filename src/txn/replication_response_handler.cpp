@@ -176,61 +176,65 @@ void replication_response_handler(
 
               // if this is from txn tier, this request needs to sent to storage tier
               // otherwise, respond to client
-              if (key_tier == Tier::TXN) {
-                if (stored_key_map.find(key) == stored_key_map.end()) {
-                  tp->set_error(AnnaError::TXN_DNE);
-                } else {
-                  ServerThreadList key_threads = {};
+              // if (key_tier == Tier::TXN) {
+              if (stored_key_map.find(key) == stored_key_map.end()) {
+                tp->set_error(AnnaError::TXN_DNE);
+              } else {
+                ServerThreadList key_threads = {};
 
-                  for (const Tier &tier : kStorageTiers) {
-                    key_threads = kHashRingUtil->get_responsible_threads(
-                        wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
-                        global_hash_rings, local_hash_rings, key_replication_map, 
-                        pushers, {tier}, succeed, seed);
-                    if (key_threads.size() > 0) {
-                      break;
-                    }
-
-                    if (!succeed) { // this means we don't have the replication factor for
-                                    // the key and we can't replicate it
-                      tp->set_error(AnnaError::KEY_DNE);
-                    }
-                  }
-
-                  // TODO(@accheng): should just be one request?
-                  // send request to storage tier
+                for (const Tier &tier : kStorageTiers) {
+                  key_threads = kHashRingUtil->get_responsible_threads(
+                      wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                      global_hash_rings, local_hash_rings, key_replication_map, 
+                      pushers, {tier}, succeed, seed);
                   if (key_threads.size() > 0) {
-                    kHashRingUtil->issue_storage_request(
-                      wt.replication_response_connect_address(), request.type_, key, tuple_key, 
-                      payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+                    break;
+                  }
 
-                    // add to pending request
-                    // pending_requests[key].push_back(
-                    //         PendingTxnRequest(request.type_, key, tuple_key, payload,
-                    //                           request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
-                    // it++;
-                    // i++;
-                    continue;
-                  } else {
-                    // TODO(@accheng): erase from pending requests
+                  if (!succeed) { // this means we don't have the replication factor for
+                                  // the key and we can't replicate it
+                    tp->set_error(AnnaError::KEY_DNE);
                   }
                 }
-              } else { // store info from storage tier
-                if (tuple.error() != AnnaError::NO_ERROR) {
-                  // TODO(@accheng): need to abort txn
-                } else { 
-                  tp->set_key(tuple_key);
-                  tp->set_error(AnnaError::NO_ERROR);
-                  tp->set_payload(tuple.payload());
+
+                // TODO(@accheng): should just be one request?
+                // send request to storage tier
+                if (key_threads.size() > 0) {
+                  kHashRingUtil->issue_storage_request(
+                    wt.request_response_connect_address(), request.type_, key, tuple_key, 
+                    payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+
+                  // add to pending request
+                  // pending_requests[key].push_back(
+                  //         PendingTxnRequest(request.type_, key, tuple_key, payload,
+                  //                           request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
+                  // it++;
+                  // i++;
+                  continue;
+                } else {
+                  // TODO(@accheng): erase from pending requests
                 }
               }
+              // } else { // store info from storage tier
+                
+              // }
+            } else if (request.type_ == RequestType::PREPARE_TXN) {
+              // TODO(@accheng): this shouldn't happen?
+              log->error(
+                "Prepare request can not be fulfilled in replication_response_handler.");
+              continue;
             } else if (request.type_ == RequestType::COMMIT_TXN) {
-              // response sent to client after prepare phase
-              send_response = false;
-              // check if any commits pending, otherwise finalize commit
-              if (request_map[request.type_].size() == 1) {
-                process_commit_txn(key, error, serializer, stored_key_map);
-              }
+              // // response sent to client after prepare phase
+              // send_response = false;
+              // // check if any commits pending, otherwise finalize commit
+              // if (request_map[request.type_].size() == 1) {
+              //   process_commit_txn(key, error, serializer, stored_key_map);
+              // }
+
+              // TODO(@accheng): this shouldn't happen?
+              log->error(
+                "Commit request ccan not be fulfilled in replication_response_handler.");
+              continue;
             }
           } else if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK) {
             auto serializer = base_serializer;
@@ -256,38 +260,61 @@ void replication_response_handler(
 
               local_changeset.insert(key);
             } else if (request.type_ == RequestType::PREPARE_TXN) {
-              if (key_tier == kSelfTier) {
-                if (stored_key_map.find(key) == stored_key_map.end()) {
-                  tp->set_error(AnnaError::KEY_DNE);
-                } else {
-                  // check lock is still held; nothing actually done here for 2PL
-                  AnnaError error = AnnaError::NO_ERROR;
-                  process_txn_prepare(key, tuple_key, error, 
-                                      serializer, stored_key_map);
-                  tp->set_error(error);
+              // if (key_tier == kSelfTier) {
+              if (stored_key_map.find(key) == stored_key_map.end()) {
+                tp->set_error(AnnaError::KEY_DNE);
+              } else {
+                // check lock is still held; nothing actually done here for 2PL
+                AnnaError error = AnnaError::NO_ERROR;
+                process_txn_prepare(key, tuple_key, error, 
+                                    serializer, stored_key_map);
+                tp->set_error(error);
 
-                  // send replication / log requests
-                  ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
-                      wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
-                      global_hash_rings, local_hash_rings, key_replication_map, 
-                      pushers, {Tier::LOG}, succeed, seed);
+                // send replication / log requests
+                ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
+                    wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                    global_hash_rings, local_hash_rings, key_replication_map, 
+                    pushers, {Tier::LOG}, succeed, seed);
 
-                  // send request to log if possible
-                  if (key_threads.size() > 0) {
-                    kHashRingUtil->issue_log_request(
-                      wt.replication_response_connect_address(), request.type_, key,
-                      tuple_key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
-                  }
-
-                  // pending_requests[key].push_back( 
-                  //   PendingTxnRequest(request.type_, key, tuple_key, payload,
-                  //                     request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
-                  continue;
+                // send request to log if possible
+                if (key_threads.size() > 0) {
+                  kHashRingUtil->issue_log_request(
+                    wt.request_response_connect_address(), request.type_, key,
+                    tuple_key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
                 }
-              } else { // ack from log tier
-                
+
+                // pending_requests[key].push_back( 
+                //   PendingTxnRequest(request.type_, key, tuple_key, payload,
+                //                     request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
+                continue;
               }
+              // } else { // ack from log tier
+
+              // }
+            } else if (request.type_ == RequestType::COMMIT_TXN) {
+              AnnaError error = AnnaError::NO_ERROR;
+              process_txn_commit(request.txn_id_, key, error, serializer, stored_key_map);
+
+              tp->set_error(error);
+
+              // log commit
+              ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
+                    wt.replication_response_connect_address(), key, is_metadata(key), 
+                    global_hash_rings, local_hash_rings, key_replication_map, 
+                    pushers, {Tier::LOG}, succeed, seed);
+
+              // send request to log if possible
+              if (key_threads.size() > 0) {
+                kHashRingUtil->issue_log_request(
+                  wt.request_response_connect_address(), request.type_, 
+                  request.txn_id_, key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+              }
+
+              continue;
             }
+          } else if (kSelfTier == Tier::LOG) { 
+            // should be fulfilled by request_response_handler
+            continue;
           }
 
           // TODO(@accheng): should this be here?

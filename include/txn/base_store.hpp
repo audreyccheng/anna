@@ -35,6 +35,7 @@ public:
 class LockElement {
  protected:
   string element;
+  string temp_element;
   // TODO(@accheng): should this be a vector?
   set<string> rlocks;
   string wlock;
@@ -78,6 +79,14 @@ class LockElement {
     return false;
   }
 
+  void update_temp_value(const string& value) {
+    temp_element = value;
+  }
+
+  void update_value() {
+    element = temp_element;
+  }
+
   // TODO(@accheng): return error if not holding read lock?
   void release_rlock(const string& txn_id) {
     auto it = rlocks.find(txn_id);
@@ -90,6 +99,13 @@ class LockElement {
     wlock = "";
   }
 
+  bool holds_rlock(const string& txn_id) {
+    return (rlocks.find(txn_id) != rlocks.end());
+  }
+
+  bool holds_wlock(const string& txn_id) {
+    return wlock == txn_id;
+  }
 };
 
 template <typename K> class LockNode {
@@ -120,13 +136,33 @@ public:
     }
   }
 
-  void put(const string& txn_id, const K &k, const string &v, AnnaError &error) {
+  void put(const string& txn_id, const K &k, const string &v,
+           AnnaError &error) {
     bool acquired_lock;
     if (db.find(k) == db.end()) {
       db[k] = LockElement(v);
     }
-    if (!db.at(k).acquire_wlock(txn_id)) {
+    if (db.at(k).acquire_wlock(txn_id)) {
+      db.at(k).update_temp_value(v);
+    } else {
       error = AnnaError::FAILED_OP;
+    }
+  }
+
+  void commit(const string& txn_id, const K &k, AnnaError &error) {
+    // check this key exists
+    if (db.find(k) == db.end()) {
+      error = AnnaError::FAILED_OP;
+      return;
+    }
+
+    if (db.at(k).holds_wlock(txn_id)) {
+      db.at(k).update_value();
+      db.at(k).release_wlock(txn_id);
+    } else if (db.at(k).holds_rlock(txn_id)) {
+      db.at(k).release_rlock(txn_id);
+    } else {
+      // TODO(@accheng): should there be an error if nothing to commit?
     }
   }
 

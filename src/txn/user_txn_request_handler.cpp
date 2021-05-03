@@ -129,7 +129,7 @@ void user_txn_request_handler(
             // TODO(@accheng): should just be one request?
             // send request to storage tier
             kHashRingUtil->issue_storage_request(
-              wt.replication_response_connect_address(), request_type, txn_id, key, 
+              wt.request_response_connect_address(), request_type, txn_id, key, 
               payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
 
             // add to pending request
@@ -166,6 +166,7 @@ void user_txn_request_handler(
             }
 
             bool abort_txn;
+            vector<ServerThreadList> all_key_threads;
             for (const Operation &op: ops) {
               auto op_key = op.get_key();
               auto op_payload = op.get_value();
@@ -191,25 +192,34 @@ void user_txn_request_handler(
 
               if (abort_txn) {
                 break;
+              } else {
+                all_key_threads.push_back(key_threads);
               }
-
-              // send prepare request to storage tier
-              kHashRingUtil->issue_storage_request(
-                wt.replication_response_connect_address(), RequestType::PREPARE_TXN, txn_id, 
-                op_key, op_payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
-
-              // this is the commit response we want to send back to the client
-              // both key and op_key are txn_id
-              pending_requests[txn_id].push_back(
-                  PendingTxnRequest(RequestType::COMMIT_TXN, txn_id, op_key,
-                                    op_payload, response_address,
-                                    response_id));
             }
 
+            // TODO(@accheng): send abort to client
+            if (abort_txn) {
+              tp->set_error(AnnaError::TXN_DNE);
+            } else {
+              // send PREPARE_TXN requests to storage tiers
+              for (unsigned i = 0; i < ops.size(); i++) {
+                auto op_key = ops[i].get_key();
+                auto op_payload = ops[i].get_value();
+                // send prepare request to storage tier
+                kHashRingUtil->issue_storage_request(
+                  wt.request_response_connect_address(), RequestType::PREPARE_TXN, txn_id, 
+                  op_key, op_payload, all_key_threads[i][0], pushers); // TODO(@accheng): how should we choose thread?
 
+                // this is the commit response we want to send back to the client
+                // both key and op_key are txn_id
+                pending_requests[txn_id].push_back(
+                    PendingTxnRequest(RequestType::COMMIT_TXN, txn_id, op_key,
+                                      op_payload, response_address,
+                                      response_id));
+              }
+            }
             // response.set_error() = error;
 
-            // send PREPARE_TXN requests to storage tiers
           }
         } else {
           log->error("Unknown request type {} in user request handler.",

@@ -99,6 +99,10 @@ void storage_request_handler(
             process_txn_prepare(txn_id, key, error, serializer, stored_key_map);
             tp->set_error(error);
 
+            if (error != AnnaError::NO_ERROR) {
+              return;
+            }
+
             // send replication / log requests
             ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
                 wt.replication_response_connect_address(), key, is_metadata(key), 
@@ -108,7 +112,7 @@ void storage_request_handler(
             // send request to log if possible
             if (key_threads.size() > 0) {
               kHashRingUtil->issue_log_request(
-                wt.replication_response_connect_address(), request_type, txn_id,
+                wt.request_response_connect_address(), request_type, txn_id,
                 key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
             }
 
@@ -123,6 +127,10 @@ void storage_request_handler(
 
           tp->set_error(error);
 
+          if (error != AnnaError::NO_ERROR) {
+            return;
+          }
+
           // log commit
           ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
                 wt.replication_response_connect_address(), key, is_metadata(key), 
@@ -132,7 +140,7 @@ void storage_request_handler(
           // send request to log if possible
           if (key_threads.size() > 0) {
             kHashRingUtil->issue_log_request(
-              wt.replication_response_connect_address(), request_type, txn_id,
+              wt.request_response_connect_address(), request_type, txn_id,
               key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
           }
 

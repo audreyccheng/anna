@@ -159,9 +159,8 @@ public:
     // nothing needs to be done?
   }
 
-  void commit(const string& txn_id, const Key &key, AnnaError &error) { // TODO(@accheng): what to do with error?
-    lock_node_->release_rlock(txn_id, key);
-    lock_node_->release_wlock(txn_id, key);
+  void commit(const string& txn_id, const Key &key, AnnaError &error) {
+    lock_node_->commit(txn_id, key, error);
   }
 
   unsigned size() { return lock_node_->size(); }
