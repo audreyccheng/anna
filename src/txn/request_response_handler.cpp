@@ -44,7 +44,7 @@ void request_response_handler(
       RequestTypeMap request_map; // map request types of this transaction
       for (unsigned i = 0; i < pending_requests[key].size(); ++i) {
         auto request = pending_requests[key][i];
-        if (request.key_ == tuple_key) {
+        if (request.key_ == tuple_key && request.type_ == response.type()) {
           indices.push_back(i);
         }
         if (request_map.find(request.type_) == request_map.end()) {
@@ -104,13 +104,15 @@ void request_response_handler(
           /* TXN tier */
           if (kSelfTier == Tier::TXN) {
           	auto serializer = txn_serializer;
+          	// handle response from storage tier
           	if (request.type_ == RequestType::TXN_GET || request.type_ == RequestType::TXN_PUT) {
               rep_response.set_txn_id(request.txn_id_);
           	  if (tuple.error() != AnnaError::NO_ERROR) {
                   // TODO(@accheng): need to abort txn
+
               } else { 
                 tp->set_key(tuple_key);
-                tp->set_error(AnnaError::NO_ERROR);
+                tp->set_error(error);
                 tp->set_payload(tuple.payload());
               }
             } else if (request.type_ == RequestType::PREPARE_TXN) {
@@ -136,8 +138,9 @@ void request_response_handler(
                   commit_response.set_txn_id(key);
                   commit_response.set_tier(get_anna_tier_from_tier(kSelfTier));
                   TxnKeyTuple *commit_tp = commit_response.add_tuples();
-                  unsigned commit_index = request_map[RequestType::COMMIT_TXN][0];
-                  string commit_response_addr = pending_requests[key][commit_index].response_id_; // TODO(@accheng): should only be 1?
+                  unsigned commit_index = request_map[RequestType::COMMIT_TXN][0] - erase_count; // TODO(@accheng): should only ever be 1?
+                  Address commit_response_addr = pending_requests[key][commit_index].addr_;
+                  commit_response.set_response_id(pending_requests[key][commit_index].response_id_);
 
                   bool abort_txn;
                   vector<ServerThreadList> all_key_threads;
@@ -170,11 +173,6 @@ void request_response_handler(
                       all_key_threads.push_back(key_threads);
                   	}
                   }
-                  // if (abort_txn) {
-                  // 	tp->set_error(AnnaError::FAILED_OP); 
-                  // } else {
-
-                  // }
 
                   if (!abort_txn) {
                     commit_response.set_error(AnnaError::NO_ERROR);
@@ -187,7 +185,7 @@ void request_response_handler(
                   	  auto op_payload = ops[i].get_value();
 
                       kHashRingUtil->issue_storage_request(
-                        wt.replication_response_connect_address(), RequestType::COMMIT_TXN, key, 
+                        wt.request_response_connect_address(), RequestType::COMMIT_TXN, key, 
                         op_key, op_payload, all_key_threads[i][0], pushers); // TODO(@accheng): how should we choose thread?
 
                       pending_requests[key].push_back(
@@ -203,6 +201,14 @@ void request_response_handler(
                   string serialized_commit_response;
                   commit_response.SerializeToString(&serialized_commit_response);
                   kZmqUtil->send_string(serialized_commit_response, &pushers[commit_response_addr]);
+
+
+                  // erase the client COMMIT_TXN pending request
+                  pending_requests[key].erase(pending_requests[key].begin() + commit_index);
+		          request_map[RequestType::COMMIT_TXN].erase(request_map[RequestType::COMMIT_TXN].begin());
+		          if (commit_index + erase_count < index) {
+		          	erase_count++;
+		          }
                 }
               } 
           	} else if (request.type_ == RequestType::COMMIT_TXN) {
@@ -211,7 +217,12 @@ void request_response_handler(
               // check if any commits pending, otherwise finalize commit
               if (request_map[request.type_].size() == 1) {
                 process_commit_txn(key, error, serializer, stored_key_map);
+
+                // TODO(@accheng): Log commit on coordinator
               }
+            } else {
+              log->error("Wrong request type to transactional tier");
+              continue;
             }
 
           } else if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK) {
@@ -219,17 +230,18 @@ void request_response_handler(
             rep_response.set_txn_id(request.txn_id_);
 
             // response from log tier
-            if (request.type_ == RequestType::PREPARE_TXN) { // TODO(@accheng): anything else need to be done here?
+            if (request.type_ == RequestType::PREPARE_TXN || 
+            	request.type_ == RequestType::COMMIT_TXN) {
               if (key_tier != Tier::LOG) {
-                log->error("Wrong request to storage tier for prepare");
-              }
-            } else if (request.type_ == RequestType::COMMIT_TXN) {
-              if (key_tier != Tier::LOG) {
-                log->error("Wrong request to storage tier for commit");
+                log->error("Wrong request to storage tier for prepare / commit");
+                continue;
+              } else {
+              	tp->set_key(tuple_key);
+                tp->set_error(error);
+                tp->set_payload(tuple.payload());
               }
             } else {
-           	  send_response = false;
-           	  log->error("Wrong request to storage tier");
+           	  log->error("Wrong request type to storage tier");
            	  continue;
             }
           } else if (kSelfTier == Tier::LOG) {
@@ -240,6 +252,7 @@ void request_response_handler(
             if (request.type_ == RequestType::PREPARE_TXN || 
                 request.type_ == RequestType::COMMIT_TXN) {
               process_log(key, tuple_key, payload, error, serializer); // TODO(@accheng): update
+          	  tp->set_error(error);
             } else {
               log->error("Unknown request type {} in user request handler.",
                          request.type_);
@@ -249,8 +262,9 @@ void request_response_handler(
           // TODO(@accheng): should this be here?
           // erase this request from pending_requests and requests_map
           // it = pending_requests[key].erase(it);
-          pending_requests[key].erase(pending_requests[key].begin() + index);
-          auto vit = find(request_map[request.type_].begin(), request_map[request.type_].end(), index);
+          pending_requests[key].erase(pending_requests[key].begin() + index - erase_count);
+          auto vit = find(request_map[request.type_].begin(),
+          				  request_map[request.type_].end(), index - erase_count);
           if (vit != request_map[request.type_].end()) {
             request_map[request.type_].erase(vit);
           }

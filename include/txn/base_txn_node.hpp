@@ -18,11 +18,11 @@ public:
   vector<Operation> get_ops(const string &txn_id, AnnaError &error) {
     if (db.find(txn_id) == db.end()) {
       error = AnnaError::TXN_DNE;
-    } else {
-      return db.at(txn_id);
+      vector<Operation> vec;
+      return vec;
     }
-    vector<Operation> vec;
-    return vec;
+    
+    return db.at(txn_id);
   }
 
   void put_op(const string &txn_id, const Operation &v, AnnaError &error) { 

@@ -95,7 +95,7 @@ void replication_response_handler(
       RequestTypeMap request_map; // map request types of this transaction
       for (unsigned i = 0; i < pending_requests[key].size(); ++i) {
         auto request = pending_requests[key][i];
-        if (request.key_ == tuple_key) {
+        if (request.key_ == tuple_key && request.type_ == response.type()) {
           indices.push_back(i);
         }
         if (request_map.find(request.type_) == request_map.end()) {
@@ -272,15 +272,15 @@ void replication_response_handler(
 
                 // send replication / log requests
                 ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
-                    wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                    wt.replication_response_connect_address(), key, is_metadata(key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
                     pushers, {Tier::LOG}, succeed, seed);
 
                 // send request to log if possible
                 if (key_threads.size() > 0) {
                   kHashRingUtil->issue_log_request(
-                    wt.request_response_connect_address(), request.type_, key,
-                    tuple_key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+                    wt.request_response_connect_address(), request.type_, request.txn_id_,
+                    key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
                 }
 
                 // pending_requests[key].push_back( 
@@ -288,40 +288,52 @@ void replication_response_handler(
                 //                     request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
                 continue;
               }
-              // } else { // ack from log tier
-
-              // }
             } else if (request.type_ == RequestType::COMMIT_TXN) {
-              AnnaError error = AnnaError::NO_ERROR;
-              process_txn_commit(request.txn_id_, key, error, serializer, stored_key_map);
+              if (stored_key_map.find(key) == stored_key_map.end()) {
+                tp->set_error(AnnaError::KEY_DNE);
+              } else {
+                AnnaError error = AnnaError::NO_ERROR;
+                process_txn_commit(request.txn_id_, key, error, serializer, stored_key_map);
 
-              tp->set_error(error);
+                tp->set_error(error);
 
-              // log commit
-              ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
-                    wt.replication_response_connect_address(), key, is_metadata(key), 
-                    global_hash_rings, local_hash_rings, key_replication_map, 
-                    pushers, {Tier::LOG}, succeed, seed);
+                // log commit
+                ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
+                      wt.replication_response_connect_address(), key, is_metadata(key), 
+                      global_hash_rings, local_hash_rings, key_replication_map, 
+                      pushers, {Tier::LOG}, succeed, seed);
 
-              // send request to log if possible
-              if (key_threads.size() > 0) {
-                kHashRingUtil->issue_log_request(
-                  wt.request_response_connect_address(), request.type_, 
-                  request.txn_id_, key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+                // send request to log if possible
+                if (key_threads.size() > 0) {
+                  kHashRingUtil->issue_log_request(
+                    wt.request_response_connect_address(), request.type_, 
+                    request.txn_id_, key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+                }
+
+                continue;
               }
-
-              continue;
             }
           } else if (kSelfTier == Tier::LOG) { 
-            // should be fulfilled by request_response_handler
-            continue;
+            auto serializer = log_serializer;
+            rep_response.set_txn_id(request.txn_id_);
+
+            /* LOG tier */
+            if (request.type_ == RequestType::PREPARE_TXN || 
+                request.type_ == RequestType::COMMIT_TXN) {
+              process_log(request.txn_id_, key, payload, error, serializer); // TODO(@accheng): update
+              tp->set_error(error);
+            } else {
+              log->error("Unknown request type {} in user request handler.",
+                         request.type_);
+            }
           }
 
           // TODO(@accheng): should this be here?
           // erase this request from pending_requests and requests_map
           // it = pending_requests[key].erase(it);
-          pending_requests[key].erase(pending_requests[key].begin() + index);
-          auto vit = find(request_map[request.type_].begin(), request_map[request.type_].end(), index);
+          pending_requests[key].erase(pending_requests[key].begin() + index - erase_count);
+          auto vit = find(request_map[request.type_].begin(),
+                          request_map[request.type_].end(), index - erase_count);
           if (vit != request_map[request.type_].end()) {
             request_map[request.type_].erase(vit);
           }

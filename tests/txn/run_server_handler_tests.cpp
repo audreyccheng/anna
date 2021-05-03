@@ -31,6 +31,7 @@
 #include "test_storage_request_handler.hpp"
 #include "test_log_request_handler.hpp"
 #include "test_rep_factor_response_handler.hpp"
+#include "test_request_response_handler.hpp"
 
 unsigned kDefaultLocalReplication = 1;
 unsigned kDefaultGlobalTxnReplication = 1;

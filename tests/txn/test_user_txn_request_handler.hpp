@@ -81,7 +81,7 @@ TEST_F(ServerHandlerTest, UserTxnStartAndPutTest) {
   // check that request to storage_request_handler is well-formed
   TxnRequest request;
   request.ParseFromString(messages[1]);
-  string req_rep_addr = "tcp://127.0.0.1:6150";
+  string req_rep_addr = "tcp://127.0.0.1:6260";
 
   EXPECT_EQ(request.txn_id(), txn_id);
   EXPECT_EQ(request.type(), RequestType::TXN_PUT);
@@ -145,7 +145,7 @@ TEST_F(ServerHandlerTest, UserTxnStartAndGetTest) {
   // check that request to storage_request_handler is well-formed
   TxnRequest request;
   request.ParseFromString(messages[1]);
-  string req_rep_addr = "tcp://127.0.0.1:6150";
+  string req_rep_addr = "tcp://127.0.0.1:6260";
 
   EXPECT_EQ(request.txn_id(), txn_id);
   EXPECT_EQ(request.type(), RequestType::TXN_GET);
@@ -212,7 +212,7 @@ TEST_F(ServerHandlerTest, UserTxnStartAndCommitTest) {
   // check that request to storage_request_handler is well-formed
   TxnRequest request;
   request.ParseFromString(messages[1]);
-  string req_rep_addr = "tcp://127.0.0.1:6150";
+  string req_rep_addr = "tcp://127.0.0.1:6260";
 
   EXPECT_EQ(request.txn_id(), txn_id);
   EXPECT_EQ(request.type(), RequestType::PREPARE_TXN);
