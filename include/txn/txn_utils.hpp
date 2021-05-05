@@ -87,11 +87,13 @@ public:
   virtual string get(const string& txn_id, const Key &key,
                      AnnaError &error) = 0;
   virtual void put(const string& txn_id, const Key &key,
-                   const string &serialized, AnnaError &error) = 0;
+                   const string &serialized, AnnaError &error,
+                   const bool &is_primary) = 0;
   virtual void prepare(const string& txn_id, const Key &key,
                        AnnaError &error) = 0;
   virtual void commit(const string& txn_id, const Key &key,
                       AnnaError &error) = 0;
+  virtual bool get_is_primary(const Key &key, AnnaError &error) = 0;
   virtual unsigned size() = 0;
   virtual void remove(const string& txn_id, const Key &key) = 0;
   virtual ~BaseSerializer(){};
@@ -115,7 +117,8 @@ public:
   }
 
   void put(const string& txn_id, const Key &key,
-           const string &serialized, AnnaError &error) {
+           const string &serialized, AnnaError &error,
+           const bool &is_primary) {
     // Operation val = deserialize_op(serialized);
     base_node_->put(key, serialized);
     // return base_txn_node_->size(key);
@@ -127,6 +130,10 @@ public:
 
   void commit(const string& txn_id, const Key &key, AnnaError &error) {
     // nothing needs to be done
+  }
+
+  bool get_is_primary(const Key &key, AnnaError &error) {
+    return true;
   }
 
   unsigned size() { return base_node_->size(); }
@@ -149,9 +156,9 @@ public:
   }
 
   void put(const string& txn_id, const Key &key, const string &serialized,
-           AnnaError &error) {
+           AnnaError &error, const bool &is_primary) {
     // Operation val = deserialize_op(serialized);
-    lock_node_->put(txn_id, key, serialized, error);
+    lock_node_->put(txn_id, key, serialized, error, is_primary);
     // return base_txn_node_->size(key);
   }
 
@@ -161,6 +168,10 @@ public:
 
   void commit(const string& txn_id, const Key &key, AnnaError &error) {
     lock_node_->commit(txn_id, key, error);
+  }
+
+  bool get_is_primary(const Key &key, AnnaError &error) {
+    return lock_node_->get_is_primary(key, error);
   }
 
   unsigned size() { return lock_node_->size(); }
@@ -185,6 +196,10 @@ public:
     if (ebs_root_.back() != '/') {
       ebs_root_ += "/";
     }
+  }
+
+  bool get_is_primary(const Key &key, AnnaError &error) {
+    return true;
   }
 
   string get(const string& txn_id, const Key &key, AnnaError &error) {
@@ -219,7 +234,7 @@ public:
   }
 
   void put(const string& txn_id, const Key &key, const string &serialized,
-           AnnaError &error) {
+           AnnaError &error, const bool &is_primary) {
     // LWWValue input_value;
     // input_value.ParseFromString(serialized);
 

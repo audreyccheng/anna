@@ -78,6 +78,8 @@ ServerThreadList HashRingUtil::get_responsible_threads(
   }
 }
 
+// TODO(@accheng): add primary responsible_global and responsible_local
+
 // assuming the replication factor will never be greater than the number of
 // nodes in a tier return a set of ServerThreads that are responsible for a key
 ServerThreadList responsible_global(const Key &key, unsigned global_rep,
@@ -223,10 +225,12 @@ void HashRingUtilInterface::issue_replication_factor_request(
   if (tier == Tier::TXN) {
     target_address = std::next(begin(threads), rand_r(&seed) % threads.size())
       ->txn_request_connect_address();
-  } else {
+  } else if (tier == Tier::MEMORY || tier == Tier::DISK) {
     target_address = std::next(begin(threads), rand_r(&seed) % threads.size()) // --> these threads should only be storage threads, NOT txn threads
       ->storage_request_connect_address();
-          // ->key_request_connect_address(); // -> this should be storage_request_connect_address()
+  } else {
+    target_address = std::next(begin(threads), rand_r(&seed) % threads.size())
+      ->log_request_connect_address();
   }
 
   TxnRequest key_request;

@@ -307,7 +307,8 @@ TEST_F(ServerHandlerTest, StorageGetReplicationResponse) {
   Key key = "key";
   string value = "value";
   AnnaError error = AnnaError::NO_ERROR;
-  base_serializer->put(kTxnId, key, value, error);
+  bool is_primary = true;
+  base_serializer->put(kTxnId, key, value, error, is_primary);
   stored_key_map[key].lock_ = 0;
   EXPECT_EQ(error, 0);
   base_serializer->commit(kTxnId, key, error);
@@ -410,7 +411,8 @@ TEST_F(ServerHandlerTest, StoragePutReplicationResponse) {
   EXPECT_EQ(local_changeset.size(), 1);
 
   // Ensure that lock was held by put request
-  base_serializer->put(kTxnId, key, value, error);
+  bool is_primary = true;
+  base_serializer->put(kTxnId, key, value, error, is_primary);
   EXPECT_EQ(error, AnnaError::FAILED_OP);
 }
 

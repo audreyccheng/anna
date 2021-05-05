@@ -4,8 +4,12 @@ TEST_F(ServerHandlerTest, StorageTxnGetTest) {
   Key key = "key";
   string value = "value";
   AnnaError error = AnnaError::NO_ERROR;
-  base_serializer->put(kTxnId, key, value, error);
+  bool is_primary = true;
+  base_serializer->put(kTxnId, key, value, error, is_primary);
   stored_key_map[key].lock_ = 0;
+  EXPECT_EQ(error, 0);
+  error = AnnaError::NO_ERROR;
+  EXPECT_EQ(base_serializer->get_is_primary(key, error), true);
   EXPECT_EQ(error, 0);
   base_serializer->commit(kTxnId, key, error);
   EXPECT_EQ(error, 0);
@@ -256,6 +260,7 @@ TEST_F(ServerHandlerTest, StorageTxnPutAndCommitTest) {
   // check lock can be held
   string new_txn_id = "0:1";
   AnnaError error = AnnaError::NO_ERROR;
-  base_serializer->put(new_txn_id, key, value, error);
+  bool is_primary = true;
+  base_serializer->put(new_txn_id, key, value, error, is_primary);
   EXPECT_EQ(error, 0);
 }

@@ -49,6 +49,8 @@ void storage_request_handler(
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         kSelfTierIdVector, succeed, seed);
 
+    bool is_primary = true; // TODO(@accheng): update
+
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
         if (is_metadata(key)) {
@@ -85,7 +87,7 @@ void storage_request_handler(
           }
         } else if (request_type == RequestType::TXN_PUT) {
           AnnaError error = AnnaError::NO_ERROR;
-          process_txn_put(txn_id, key, payload, error, serializer, 
+          process_txn_put(txn_id, key, payload, error, is_primary, serializer, 
                           stored_key_map);
           tp->set_error(error);
 

@@ -116,9 +116,9 @@ string process_txn_get(const string &txn_id, const Key &key,
 
 void process_txn_put(const string &txn_id, const Key &key,
                      const string &payload, AnnaError &error,
-                     BaseSerializer *serializer,
+                     const bool &is_primary, BaseSerializer *serializer,
                      map<Key, TxnKeyProperty> &stored_key_map) {
-  serializer->put(txn_id, key, payload, error);
+  serializer->put(txn_id, key, payload, error, is_primary);
   // if write is successful, write lock is now held
   if (error == AnnaError::NO_ERROR) {
     stored_key_map[key].lock_ = 2;

@@ -240,6 +240,8 @@ void replication_response_handler(
             auto serializer = base_serializer;
             rep_response.set_txn_id(request.txn_id_);
 
+            bool is_primary = true; // TODO(@accheng): update
+
             /* STORAGE tier */
             if (request.type_ == RequestType::TXN_GET) {
               if (stored_key_map.find(key) == stored_key_map.end()) {
@@ -255,7 +257,7 @@ void replication_response_handler(
             } else if (request.type_ == RequestType::TXN_PUT) {
               AnnaError error = AnnaError::NO_ERROR;
               process_txn_put(request.txn_id_, key, payload, error,
-                              serializer, stored_key_map);
+                              is_primary, serializer, stored_key_map);
               tp->set_error(error);
 
               local_changeset.insert(key);

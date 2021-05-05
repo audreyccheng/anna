@@ -152,7 +152,7 @@ string process_txn_get(const string &txn_id, const Key &key,
 
 void process_txn_put(const string &txn_id, const Key &key,
                      const string &payload, AnnaError &error,
-                     BaseSerializer *serializer,
+                     const bool &is_primary, BaseSerializer *serializer,
                      map<Key, TxnKeyProperty> &stored_key_map);
 
 void process_txn_prepare(const string &txn_id, const Key &key,

@@ -39,13 +39,25 @@ class LockElement {
   // TODO(@accheng): should this be a vector?
   set<string> rlocks;
   string wlock;
+  bool is_primary;
 
  public:
-  LockElement() {}
+  LockElement() {
+    element = "";
+    temp_element = "";
+    wlock = "";
+    is_primary = false;
+  }
 
-  LockElement(const string &e) { assign(e); }
+  LockElement(const string &e, const bool &primary) { 
+    assign(e); 
+    assign_primary(primary);
+  }
 
-  LockElement(const LockElement &other) { assign(other.reveal()); }
+  LockElement(const LockElement &other) { 
+    assign(other.reveal()); 
+    assign_primary(other.get_is_primary());
+  }
 
   // virtual ~LockElement() = default;
   LockElement &operator=(const LockElement &rhs) {
@@ -59,9 +71,16 @@ class LockElement {
 
   const string &reveal() const { return element; }
 
-  void assign(const string e) { element = e; }
+  void assign(const string e) { temp_element = e; }
 
-  void assign(const LockElement &e) { element = e.reveal(); }
+  void assign_primary(const bool &primary) {
+    is_primary = primary;
+  }
+
+  void assign(const LockElement &e) { 
+    temp_element = e.reveal();
+    is_primary = e.get_is_primary();
+  }
 
   bool acquire_rlock(const string& txn_id) {
     if (wlock == "") {
@@ -71,8 +90,10 @@ class LockElement {
     return false;
   }
 
+  const bool &get_is_primary() const { return is_primary; }
+
   bool acquire_wlock(const string& txn_id) {
-    if (rlocks.empty() && wlock == "") {
+    if (rlocks.empty() && wlock == "" && is_primary) {
       wlock = txn_id;
       return true;
     }
@@ -136,11 +157,20 @@ public:
     }
   }
 
+  bool get_is_primary(const K &k, AnnaError &error) {
+    if (db.find(k) != db.end()) {
+      return db.at(k).get_is_primary();
+    } else {
+      error = AnnaError::FAILED_OP;
+      return false;
+    }
+  }
+
   void put(const string& txn_id, const K &k, const string &v,
-           AnnaError &error) {
-    bool acquired_lock;
+           AnnaError &error, const bool &is_primary) {
     if (db.find(k) == db.end()) {
-      db[k] = LockElement(v);
+      db[k] = LockElement(v, is_primary);
+      db.at(k).assign_primary(is_primary);
     }
     if (db.at(k).acquire_wlock(txn_id)) {
       db.at(k).update_temp_value(v);
