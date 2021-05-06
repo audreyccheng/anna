@@ -57,7 +57,15 @@ void handle_request(TxnClientInterface *client, string input) {
       std::cout << "Error: received more than one response" << std::endl;
     }
 
-    std::cout << responses[0].txn_id() << std::endl;
+    TxnResponse response = responses[0];
+    if (response.error() == AnnaError::NO_ERROR) {
+      std::cout << "Success!" << std::endl;
+    } else {
+      std::cout << "Failure: " << response.error() << std::endl;
+    }
+    std::cout << "txn_id: " << responses[0].txn_id() << std::endl;
+
+
   } else if (v[0] == "TXN_GET") {
     auto client_id = "0";
     // client must enter txn_id and key
@@ -95,7 +103,7 @@ void handle_request(TxnClientInterface *client, string input) {
     if (response.error() == AnnaError::NO_ERROR) {
       std::cout << "Success!" << std::endl;
     } else {
-      std::cout << "Failure!" << std::endl;
+      std::cout << "Failure: " << response.error() << std::endl;
     }
   } else if (v[0] == "COMMIT_TXN") {
     auto client_id = "0";

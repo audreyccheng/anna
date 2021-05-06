@@ -169,10 +169,14 @@ int main(int argc, char *argv[]) {
 
   auto grace_start = std::chrono::system_clock::now();
 
+  unsigned new_txn_count = 0;
   unsigned new_memory_count = 0;
   unsigned new_ebs_count = 0;
+  unsigned new_log_count = 0;
+  bool removing_txn_node = false;
   bool removing_memory_node = false;
   bool removing_ebs_node = false;
+  bool removing_log_node = false;
 
   unsigned server_monitoring_epoch = 0;
 
@@ -183,8 +187,9 @@ int main(int argc, char *argv[]) {
 
     if (pollitems[0].revents & ZMQ_POLLIN) {
       string serialized = kZmqUtil->recv_string(&notify_puller);
-      membership_handler(log, serialized, global_hash_rings, new_memory_count,
-                         new_ebs_count, grace_start, routing_ips,
+      membership_handler(log, serialized, global_hash_rings, new_txn_count,
+                         new_memory_count, new_ebs_count, new_log_count,
+                         grace_start, routing_ips,
                          memory_storage, ebs_storage, memory_occupancy,
                          ebs_occupancy, key_access_frequency);
     }
@@ -192,7 +197,8 @@ int main(int argc, char *argv[]) {
     if (pollitems[1].revents & ZMQ_POLLIN) {
       string serialized = kZmqUtil->recv_string(&depart_done_puller);
       depart_done_handler(log, serialized, departing_node_map, management_ip,
-                          removing_memory_node, removing_ebs_node, pushers,
+                          removing_txn_node, removing_memory_node, 
+                          removing_ebs_node, removing_log_node, pushers,
                           grace_start);
     }
 

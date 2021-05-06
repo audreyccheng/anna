@@ -113,6 +113,7 @@ void run(unsigned thread_id, Address ip, vector<Address> monitoring_ips) {
 
     // only relavant for the seed node
     if (pollitems[0].revents & ZMQ_POLLIN) {
+      log->info("Routing seed node request received");
       kZmqUtil->recv_string(&addr_responder);
       auto serialized = seed_handler(log, global_hash_rings);
       kZmqUtil->send_string(serialized, &addr_responder);
@@ -120,6 +121,7 @@ void run(unsigned thread_id, Address ip, vector<Address> monitoring_ips) {
 
     // handle a join or depart event coming from the server side
     if (pollitems[1].revents & ZMQ_POLLIN) {
+      log->info("Routing join or depart event request received");
       string serialized = kZmqUtil->recv_string(&notify_puller);
       membership_handler(log, serialized, pushers, global_hash_rings, thread_id,
                          ip);
@@ -127,6 +129,7 @@ void run(unsigned thread_id, Address ip, vector<Address> monitoring_ips) {
 
     // received replication factor response
     if (pollitems[2].revents & ZMQ_POLLIN) {
+      log->info("Routing replication factor response received");
       string serialized = kZmqUtil->recv_string(&replication_response_puller);
       replication_response_handler(log, serialized, pushers, rt,
                                    global_hash_rings, local_hash_rings,
@@ -134,12 +137,14 @@ void run(unsigned thread_id, Address ip, vector<Address> monitoring_ips) {
     }
 
     if (pollitems[3].revents & ZMQ_POLLIN) {
+      log->info("Routing replication change received");
       string serialized = kZmqUtil->recv_string(&replication_change_puller);
       replication_change_handler(log, serialized, pushers, key_replication_map,
                                  thread_id, ip);
     }
 
     if (pollitems[4].revents & ZMQ_POLLIN) {
+      log->info("Routing address handler received");
       string serialized = kZmqUtil->recv_string(&key_address_puller);
       address_handler(log, serialized, pushers, rt, global_hash_rings, // --> only return txn threads
                       local_hash_rings, key_replication_map, pending_requests,

@@ -20,7 +20,8 @@
 
 void membership_handler(logger log, string &serialized,
                         GlobalRingMap &global_hash_rings,
-                        unsigned &new_memory_count, unsigned &new_ebs_count,
+                        unsigned &new_txn_count, unsigned &new_memory_count,
+                        unsigned &new_ebs_count, unsigned &new_log_count, 
                         TimePoint &grace_start, vector<Address> &routing_ips,
                         StorageStats &memory_storage, StorageStats &ebs_storage,
                         OccupancyStats &memory_occupancy,
@@ -29,8 +30,9 @@ void membership_handler(logger log, string &serialized,
 
 void depart_done_handler(logger log, string &serialized,
                          map<Address, unsigned> &departing_node_map,
-                         Address management_ip, bool &removing_memory_node,
-                         bool &removing_ebs_node, SocketCache &pushers,
+                         Address management_ip, bool &removing_txn_node,
+                         bool &removing_memory_node, bool &removing_ebs_node,
+                         bool &removing_log_node, SocketCache &pushers,
                          TimePoint &grace_start);
 
 void feedback_handler(

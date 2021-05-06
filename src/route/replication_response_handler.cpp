@@ -54,13 +54,14 @@ void replication_response_handler(
     auto respond_address = rt.replication_response_connect_address();
     kHashRingUtil->issue_replication_factor_request(
       respond_address, key, key_tier, global_hash_rings[key_tier],
-      local_hash_rings[key_tier], pushers, seed);
+      local_hash_rings[key_tier], pushers, seed, log);
     return;
   } else {
     log->error("Unexpected error type {} in replication factor response.",
                error);
     return;
   }
+  log->info("Routing replication factor response received for key {}", key);
 
   // process pending key address requests
   if (pending_requests.find(key) != pending_requests.end()) {
@@ -77,7 +78,7 @@ void replication_response_handler(
       threads = kHashRingUtil->get_responsible_threads(
         rt.replication_response_connect_address(), key, false,
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
-        {key_tier}, succeed, seed);
+        {key_tier}, succeed, seed, log);
 
       // if (threads.size() > 0) {
       //   break;
@@ -95,8 +96,15 @@ void replication_response_handler(
       auto *tp = key_res.add_addresses();
       tp->set_key(key);
 
+      // TODO(@accheng): should just be 1 thread? separate method for primary thread?
       for (const ServerThread &thread : threads) {
-        tp->add_ips(thread.key_request_connect_address());
+        // send transaction or storage request handler addresses
+        if (key_tier == Tier::TXN) {
+          tp->add_ips(thread.txn_request_connect_address());
+        } else {
+          tp->add_ips(thread.storage_request_connect_address());
+        }
+        // TODO(@accheng): would we ever want the logging handler?
       }
 
       string serialized;

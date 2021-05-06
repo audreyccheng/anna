@@ -25,9 +25,9 @@ txn-server:
       - 127.0.0.1
   routing: 
       - 127.0.0.1
-  seed_ip: 127.0.1.1
-  public_ip: 127.0.1.1
-  private_ip: 127.0.1.1
+  seed_ip: 127.0.0.1 #127.0.1.1
+  public_ip: 127.0.0.1 #127.0.1.1
+  private_ip: 127.0.0.1 #127.0.1.1
   mgmt_ip: "NULL"
 policy:
   elasticity: false

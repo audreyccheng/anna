@@ -251,8 +251,8 @@ message KeyAddressRequest {
   // responses.
   string request_id = 3;
 
-  // A boolean to indicate if this is a request for the transactional tier
-  bool txn_tier = 4;
+  // Which tier this request is for
+  AnnaTier tier = 4;
 }
 
 // A 1-to-1 response from the routing tier for individual KeyAddressRequests.
@@ -276,6 +276,9 @@ message KeyAddressResponse {
   // A unique ID used by the client to match asynchronous requests with
   // responses.
   string response_id = 3;
+
+  // Which tier this request is from
+  AnnaTier tier = 4;
 }
 
 // TRANSACTION SERIALIZATION

@@ -22,9 +22,11 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
                      unsigned &seed) {
   KeyAddressRequest addr_request;
   addr_request.ParseFromString(serialized);
+  Tier addr_tier = get_tier_from_anna_tier(addr_request.tier());
 
   KeyAddressResponse addr_response;
   addr_response.set_response_id(addr_request.request_id());
+  addr_response.set_tier(addr_request.tier());
   bool succeed;
 
   int num_servers = 0;
@@ -46,19 +48,20 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
     for (const Key &key : addr_request.keys()) {
       ServerThreadList threads = {};
 
-      if (key.length() >
-          0) { // Only run this code is the key is a valid string.
+      log->info("Routing address handler received for key {}", key);
+
+      if (key.length() > 0) { // Only run this code is the key is a valid string.
         // Otherwise, an empty response will be sent.
         for (const Tier &tier : kAllTiers) {
           // Only txn tier should serve txn requests and vice versa for storage tiers
-          if (addr_request.txn_tier() && tier != Tier::TXN || 
-             !addr_request.txn_tier() && tier == Tier::TXN) {
+          if (addr_tier == Tier::TXN && tier != Tier::TXN || 
+              addr_tier != Tier::TXN && tier == Tier::TXN) {
             continue;
           }
           threads = kHashRingUtil->get_responsible_threads(
               rt.replication_response_connect_address(), key, is_metadata(key), 
               global_hash_rings, local_hash_rings, key_replication_map,
-              pushers, {tier}, succeed, seed);
+              pushers, {tier}, succeed, seed, log);
 
           if (threads.size() > 0) {
             break;
@@ -80,16 +83,18 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
       // TODO(@accheng): should just be 1 thread? separate method for primary thread?
       for (const ServerThread &thread : threads) {
         // send transaction or storage request handler addresses
-        if (addr_request.txn_tier()) {
+        if (addr_tier == Tier::TXN) {
           tp->add_ips(thread.txn_request_connect_address());
         } else {
           tp->add_ips(thread.storage_request_connect_address());
         }
+        // TODO(@accheng): would we ever want the logging handler?
       }
     }
   }
 
   if (respond) {
+    log->info("Routing address handler sending response");
     string serialized;
     addr_response.SerializeToString(&serialized);
 

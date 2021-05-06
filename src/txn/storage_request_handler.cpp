@@ -47,7 +47,7 @@ void storage_request_handler(
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
-        kSelfTierIdVector, succeed, seed);
+        kSelfTierIdVector, succeed, seed, log);
 
     bool is_primary = true; // TODO(@accheng): update
 
@@ -65,7 +65,7 @@ void storage_request_handler(
           kHashRingUtil->issue_replication_factor_request(
               wt.replication_response_connect_address(), key, kSelfTier,
               global_hash_rings[kSelfTier], local_hash_rings[kSelfTier],
-              pushers, seed);
+              pushers, seed, log);
 
           pending_requests[key].push_back( 
               PendingTxnRequest(request_type, txn_id, key, payload,
@@ -109,7 +109,7 @@ void storage_request_handler(
             ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
                 wt.replication_response_connect_address(), key, is_metadata(key), 
                 global_hash_rings, local_hash_rings, key_replication_map, 
-                pushers, {Tier::LOG}, succeed, seed);
+                pushers, {Tier::LOG}, succeed, seed, log);
 
             // send request to log if possible
             if (key_threads.size() > 0) {
@@ -137,7 +137,7 @@ void storage_request_handler(
           ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
                 wt.replication_response_connect_address(), key, is_metadata(key), 
                 global_hash_rings, local_hash_rings, key_replication_map, 
-                pushers, {Tier::LOG}, succeed, seed);
+                pushers, {Tier::LOG}, succeed, seed, log);
 
           // send request to log if possible
           if (key_threads.size() > 0) {

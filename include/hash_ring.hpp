@@ -87,7 +87,7 @@ public:
       Address respond_address, const Key &key, bool metadata,
       GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
       map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
-      const vector<Tier> &tiers, bool &succeed, unsigned &seed) = 0;
+      const vector<Tier> &tiers, bool &succeed, unsigned &seed, logger log) = 0;
 
   ServerThreadList
   get_responsible_threads_metadata(const Key &key,
@@ -98,7 +98,7 @@ public:
                                         const Key &key, const Tier &tier,
                                         GlobalHashRing &global_memory_hash_ring,
                                         LocalHashRing &local_memory_hash_ring,
-                                        SocketCache &pushers, unsigned &seed);
+                                        SocketCache &pushers, unsigned &seed, logger log);
 
   void issue_storage_request(const Address &response_address, 
                              const RequestType &request_type, 
@@ -118,7 +118,7 @@ public:
       Address respond_address, const Key &key, bool metadata,
       GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
       map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
-      const vector<Tier> &tiers, bool &succeed, unsigned &seed);
+      const vector<Tier> &tiers, bool &succeed, unsigned &seed, logger log);
 };
 
 ServerThreadList responsible_global(const Key &key, unsigned global_rep,

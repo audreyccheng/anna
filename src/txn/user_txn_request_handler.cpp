@@ -31,6 +31,8 @@ void user_txn_request_handler(
     Key key = tuple.key();
     string payload = tuple.payload();
 
+    log->info("Received user_txn_request of type {} for key {}", request_type, key);
+
     // Key key = txn_id;
     if (request_type == RequestType::START_TXN) {
       // a START_TXN request doesn't have a txn_id so we use client_id
@@ -40,7 +42,13 @@ void user_txn_request_handler(
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), txn_id, is_metadata(txn_id), 
         global_hash_rings, local_hash_rings, key_replication_map, 
-        pushers, kSelfTierIdVector, succeed, seed);
+        pushers, kSelfTierIdVector, succeed, seed, log);
+
+    string suc = "false";
+    if (succeed) {
+      suc = "true";
+    }
+    log->info("User txn request getting threads success: {}", suc);
 
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
@@ -56,7 +64,7 @@ void user_txn_request_handler(
           kHashRingUtil->issue_replication_factor_request(
               wt.replication_response_connect_address(), key, Tier::TXN, 
               global_hash_rings[Tier::TXN], local_hash_rings[Tier::TXN],
-              pushers, seed);
+              pushers, seed, log);
 
           // since this is a new client request, key is client_id instead of txn_id
           pending_requests[txn_id].push_back( 
@@ -112,7 +120,7 @@ void user_txn_request_handler(
               key_threads = kHashRingUtil->get_responsible_threads(
                   wt.replication_response_connect_address(), key, is_metadata(key), 
                   global_hash_rings, local_hash_rings, key_replication_map, 
-                  pushers, {tier}, succeed, seed);
+                  pushers, {tier}, succeed, seed, log);
               if (key_threads.size() > 0) {
                 break;
               }
@@ -176,7 +184,7 @@ void user_txn_request_handler(
                 key_threads = kHashRingUtil->get_responsible_threads(
                     wt.replication_response_connect_address(), key, is_metadata(key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
-                    pushers, {tier}, succeed, seed);
+                    pushers, {tier}, succeed, seed, log);
                 if (key_threads.size() > 0) {
                   break;
                 }
@@ -235,6 +243,7 @@ void user_txn_request_handler(
         access_count += 1;
       }
     } else {
+      log->info("UTR: inserting into pending_requests");
       pending_requests[txn_id].push_back(
           PendingTxnRequest(request_type, txn_id, key, payload,
                             response_address, response_id));

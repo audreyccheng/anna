@@ -16,8 +16,9 @@
 
 void depart_done_handler(logger log, string &serialized,
                          map<Address, unsigned> &departing_node_map,
-                         Address management_ip, bool &removing_memory_node,
-                         bool &removing_ebs_node, SocketCache &pushers,
+                         Address management_ip, bool &removing_txn_node,
+                         bool &removing_memory_node, bool &removing_ebs_node,
+                         bool &removing_log_node, SocketCache &pushers,
                          TimePoint &grace_start) {
   vector<string> tokens;
   split(serialized, '_', tokens);

@@ -34,7 +34,7 @@ void request_response_handler(
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
-        kSelfTierIdVector, succeed, seed);
+        kSelfTierIdVector, succeed, seed, log);
 
     if (succeed) {
       bool responsible =
@@ -153,7 +153,7 @@ void request_response_handler(
                       key_threads = kHashRingUtil->get_responsible_threads(
                           wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
                           global_hash_rings, local_hash_rings, key_replication_map, 
-                          pushers, {tier}, succeed, seed);
+                          pushers, {tier}, succeed, seed, log);
                       if (key_threads.size() > 0) {
                         break;
                       }

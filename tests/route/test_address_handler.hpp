@@ -23,7 +23,7 @@ TEST_F(RoutingHandlerTest, Address) {
   KeyAddressRequest req;
   req.set_request_id("1");
   req.set_response_address("tcp://127.0.0.1:5000");
-  req.set_txn_tier(false);
+  req.set_tier(AnnaTier::AMEMORY);
   req.add_keys("key");
 
   string serialized;
@@ -37,7 +37,7 @@ TEST_F(RoutingHandlerTest, Address) {
   KeyAddressRequest txn_req;
   txn_req.set_request_id("2");
   txn_req.set_response_address("tcp://127.0.0.1:5000");
-  txn_req.set_txn_tier(true);
+  txn_req.set_tier(AnnaTier::ATXN);
   txn_req.add_keys("txn_key");
 
   string txn_serialized;

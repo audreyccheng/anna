@@ -25,7 +25,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
     Address response_address, const Key &key, bool metadata,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
-    const vector<Tier> &tiers, bool &succeed, unsigned &seed) {
+    const vector<Tier> &tiers, bool &succeed, unsigned &seed, logger log) {
   if (metadata) {
     succeed = true;
     // TODO(@accheng): where should metadata be kept?
@@ -45,12 +45,12 @@ ServerThreadList HashRingUtil::get_responsible_threads(
       if (tiers.size() > 0 && tiers[0] == Tier::TXN) {
         kHashRingUtil->issue_replication_factor_request(
             response_address, key, tiers[0], global_hash_rings[Tier::TXN],
-            local_hash_rings[Tier::TXN], pushers, seed);
+            local_hash_rings[Tier::TXN], pushers, seed, log);
       } else { // TODO(@accheng): set which tier to replicate key at
         Tier key_tier = get_random_tier();
         kHashRingUtil->issue_replication_factor_request(
             response_address, key, key_tier, global_hash_rings[key_tier],
-            local_hash_rings[key_tier], pushers, seed);
+            local_hash_rings[key_tier], pushers, seed, log);
       }
       succeed = false;
     } else {
@@ -215,10 +215,13 @@ void HashRingUtilInterface::issue_replication_factor_request(
     const Address &response_address, const Key &key, const Tier &tier,
     GlobalHashRing &global_memory_hash_ring,
     LocalHashRing &local_memory_hash_ring, SocketCache &pushers,
-    unsigned &seed) {
+    unsigned &seed, logger log) {
+  log->info("Issused replication_factor_request");
   Key replication_key = get_metadata_key(key, MetadataType::replication);
   auto threads = kHashRingUtil->get_responsible_threads_metadata(
       replication_key, global_memory_hash_ring, local_memory_hash_ring);
+
+  log->info("Found {} metadata threads", threads.size());
 
   Address target_address;
   // TODO(@accheng): change from random thread to primary one
@@ -226,7 +229,7 @@ void HashRingUtilInterface::issue_replication_factor_request(
     target_address = std::next(begin(threads), rand_r(&seed) % threads.size())
       ->txn_request_connect_address();
   } else if (tier == Tier::MEMORY || tier == Tier::DISK) {
-    target_address = std::next(begin(threads), rand_r(&seed) % threads.size()) // --> these threads should only be storage threads, NOT txn threads
+    target_address = std::next(begin(threads), rand_r(&seed) % threads.size())
       ->storage_request_connect_address();
   } else {
     target_address = std::next(begin(threads), rand_r(&seed) % threads.size())
@@ -246,6 +249,8 @@ void HashRingUtilInterface::issue_replication_factor_request(
   string serialized;
   key_request.SerializeToString(&serialized);
   kZmqUtil->send_string(serialized, &pushers[target_address]);
+
+  log->info("Sent replication_factor_request to address {}", target_address);
 }
 
 void HashRingUtilInterface::issue_storage_request(

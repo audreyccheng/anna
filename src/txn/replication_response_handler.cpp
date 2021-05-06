@@ -24,6 +24,7 @@ void replication_response_handler(
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
     ServerThread &wt, TxnSerializer *txn_serializer, BaseSerializer *base_serializer, 
     LogSerializer *log_serializer, SocketCache &pushers) {
+  log->info("Received replication_response request");
   TxnResponse response;
   response.ParseFromString(serialized);
 
@@ -45,6 +46,8 @@ void replication_response_handler(
   if (response.type() == RequestType::START_TXN) {
     txn_tier = true;
   }
+
+  log->info("Received replication_response request type {} key {} tier {}", response.type(), key, key_tier);
 
   if (error == AnnaError::NO_ERROR) {
     // TODO(@accheng): update; this is called in for replication_change only
@@ -71,7 +74,7 @@ void replication_response_handler(
     auto respond_address = wt.replication_response_connect_address();
     kHashRingUtil->issue_replication_factor_request( // TODO(@accheng): is this ok for non-txn_id keys?
         respond_address, key, key_tier, global_hash_rings[key_tier],
-        local_hash_rings[key_tier], pushers, seed);
+        local_hash_rings[key_tier], pushers, seed, log);
     return;
   } else {
     log->error("Unexpected error type {} in replication factor response.",
@@ -85,11 +88,23 @@ void replication_response_handler(
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
-        kSelfTierIdVector, succeed, seed);
+        kSelfTierIdVector, succeed, seed, log);
+
+    string suc = "false";
+    if (succeed) {
+      suc = "true";
+    }
+    log->info("User txn request getting threads success: {}", suc);
 
     if (succeed) {
       bool responsible =
           std::find(threads.begin(), threads.end(), wt) != threads.end();
+
+      suc = "false";
+      if (responsible) {
+        suc = "true";
+      }
+      log->info("User txn request getting threads responsible: {}", suc);
 
       vector<unsigned> indices; // get requests with this tuple_key
       RequestTypeMap request_map; // map request types of this transaction
@@ -117,6 +132,7 @@ void replication_response_handler(
         auto now = std::chrono::system_clock::now();
 
         if (!responsible && request.addr_ != "") {
+          log->info("Rep_resp_handler if 1");
           TxnResponse response;
 
           response.set_type(request.type_);
@@ -136,6 +152,7 @@ void replication_response_handler(
           response.SerializeToString(&serialized_response);
           kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
         } else if (responsible && request.addr_ == "") {
+          log->info("Rep_resp_handler if 2");
           // TODO(@accheng): only storage COMMIT_TXN?
           if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK &&
               request.type_ == RequestType::COMMIT_TXN) {
@@ -144,6 +161,7 @@ void replication_response_handler(
             log->error("Received a request with no response address.");
           }
         } else if (responsible && request.addr_ != "") {
+          log->info("Rep_resp_handler if 3");
           bool send_response = true;
 
           TxnResponse rep_response;
@@ -186,7 +204,7 @@ void replication_response_handler(
                   key_threads = kHashRingUtil->get_responsible_threads(
                       wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
                       global_hash_rings, local_hash_rings, key_replication_map, 
-                      pushers, {tier}, succeed, seed);
+                      pushers, {tier}, succeed, seed, log);
                   if (key_threads.size() > 0) {
                     break;
                   }
@@ -276,7 +294,7 @@ void replication_response_handler(
                 ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
                     wt.replication_response_connect_address(), key, is_metadata(key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
-                    pushers, {Tier::LOG}, succeed, seed);
+                    pushers, {Tier::LOG}, succeed, seed, log);
 
                 // send request to log if possible
                 if (key_threads.size() > 0) {
@@ -303,7 +321,7 @@ void replication_response_handler(
                 ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
                       wt.replication_response_connect_address(), key, is_metadata(key), 
                       global_hash_rings, local_hash_rings, key_replication_map, 
-                      pushers, {Tier::LOG}, succeed, seed);
+                      pushers, {Tier::LOG}, succeed, seed, log);
 
                 // send request to log if possible
                 if (key_threads.size() > 0) {

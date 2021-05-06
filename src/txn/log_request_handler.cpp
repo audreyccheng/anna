@@ -47,7 +47,7 @@ void log_request_handler(
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
-        kSelfTierIdVector, succeed, seed);
+        kSelfTierIdVector, succeed, seed, log);
 
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
@@ -63,7 +63,7 @@ void log_request_handler(
           kHashRingUtil->issue_replication_factor_request(
               wt.replication_response_connect_address(), key, kSelfTier,
               global_hash_rings[kSelfTier], local_hash_rings[kSelfTier],
-              pushers, seed);
+              pushers, seed, log);
 
           pending_requests[key].push_back( 
               PendingTxnRequest(request_type, txn_id, key, payload,

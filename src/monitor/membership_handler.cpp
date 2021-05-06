@@ -16,7 +16,8 @@
 
 void membership_handler(
     logger log, string &serialized, GlobalRingMap &global_hash_rings,
-    unsigned &new_memory_count, unsigned &new_ebs_count, TimePoint &grace_start,
+    unsigned &new_txn_count, unsigned &new_memory_count,
+    unsigned &new_ebs_count, unsigned &new_log_count, TimePoint &grace_start,
     vector<Address> &routing_ips, StorageStats &memory_storage,
     StorageStats &ebs_storage, OccupancyStats &memory_occupancy,
     OccupancyStats &ebs_occupancy,
@@ -35,7 +36,17 @@ void membership_handler(
     log->info("Received join from server {}/{} in tier {}.",
               new_server_public_ip, new_server_private_ip,
               std::to_string(tier));
-    if (tier == Tier::MEMORY) {
+    if (tier == Tier::TXN) {
+      global_hash_rings[tier].insert(new_server_public_ip,
+                                     new_server_private_ip, 0, 0);
+
+      if (new_txn_count > 0) {
+        new_txn_count -= 1;
+      }
+
+      // reset grace period timer
+      grace_start = std::chrono::system_clock::now();
+    } else  if (tier == Tier::MEMORY) {
       global_hash_rings[tier].insert(new_server_public_ip,
                                      new_server_private_ip, 0, 0);
 
@@ -51,6 +62,16 @@ void membership_handler(
 
       if (new_ebs_count > 0) {
         new_ebs_count -= 1;
+      }
+
+      // reset grace period timer
+      grace_start = std::chrono::system_clock::now();
+    } else if (tier == Tier::LOG) {
+      global_hash_rings[tier].insert(new_server_public_ip,
+                                     new_server_private_ip, 0, 0);
+
+      if (new_log_count > 0) {
+        new_log_count -= 1;
       }
 
       // reset grace period timer
@@ -72,6 +93,7 @@ void membership_handler(
     // update hash ring
     global_hash_rings[tier].remove(new_server_public_ip, new_server_private_ip,
                                    0);
+    // TODO(@accheng): update with TXN and LOG tiers
     if (tier == Tier::MEMORY) {
       memory_storage.erase(new_server_private_ip);
       memory_occupancy.erase(new_server_private_ip);
