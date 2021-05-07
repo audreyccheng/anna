@@ -397,7 +397,6 @@ class TxnClient : public TxnClientInterface {
             try_txn_request(pending_txn_response_map_[key].request_,
                 get_client_id_from_txn_id(response.txn_id()));
           } else {
-            log_->info("no err");
             // error no == 0 or 1
             result.push_back(response);
             pending_txn_response_map_.erase(key);
