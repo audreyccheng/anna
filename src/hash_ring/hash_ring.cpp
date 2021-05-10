@@ -221,6 +221,11 @@ void HashRingUtilInterface::issue_replication_factor_request(
   auto threads = kHashRingUtil->get_responsible_threads_metadata(
       replication_key, global_memory_hash_ring, local_memory_hash_ring);
 
+  if (threads.size() == 0) {
+    log->error("No threads found for metadata key for tier {}", tier);
+    return;
+  }
+
   log->info("Found {} metadata threads", threads.size());
 
   Address target_address;

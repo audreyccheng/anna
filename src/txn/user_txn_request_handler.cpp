@@ -117,6 +117,7 @@ void user_txn_request_handler(
             ServerThreadList key_threads = {};
 
             for (const Tier &tier : kStorageTiers) {
+              log->info("Getting threads for storage tiers");
               key_threads = kHashRingUtil->get_responsible_threads(
                   wt.replication_response_connect_address(), key, is_metadata(key), 
                   global_hash_rings, local_hash_rings, key_replication_map, 
@@ -127,6 +128,7 @@ void user_txn_request_handler(
 
               if (!succeed) { // this means we don't have the replication factor for
                               // the key
+                log->info("Adding request type {} key {} to pending_requests", request_type, key);
                 pending_requests[txn_id].push_back(
                   PendingTxnRequest(request_type, txn_id, key, payload,
                                     response_address, response_id));

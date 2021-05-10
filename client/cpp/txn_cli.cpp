@@ -119,6 +119,11 @@ void handle_request(TxnClientInterface *client, string input) {
     }
 
     std::cout << responses[0].txn_id() << std::endl;
+  } else {
+    std::cout << "Unrecognized command " << v[0]
+              << ". Valid commands are START_TXN, TXN_GET, TXN_PUT, "
+              << "and COMMIT_TXN." << std::endl;
+    ;
   }
 }
 
