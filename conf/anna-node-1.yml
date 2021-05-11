@@ -13,12 +13,12 @@ user:
   ip: 44.234.148.119
 server:
   monitoring:
-      - 44.234.148.119
+      - 34.222.173.222
   routing: 
-      - 44.234.148.119
-  seed_ip: 44.234.148.119
-  public_ip: 44.234.148.119
-  private_ip: 44.234.148.119
+      - 34.222.173.222
+  seed_ip: 34.222.173.222
+  public_ip: 34.222.173.222
+  private_ip: 34.222.173.222
   mgmt_ip: "NULL"
 txn-server:
   monitoring:
