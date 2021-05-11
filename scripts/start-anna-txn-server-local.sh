@@ -25,7 +25,7 @@ if [ "$1" = "y" ] || [ "$1" = "yes" ]; then
   ./scripts/build.sh
 fi
 
-cp conf/anna-local.yml conf/anna-config.yml
+cp conf/anna-node-1.yml conf/anna-config.yml
 
 ./build/target/kvs/anna-monitor &
 MPID=$!
@@ -55,9 +55,9 @@ echo $SPID >> pids
 # echo $S3PID >> pids
 
 if [ "$2" = "y" ] || [ "$2" = "yes" ]; then
-  ./build/cli/anna-cli conf/anna-local.yml
+  ./build/cli/anna-cli conf/anna-node-1.yml
 fi
 
 if [ "$2" = "t" ] || [ "$2" = "txn" ]; then
-  ./build/cli/anna-txn-cli conf/anna-local.yml
+  ./build/cli/anna-txn-cli conf/anna-node-1.yml
 fi
