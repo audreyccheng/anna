@@ -117,7 +117,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
   map<Key, KeyReplication> key_replication_map;
 
   // request server addresses from the seed node
-  log->info("requesting server addresses from {}", addr_requester);
+  log->info("requesting server addresses from {}", RoutingThread(seed_ip, 0).seed_connect_address());
   zmq::socket_t addr_requester(context, ZMQ_REQ);
   addr_requester.connect(RoutingThread(seed_ip, 0).seed_connect_address());
   kZmqUtil->send_string("join", &addr_requester);
