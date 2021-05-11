@@ -31,12 +31,12 @@ cp conf/anna-local.yml conf/anna-config.yml
 MPID=$!
 ./build/target/kvs/anna-route &
 RPID=$!
-# export SERVER_TYPE="memory"
-# ./build/target/kvs/anna-txn &
-# SPID=$!
-export SERVER_TYPE="txn"
+export SERVER_TYPE="memory"
 ./build/target/kvs/anna-txn &
-S2PID=$!
+SPID=$!
+# export SERVER_TYPE="txn"
+# ./build/target/kvs/anna-txn &
+# S2PID=$!
 
 # export SERVER_TYPE="memory"
 # ./build/target/kvs/anna-kvs &
@@ -44,14 +44,14 @@ S2PID=$!
 
 echo $MPID 
 echo $RPID 
-# echo $SPID 
-echo $S2PID
+echo $SPID 
+# echo $S2PID
 # echo $S3PID
 
 echo $MPID >> pids
 echo $RPID >> pids
-# echo $SPID >> pids
-echo $S2PID >> pids
+echo $SPID >> pids
+# echo $S2PID >> pids
 # echo $S3PID >> pids
 
 if [ "$2" = "y" ] || [ "$2" = "yes" ]; then
