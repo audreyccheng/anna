@@ -169,6 +169,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
   if (thread_id == 0) {
     string msg = Tier_Name(kSelfTier) + ":" + public_ip + ":" + private_ip +
                  ":" + count_str;
+    log->info("threao_id 0 msg {}", msg);
 
     for (const auto &pair : global_hash_rings) {
       GlobalHashRing hash_ring = pair.second;
