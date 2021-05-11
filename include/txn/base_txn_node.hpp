@@ -4,14 +4,17 @@
 #include "anna.pb.h"
 #include "common.hpp"
 
-template <typename K> class TxnNode {
+// template <typename K> 
+class TxnNode {
 protected:
-  map<K, vector<Operation>> db;
+  map<Key, vector<Operation>> db;
 
 public:
-  TxnNode<K, vector<Operation>>() {}
+  TxnNode() {}
+  // TxnNode<K, vector<Operation>>() {}
 
-  TxnNode<K, vector<Operation>>(map<K, vector<Operation>> &other) { 
+  // TxnNode<K, vector<Operation>>(map<K, vector<Operation>> &other) { 
+  TxnNode(map<Key, vector<Operation>> &other) { 
     db = other; 
   }
 

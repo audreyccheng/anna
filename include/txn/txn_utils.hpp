@@ -21,7 +21,8 @@
 // // Define the gossip period (frequency)
 // #define PERIOD 10000000 // 10 seconds
 
-typedef TxnNode<Key> BaseTxn;
+// typedef TxnNode<Key> BaseTxn;
+typedef TxnNode BaseTxn;
 typedef BaseNode<Key, string> BaseStore;
 typedef LockNode<Key> LockStore;
 // typedef LogNode<Operation> BaseLog;
