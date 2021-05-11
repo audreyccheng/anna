@@ -174,6 +174,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
       GlobalHashRing hash_ring = pair.second;
 
       for (const ServerThread &st : hash_ring.get_unique_servers()) {
+        log->info("notifying other servers");
         if (st.private_ip().compare(private_ip) != 0) {
           kZmqUtil->send_string(msg, &pushers[st.node_join_connect_address()]);
         }
@@ -184,12 +185,14 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
 
     // notify proxies that this node has joined
     for (const string &address : routing_ips) {
+      log->info("notifying routing threads");
       kZmqUtil->send_string(
           msg, &pushers[RoutingThread(address, 0).notify_connect_address()]);
     }
 
     // notify monitoring nodes that this node has joined
     for (const string &address : monitoring_ips) {
+      log->info("notifying monitoring threads");
       kZmqUtil->send_string(
           msg, &pushers[MonitoringThread(address).notify_connect_address()]);
     }
