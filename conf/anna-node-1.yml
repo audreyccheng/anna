@@ -1,0 +1,55 @@
+monitoring:
+  mgmt_ip: 44.234.148.119
+  ip: 44.234.148.119
+routing:
+  monitoring: 
+      - 44.234.148.119
+  ip: 44.234.148.119
+user:
+  monitoring:
+      - 44.234.148.119
+  routing: 
+      - 44.234.148.119
+  ip: 44.234.148.119
+server:
+  monitoring:
+      - 44.234.148.119
+  routing: 
+      - 44.234.148.119
+  seed_ip: 44.234.148.119
+  public_ip: 44.234.148.119
+  private_ip: 44.234.148.119
+  mgmt_ip: "NULL"
+txn-server:
+  monitoring:
+      - 44.234.148.119
+  routing: 
+      - 44.234.148.119
+  seed_ip: 44.234.148.119
+  public_ip: 44.234.148.119
+  private_ip: 44.234.148.119
+  mgmt_ip: "NULL"
+policy:
+  elasticity: false
+  selective-rep: false
+  tiering: false
+ebs: ./
+capacities: # in GB
+  txn-cap: 1
+  memory-cap: 1 
+  ebs-cap: 0
+  log-cap: 1
+threads:
+  txn: 1
+  memory: 1
+  ebs: 1
+  log: 1
+  routing: 1
+  benchmark: 1
+replication:
+  txn: 1
+  memory: 1
+  ebs: 0
+  log: 1
+  minimum: 1
+  local: 1
