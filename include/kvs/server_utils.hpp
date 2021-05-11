@@ -787,7 +787,7 @@ public:
     if (!original_value.ParseFromFileDescriptor(fd) ||
         input_value.priority() < original_value.priority()) {
       // resize the file to 0
-      ftruncate(fd, 0);
+      auto index = ftruncate(fd, 0);
       // ftruncate does not change the fd's file offset, so we set it to 0
       lseek(fd, 0, SEEK_SET);
       if (!input_value.SerializeToFileDescriptor(fd))
