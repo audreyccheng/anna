@@ -1,5 +1,5 @@
 monitoring:
-  mgmt_ip: 44.234.148.119
+  mgmt_ip: "NULL"
   ip: 44.234.148.119
 routing:
   monitoring: 
