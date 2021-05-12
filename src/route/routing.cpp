@@ -206,6 +206,8 @@ int main(int argc, char *argv[]) {
 
   vector<std::thread> routing_worker_threads;
 
+  std::cout << "kRoutingThreadCount " << kRoutingThreadCount << std::endl;
+
   for (unsigned thread_id = 1; thread_id < kRoutingThreadCount; thread_id++) {
     routing_worker_threads.push_back(
         std::thread(run, thread_id, ip, monitoring_ips));
