@@ -3,7 +3,7 @@ monitoring:
   ip: 172.31.55.143
 routing:
   monitoring: 
-      - 34.222.173.222
+      - 172.31.55.143
   ip: 172.31.55.143
 user:
   monitoring:
