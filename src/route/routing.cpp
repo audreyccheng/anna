@@ -209,6 +209,7 @@ int main(int argc, char *argv[]) {
   std::cout << "kRoutingThreadCount " << kRoutingThreadCount << std::endl;
 
   for (unsigned thread_id = 1; thread_id < kRoutingThreadCount; thread_id++) {
+    std::cout << "adding routing thread " << thread_id << std::endl;
     routing_worker_threads.push_back(
         std::thread(run, thread_id, ip, monitoring_ips));
   }
