@@ -159,6 +159,8 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  std::cout << "Starting routing thread" << std::endl;
+
   YAML::Node conf = YAML::LoadFile("conf/anna-config.yml");
   YAML::Node threads = conf["threads"];
   unsigned kTxnThreadCount = threads["txn"].as<unsigned>();
@@ -172,7 +174,6 @@ int main(int argc, char *argv[]) {
   kMemoryNodeCapacity = capacities["memory-cap"].as<unsigned>() * 1000000;
   kEbsNodeCapacity = capacities["ebs-cap"].as<unsigned>() * 1000000;
   kLogNodeCapacity = capacities["log-cap"].as<unsigned>() * 1000000;
-
 
   YAML::Node replication = conf["replication"];
   unsigned kDefaultGlobalTxnReplication = replication["txn"].as<unsigned>();
