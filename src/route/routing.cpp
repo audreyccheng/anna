@@ -31,7 +31,7 @@ HashRingUtil hash_ring_util;
 HashRingUtilInterface *kHashRingUtil = &hash_ring_util;
 
 void run(unsigned thread_id, Address ip, vector<Address> monitoring_ips) {
-  string log_file = "log_" + std::to_string(thread_id) + ".txt";
+  string log_file = "rlog_" + std::to_string(thread_id) + ".txt";
   string log_name = "routing_log_" + std::to_string(thread_id);
   auto log = spdlog::basic_logger_mt(log_name, log_file, true);
   log->flush_on(spdlog::level::info);
