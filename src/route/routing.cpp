@@ -55,6 +55,7 @@ void run(unsigned thread_id, Address ip, vector<Address> monitoring_ips) {
   map<Key, KeyReplication> key_replication_map;
 
   if (thread_id == 0) {
+    log->info("thread_id is 0");
     // notify monitoring nodes
     for (const string &address : monitoring_ips) {
       kZmqUtil->send_string(
@@ -78,6 +79,7 @@ void run(unsigned thread_id, Address ip, vector<Address> monitoring_ips) {
       local_hash_rings[tier.id_].insert(ip, ip, 0, tid);
     }
   }
+  log->info("made hash rings");
 
   // responsible for sending existing server addresses to a new node (relevant
   // to seed node)
@@ -109,6 +111,7 @@ void run(unsigned thread_id, Address ip, vector<Address> monitoring_ips) {
       {static_cast<void *>(key_address_puller), 0, ZMQ_POLLIN, 0}};
 
   while (true) {
+    log->info("while true loop");
     kZmqUtil->poll(-1, &pollitems);
 
     // only relavant for the seed node
