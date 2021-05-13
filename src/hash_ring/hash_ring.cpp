@@ -34,7 +34,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
     if (tiers.size() > 0) {
       meta_key_tier = tiers[0];
     } else {
-      meta_key_tier = get_random_tier(); // TODO(@accheng): this should never happen?
+      meta_key_tier = Tier::MEMORY; // get_random_tier(); // TODO(@accheng): this should never happen?
     }
     return kHashRingUtil->get_responsible_threads_metadata(
         key, global_hash_rings[meta_key_tier], local_hash_rings[meta_key_tier]);
@@ -49,7 +49,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
             global_hash_rings[Tier::TXN], local_hash_rings[Tier::TXN], 
             pushers, seed, log);
       } else { // TODO(@accheng): set which tier to replicate key at
-        Tier key_tier = get_random_tier();
+        Tier key_tier = Tier::MEMORY; // get_random_tier();
         kHashRingUtil->issue_replication_factor_request(
             response_address, request_type, txn_id, key, key_tier,
             global_hash_rings[key_tier], local_hash_rings[key_tier], 
