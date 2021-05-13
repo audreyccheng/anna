@@ -1,12 +1,34 @@
+monitoring:
+  mgmt_ip: 35.81.167.161
+  ip: 35.81.167.161
+routing:
+  monitoring: 
+      - 35.81.167.161
+  ip: 35.81.167.161
+user:
+  monitoring:
+      - 35.81.167.161
+  routing: 
+      - 35.81.167.161
+  ip: 35.81.167.161
 server:
   monitoring:
       - 172.31.55.143
   routing: 
       - 172.31.55.143
   seed_ip: 172.31.55.143
-  public_ip: 172.31.49.254
+  public_ip: 35.81.169.204
   private_ip: 172.31.49.254
   mgmt_ip: "NULL"
+# txn-server:
+#   monitoring:
+#       - 172.31.55.143
+#   routing: 
+#       - 172.31.55.143
+#   seed_ip: 172.31.55.143
+#   public_ip: 172.31.55.143
+#   private_ip: 172.31.55.143
+#   mgmt_ip: "NULL"
 policy:
   elasticity: false
   selective-rep: false
@@ -31,30 +53,6 @@ replication:
   log: 1
   minimum: 1
   local: 1
-
-# monitoring:
-#   mgmt_ip: 35.81.167.161
-#   ip: 35.81.167.161
-# routing:
-#   monitoring: 
-#       - 35.81.167.161
-#   ip: 35.81.167.161
-# user:
-#   monitoring:
-#       - 35.81.167.161
-#   routing: 
-#       - 35.81.167.161
-#   ip: 35.81.167.161
-
-# txn-server:
-#   monitoring:
-#       - 172.31.55.143
-#   routing: 
-#       - 172.31.55.143
-#   seed_ip: 172.31.55.143
-#   public_ip: 172.31.55.143
-#   private_ip: 172.31.55.143
-#   mgmt_ip: "NULL"
 
 # 35.81.167.161
 # 172.31.55.143
