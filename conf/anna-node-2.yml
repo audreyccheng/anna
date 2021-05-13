@@ -1,34 +1,34 @@
 monitoring:
-  mgmt_ip: 44.234.148.119
-  ip: 44.234.148.119
+  mgmt_ip: 35.81.167.161
+  ip: 35.81.167.161
 routing:
   monitoring: 
-      - 44.234.148.119
-  ip: 44.234.148.119
+      - 35.81.167.161
+  ip: 35.81.167.161
 user:
   monitoring:
-      - 44.234.148.119
+      - 35.81.167.161
   routing: 
-      - 44.234.148.119
-  ip: 44.234.148.119
+      - 35.81.167.161
+  ip: 35.81.167.161
 server:
   monitoring:
-      - 44.234.148.119
+      - 35.81.167.161
   routing: 
-      - 44.234.148.119
-  seed_ip: 44.234.148.119
+      - 35.81.167.161
+  seed_ip: 35.81.167.161
   public_ip: 172.31.49.254
   private_ip: 172.31.49.254
   mgmt_ip: "NULL"
-txn-server:
-  monitoring:
-      - 172.31.55.143
-  routing: 
-      - 172.31.55.143
-  seed_ip: 172.31.55.143
-  public_ip: 172.31.55.143
-  private_ip: 172.31.55.143
-  mgmt_ip: "NULL"
+# txn-server:
+#   monitoring:
+#       - 172.31.55.143
+#   routing: 
+#       - 172.31.55.143
+#   seed_ip: 172.31.55.143
+#   public_ip: 172.31.55.143
+#   private_ip: 172.31.55.143
+#   mgmt_ip: "NULL"
 policy:
   elasticity: false
   selective-rep: false
@@ -54,8 +54,8 @@ replication:
   minimum: 1
   local: 1
 
-# 44.234.148.119
+# 35.81.167.161
 # 172.31.55.143
 
-# 34.222.173.222
+# 35.81.169.204
 # 172.31.49.254
