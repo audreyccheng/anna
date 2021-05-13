@@ -112,6 +112,7 @@ void run(unsigned thread_id, Address ip, vector<Address> monitoring_ips) {
 
   while (true) {
     log->info("while true loop");
+    log->info("our seed_connect_address is {}", rt.seed_connect_address());
     kZmqUtil->poll(-1, &pollitems);
 
     // only relavant for the seed node

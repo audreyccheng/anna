@@ -32,8 +32,8 @@ gen_yml_list() {
   echo -e "$RESULT"
 }
 
-# cd $HYDRO_HOME/anna
-# mkdir -p conf
+cd $HYDRO_HOME/anna
+mkdir -p conf
 
 # Check if the context that we are running in is EC2 or not. If it is, we
 # determine separate private and public IP addresses. Otherwise, we use the
@@ -48,26 +48,26 @@ fi
 
 # Download latest version of the code from relevant repository & branch -- if
 # none are specified, we use hydro-project/anna by default.
-# git remote remove origin
-# if [[ -z "$REPO_ORG" ]]; then
-#   REPO_ORG="hydro-project"
-# fi
+git remote remove origin
+if [[ -z "$REPO_ORG" ]]; then
+  REPO_ORG="hydro-project"
+fi
 
-# if [[ -z "$REPO_BRANCH" ]]; then
-#   REPO_BRANCH="master"
-# fi
+if [[ -z "$REPO_BRANCH" ]]; then
+  REPO_BRANCH="master"
+fi
 
-# git remote add origin https://github.com/$REPO_ORG/anna
-# while ! (git fetch -p origin)
-# do
-#   echo "git fetch failed, retrying"
-# done
-# git checkout -b brnch origin/$REPO_BRANCH
-# git submodule sync
-# git submodule update
+git remote add origin https://github.com/$REPO_ORG/anna
+while ! (git fetch -p origin)
+do
+  echo "git fetch failed, retrying"
+done
+git checkout -b brnch origin/$REPO_BRANCH
+git submodule sync
+git submodule update
 
-# # Compile the latest version of the code on the branch we just check out.
-# cd build && make -j2 && cd ..
+# Compile the latest version of the code on the branch we just check out.
+cd build && make -j2 && cd ..
 
 # Do not start the server until conf/anna-config.yml has been copied onto this
 # pod -- if we start earlier, we won't now how to configure the system.
