@@ -17,7 +17,7 @@ server:
   routing: 
       - 172.31.55.143
   seed_ip: 172.31.55.143
-  public_ip: 172.31.49.254
+  public_ip: 35.81.169.204
   private_ip: 172.31.49.254
   mgmt_ip: "NULL"
 # txn-server:

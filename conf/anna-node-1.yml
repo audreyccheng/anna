@@ -11,15 +11,15 @@ user:
   routing: 
       - 172.31.55.143
   ip: 172.31.55.143
-server:
-  monitoring:
-      - 44.234.148.119
-  routing: 
-      - 44.234.148.119
-  seed_ip: 44.234.148.119
-  public_ip: 44.234.148.119
-  private_ip: 172.31.49.254
-  mgmt_ip: "NULL"
+# server:
+#   monitoring:
+#       - 44.234.148.119
+#   routing: 
+#       - 44.234.148.119
+#   seed_ip: 44.234.148.119
+#   public_ip: 44.234.148.119
+#   private_ip: 172.31.49.254
+#   mgmt_ip: "NULL"
 txn-server:
   monitoring:
       - 172.31.55.143
