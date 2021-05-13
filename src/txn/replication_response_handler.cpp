@@ -69,7 +69,7 @@ void replication_response_handler(
     log->info("replication_response request KEY_DNE");
     // KEY_DNE means that the receiving thread was responsible for the metadata
     // but didn't have any values stored -- we use the default rep factor
-    init_tier_replication(key_replication_map, key, kSelfTier);
+    init_tier_replication(key_replication_map, tuple_key, kSelfTier);
   } else if (error == AnnaError::WRONG_THREAD) {
     // this means that the node that received the rep factor request was not
     // responsible for that metadata
@@ -211,6 +211,14 @@ void replication_response_handler(
                       response.txn_id(), tuple_key, is_metadata(tuple_key), 
                       global_hash_rings, local_hash_rings, key_replication_map, 
                       pushers, {tier}, succeed, seed, log);
+
+                  string suc = "false";
+                  if (succeed) {
+                    suc = "true";
+                  }
+                  log->info("replication_response request getting threads for tuple_key {} success {}",
+                    tuple_key, suc);
+
                   if (key_threads.size() > 0) {
                     break;
                   }
