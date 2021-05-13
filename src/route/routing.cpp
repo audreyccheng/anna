@@ -211,7 +211,7 @@ int main(int argc, char *argv[]) {
 
   vector<std::thread> routing_worker_threads;
 
-  std::cout << "kRoutingThreadCount " << kRoutingThreadCount << std::endl;
+  // std::cout << "kRoutingThreadCount " << kRoutingThreadCount << std::endl;
 
   for (unsigned thread_id = 1; thread_id < kRoutingThreadCount; thread_id++) {
     // std::cout << "adding routing thread " << thread_id << std::endl;
