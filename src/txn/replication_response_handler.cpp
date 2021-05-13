@@ -94,7 +94,7 @@ void replication_response_handler(
     if (succeed) {
       suc = "true";
     }
-    log->info("User txn request getting threads success: {}", suc);
+    log->info("replication_response request getting threads success: {}", suc);
 
     if (succeed) {
       bool responsible =
@@ -104,7 +104,7 @@ void replication_response_handler(
       if (responsible) {
         suc = "true";
       }
-      log->info("User txn request getting threads responsible: {}", suc);
+      log->info("replication_response request getting threads responsible: {}", suc);
 
       vector<unsigned> indices; // get requests with this tuple_key
       RequestTypeMap request_map; // map request types of this transaction

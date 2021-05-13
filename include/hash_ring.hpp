@@ -95,6 +95,7 @@ public:
                                    LocalHashRing &local_memory_hash_ring);
 
   void issue_replication_factor_request(const Address &respond_address,
+                                        const RequestType &request_type,
                                         const Key &key, const Tier &tier,
                                         GlobalHashRing &global_memory_hash_ring,
                                         LocalHashRing &local_memory_hash_ring,

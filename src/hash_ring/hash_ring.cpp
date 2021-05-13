@@ -212,7 +212,8 @@ ServerThreadList HashRingUtilInterface::get_responsible_threads_metadata(
 }
 
 void HashRingUtilInterface::issue_replication_factor_request(
-    const Address &response_address, const Key &key, const Tier &tier,
+    const Address &response_address, const RequestType &request_type,
+    const Key &key, const Tier &tier,
     GlobalHashRing &global_memory_hash_ring,
     LocalHashRing &local_memory_hash_ring, SocketCache &pushers,
     unsigned &seed, logger log) {
@@ -243,11 +244,12 @@ void HashRingUtilInterface::issue_replication_factor_request(
 
   TxnRequest key_request;
   // TODO(@accheng): different init for different tiers?
-  if (tier == Tier::TXN) {
-    key_request.set_type(RequestType::START_TXN);
-  } else {
-    key_request.set_type(RequestType::TXN_GET);
-  }
+  // if (tier == Tier::TXN) {
+  //   key_request.set_type(RequestType::START_TXN);
+  // } else {
+  //   key_request.set_type(RequestType::TXN_GET);
+  // }
+  key_request.set_type(request_type);
   key_request.set_response_address(response_address);
 
   prepare_txn_tuple(key_request, replication_key, "" /* payload */);
