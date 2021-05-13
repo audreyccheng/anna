@@ -83,7 +83,10 @@ void storage_request_handler(
         TxnKeyTuple *tp = response.add_tuples();
         tp->set_key(key);
 
-        if (request_type == RequestType::TXN_GET) {
+        // check if this is an replication factor request
+        if (is_metadata(key) && stored_key_map.find(key) == stored_key_map.end()) {
+          tp->set_error(AnnaError::KEY_DNE);
+        } else if (request_type == RequestType::TXN_GET) {
           log->info("storage request getting txn id {} key {}", txn_id, key);
           if (stored_key_map.find(key) == stored_key_map.end()) {
             tp->set_error(AnnaError::KEY_DNE);

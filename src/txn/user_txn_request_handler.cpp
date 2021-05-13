@@ -74,8 +74,11 @@ void user_txn_request_handler(
       } else { // if we know the responsible threads, we process the request
         TxnKeyTuple *tp = response.add_tuples();
         tp->set_key(key);
-
-        if (request_type == RequestType::START_TXN) {
+        
+        // check if this is an replication factor request
+        if (is_metadata(txn_id) && stored_txn_map.find(txn_id) == stored_txn_map.end()) {
+          tp->set_error(AnnaError::KEY_DNE);
+        } else if (request_type == RequestType::START_TXN) {
           // if this is a replication request, signal that this key doesn't yet exist
           // TODO(@accheng): update
           if (stored_txn_map.find(txn_id) == stored_txn_map.end() && is_metadata(txn_id)) { 

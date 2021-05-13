@@ -70,7 +70,10 @@ void log_request_handler(
                                 response_address, response_id));
         }
       } else { // if we know the responsible threads, we process the request
-        if (request_type == RequestType::PREPARE_TXN || 
+         // check if this is an replication factor request
+        if (is_metadata(key) && stored_key_map.find(key) == stored_key_map.end()) {
+          tp->set_error(AnnaError::KEY_DNE);
+        } else if (request_type == RequestType::PREPARE_TXN || 
             request_type == RequestType::COMMIT_TXN) {
           TxnKeyTuple *tp = response.add_tuples();
           tp->set_key(key);
