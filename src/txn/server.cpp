@@ -309,6 +309,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
 
   // enter event loop
   while (true) {
+    log->info("server while loop");
     kZmqUtil->poll(0, &pollitems);
 
     // receives a node join
