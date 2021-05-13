@@ -314,6 +314,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
 
     // receives a node join
     if (pollitems[0].revents & ZMQ_POLLIN) {
+      log->info("Received node_join_puller");
       auto work_start = std::chrono::system_clock::now();
 
       string serialized = kZmqUtil->recv_string(&join_puller);
@@ -330,6 +331,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
     }
 
     if (pollitems[1].revents & ZMQ_POLLIN) {
+      log->info("Received node_depart_puller");
       auto work_start = std::chrono::system_clock::now();
 
       string serialized = kZmqUtil->recv_string(&depart_puller);
@@ -344,6 +346,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
     }
 
     if (pollitems[2].revents & ZMQ_POLLIN) {
+      log->info("Received self_depart_puller");
       string serialized = kZmqUtil->recv_string(&self_depart_puller);
       self_depart_handler(thread_id, seed, public_ip, private_ip, log,
                           serialized, global_hash_rings, local_hash_rings,
