@@ -44,10 +44,18 @@ void storage_request_handler(
     Key key = tuple.key();
     string payload = tuple.payload();
 
+    log->info("Received storage_request type {} for txn id {} key {}", request_type, txn_id, key);
+
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         kSelfTierIdVector, succeed, seed, log);
+
+    string suc = "false";
+    if (succeed) {
+      suc = "true";
+    }
+    log->info("Storage request getting threads success: {}, num threads: {}", suc, threads.size());
 
     bool is_primary = true; // TODO(@accheng): update
 
@@ -76,6 +84,7 @@ void storage_request_handler(
         tp->set_key(key);
 
         if (request_type == RequestType::TXN_GET) {
+          log->info("storage request getting txn id {} key {}", txn_id, key);
           if (stored_key_map.find(key) == stored_key_map.end()) {
             tp->set_error(AnnaError::KEY_DNE);
           } else {
@@ -86,6 +95,7 @@ void storage_request_handler(
             tp->set_error(error);
           }
         } else if (request_type == RequestType::TXN_PUT) {
+          log->info("storage request putting txn id {} key {}", txn_id, key);
           AnnaError error = AnnaError::NO_ERROR;
           process_txn_put(txn_id, key, payload, error, is_primary, serializer, 
                           stored_key_map);

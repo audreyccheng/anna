@@ -218,6 +218,7 @@ void replication_response_handler(
                 // TODO(@accheng): should just be one request?
                 // send request to storage tier
                 if (key_threads.size() > 0) {
+                  log->info("replication_response issuing storage request");
                   kHashRingUtil->issue_storage_request(
                     wt.request_response_connect_address(), request.type_, key, tuple_key, 
                     payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
