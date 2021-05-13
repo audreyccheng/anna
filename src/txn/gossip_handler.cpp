@@ -32,7 +32,7 @@ void gossip_handler(unsigned &seed, string &serialized,
     // first check if the thread is responsible for the key
     Key key = tuple.key();
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-        wt.replication_response_connect_address(), key, is_metadata(key),
+        wt.replication_response_connect_address(), gossip.type(), key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         kSelfTierIdVector, succeed, seed, log);
 
@@ -63,7 +63,7 @@ void gossip_handler(unsigned &seed, string &serialized,
           }
         } else {
           kHashRingUtil->issue_replication_factor_request(
-              wt.replication_response_connect_address(), key, Tier::MEMORY,
+              wt.replication_response_connect_address(), gossip.type(), key, Tier::MEMORY,
               global_hash_rings[Tier::MEMORY], local_hash_rings[Tier::MEMORY],
               pushers, seed, log);
 

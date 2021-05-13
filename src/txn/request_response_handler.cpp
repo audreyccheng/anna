@@ -32,7 +32,7 @@ void request_response_handler(
 
   if (pending_requests.find(key) != pending_requests.end()) {
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-        wt.replication_response_connect_address(), key, is_metadata(key),
+        wt.replication_response_connect_address(), response.type(), key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         kSelfTierIdVector, succeed, seed, log);
 
@@ -151,7 +151,8 @@ void request_response_handler(
 
                     for (const Tier &tier : kStorageTiers) {
                       key_threads = kHashRingUtil->get_responsible_threads(
-                          wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                          wt.replication_response_connect_address(), request.type_, 
+                          tuple_key, is_metadata(tuple_key), 
                           global_hash_rings, local_hash_rings, key_replication_map, 
                           pushers, {tier}, succeed, seed, log);
                       if (key_threads.size() > 0) {

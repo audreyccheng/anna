@@ -22,7 +22,8 @@
 // get all threads responsible for a key from the "node_type" tier
 // metadata flag = 0 means the key is  metadata; otherwise, it is  regular data
 ServerThreadList HashRingUtil::get_responsible_threads(
-    Address response_address, const Key &key, bool metadata,
+    Address response_address, const RequestType &request_type,
+    const Key &key, bool metadata,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
     const vector<Tier> &tiers, bool &succeed, unsigned &seed, logger log) {
@@ -44,13 +45,15 @@ ServerThreadList HashRingUtil::get_responsible_threads(
       // If this a transaction id, only the txnal tier should be responsible for it
       if (tiers.size() > 0 && tiers[0] == Tier::TXN) {
         kHashRingUtil->issue_replication_factor_request(
-            response_address, key, tiers[0], global_hash_rings[Tier::TXN],
-            local_hash_rings[Tier::TXN], pushers, seed, log);
+            response_address, request_type, key, tiers[0],
+            global_hash_rings[Tier::TXN], local_hash_rings[Tier::TXN], 
+            pushers, seed, log);
       } else { // TODO(@accheng): set which tier to replicate key at
         Tier key_tier = get_random_tier();
         kHashRingUtil->issue_replication_factor_request(
-            response_address, key, key_tier, global_hash_rings[key_tier],
-            local_hash_rings[key_tier], pushers, seed, log);
+            response_address, request_type, key, key_tier,
+            global_hash_rings[key_tier], local_hash_rings[key_tier], 
+            pushers, seed, log);
       }
       succeed = false;
     } else {

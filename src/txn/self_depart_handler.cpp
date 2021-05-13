@@ -66,8 +66,13 @@ void self_depart_handler(unsigned thread_id, unsigned &seed, Address public_ip,
 
   for (const auto &key_pair : stored_key_map) {
     Key key = key_pair.first;
+    RequestType request_type = RequestType::START_TXN;
+    if (kSelfTier != Tier::TXN) {
+      request_type = RequestType::TXN_GET;
+    }
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-        wt.replication_response_connect_address(), key, is_metadata(key),
+        wt.replication_response_connect_address(), request_type, // TODO(@accheng): what type should this be?
+        key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         kAllTiers, succeed, seed, log);
 

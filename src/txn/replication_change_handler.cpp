@@ -43,9 +43,14 @@ void replication_change_handler(
   for (const ReplicationFactor &key_rep : rep_change.updates()) {
     Key key = key_rep.key();
     // if this thread has the key stored before the change
+    RequestType request_type = RequestType::START_TXN;
+    if (kSelfTier != Tier::TXN) {
+      request_type = RequestType::TXN_GET;
+    }
     if (stored_key_map.find(key) != stored_key_map.end()) {
       ServerThreadList orig_threads = kHashRingUtil->get_responsible_threads(
-          wt.replication_response_connect_address(), key, is_metadata(key),
+          wt.replication_response_connect_address(), request_type, // TODO(@accheng): what type should this be?
+          key, is_metadata(key),
           global_hash_rings, local_hash_rings, key_replication_map, pushers,
           kAllTiers, succeed, seed, log);
 
@@ -74,7 +79,8 @@ void replication_change_handler(
         }
 
         ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-            wt.replication_response_connect_address(), key, is_metadata(key),
+            wt.replication_response_connect_address(), request_type, // TODO(@accheng): what type should this be?
+            key, is_metadata(key),
             global_hash_rings, local_hash_rings, key_replication_map, pushers,
             kAllTiers, succeed, seed, log);
 

@@ -58,8 +58,13 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
               addr_tier != Tier::TXN && tier == Tier::TXN) {
             continue;
           }
+          RequestType request_type = RequestType::START_TXN;
+          if (tier != Tier::TXN) {
+            request_type = RequestType::TXN_GET;
+          }
           threads = kHashRingUtil->get_responsible_threads(
-              rt.replication_response_connect_address(), key, is_metadata(key), 
+              rt.replication_response_connect_address(), request_type, // TODO(@accheng): what type should this be?
+              key, is_metadata(key), 
               global_hash_rings, local_hash_rings, key_replication_map,
               pushers, {tier}, succeed, seed, log);
 

@@ -23,10 +23,11 @@ public:
   virtual ~MockHashRingUtil(){};
 
   virtual ServerThreadList get_responsible_threads(
-      Address respond_address, const Key &key, bool metadata,
+      Address respond_address, const RequestType &request_type,
+      const Key &key, bool metadata,
       GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
       map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
-      const vector<Tier> &tiers, bool &succeed, unsigned &seed);
+      const vector<Tier> &tiers, bool &succeed, unsigned &seed, logger log);
 };
 
 #endif // TESTS_MOCK_MOCK_HASH_UTILS_HPP_

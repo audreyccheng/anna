@@ -73,7 +73,7 @@ void replication_response_handler(
     // responsible for that metadata
     auto respond_address = wt.replication_response_connect_address();
     kHashRingUtil->issue_replication_factor_request( // TODO(@accheng): is this ok for non-txn_id keys?
-        respond_address, key, key_tier, global_hash_rings[key_tier],
+        respond_address, response.type(), key, key_tier, global_hash_rings[key_tier],
         local_hash_rings[key_tier], pushers, seed, log);
     return;
   } else {
@@ -86,7 +86,7 @@ void replication_response_handler(
 
   if (pending_requests.find(key) != pending_requests.end()) {
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-        wt.replication_response_connect_address(), key, is_metadata(key),
+        wt.replication_response_connect_address(), response.type(), key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         kSelfTierIdVector, succeed, seed, log);
 
@@ -202,7 +202,8 @@ void replication_response_handler(
 
                 for (const Tier &tier : kStorageTiers) {
                   key_threads = kHashRingUtil->get_responsible_threads(
-                      wt.replication_response_connect_address(), tuple_key, is_metadata(tuple_key), 
+                      wt.replication_response_connect_address(), request.type_,
+                      tuple_key, is_metadata(tuple_key), 
                       global_hash_rings, local_hash_rings, key_replication_map, 
                       pushers, {tier}, succeed, seed, log);
                   if (key_threads.size() > 0) {
@@ -293,7 +294,7 @@ void replication_response_handler(
 
                 // send replication / log requests
                 ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
-                    wt.replication_response_connect_address(), key, is_metadata(key), 
+                    wt.replication_response_connect_address(), request.type_, key, is_metadata(key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
                     pushers, {Tier::LOG}, succeed, seed, log);
 
@@ -320,7 +321,7 @@ void replication_response_handler(
 
                 // log commit
                 ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
-                      wt.replication_response_connect_address(), key, is_metadata(key), 
+                      wt.replication_response_connect_address(), request.type_, key, is_metadata(key), 
                       global_hash_rings, local_hash_rings, key_replication_map, 
                       pushers, {Tier::LOG}, succeed, seed, log);
 
