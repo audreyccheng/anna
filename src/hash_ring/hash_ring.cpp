@@ -23,7 +23,7 @@
 // metadata flag = 0 means the key is  metadata; otherwise, it is  regular data
 ServerThreadList HashRingUtil::get_responsible_threads(
     Address response_address, const RequestType &request_type,
-    const Key &key, bool metadata,
+    const string &txn_id, const Key &key, bool metadata,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
     const vector<Tier> &tiers, bool &succeed, unsigned &seed, logger log) {
@@ -45,13 +45,13 @@ ServerThreadList HashRingUtil::get_responsible_threads(
       // If this a transaction id, only the txnal tier should be responsible for it
       if (tiers.size() > 0 && tiers[0] == Tier::TXN) {
         kHashRingUtil->issue_replication_factor_request(
-            response_address, request_type, key, tiers[0],
+            response_address, request_type, txn_id, key, tiers[0],
             global_hash_rings[Tier::TXN], local_hash_rings[Tier::TXN], 
             pushers, seed, log);
       } else { // TODO(@accheng): set which tier to replicate key at
         Tier key_tier = get_random_tier();
         kHashRingUtil->issue_replication_factor_request(
-            response_address, request_type, key, key_tier,
+            response_address, request_type, txn_id, key, key_tier,
             global_hash_rings[key_tier], local_hash_rings[key_tier], 
             pushers, seed, log);
       }
@@ -216,7 +216,7 @@ ServerThreadList HashRingUtilInterface::get_responsible_threads_metadata(
 
 void HashRingUtilInterface::issue_replication_factor_request(
     const Address &response_address, const RequestType &request_type,
-    const Key &key, const Tier &tier,
+    const string &txn_id, const Key &key, const Tier &tier,
     GlobalHashRing &global_memory_hash_ring,
     LocalHashRing &local_memory_hash_ring, SocketCache &pushers,
     unsigned &seed, logger log) {
@@ -254,6 +254,7 @@ void HashRingUtilInterface::issue_replication_factor_request(
   // }
   key_request.set_type(request_type);
   key_request.set_response_address(response_address);
+  key_request.set_txn_id(txn_id);
 
   prepare_txn_tuple(key_request, replication_key, "" /* payload */);
   string serialized;

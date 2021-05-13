@@ -72,7 +72,7 @@ void self_depart_handler(unsigned thread_id, unsigned &seed, Address public_ip,
     }
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), request_type, // TODO(@accheng): what type should this be?
-        key, is_metadata(key),
+        "" /* txn_id */, key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         kAllTiers, succeed, seed, log);
 

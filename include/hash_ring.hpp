@@ -85,7 +85,7 @@ class HashRingUtilInterface {
 public:
   virtual ServerThreadList get_responsible_threads(
       Address respond_address, const RequestType &request_type,
-      const Key &key, bool metadata,
+      const string &txn_id, const Key &key, bool metadata,
       GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
       map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
       const vector<Tier> &tiers, bool &succeed, unsigned &seed, logger log) = 0;
@@ -97,7 +97,8 @@ public:
 
   void issue_replication_factor_request(const Address &respond_address,
                                         const RequestType &request_type,
-                                        const Key &key, const Tier &tier,
+                                        const string &txn_id, const Key &key, 
+                                        const Tier &tier,
                                         GlobalHashRing &global_memory_hash_ring,
                                         LocalHashRing &local_memory_hash_ring,
                                         SocketCache &pushers, unsigned &seed, logger log);
@@ -118,7 +119,7 @@ class HashRingUtil : public HashRingUtilInterface {
 public:
   virtual ServerThreadList get_responsible_threads(
       Address respond_address, const RequestType &request_type,
-      const Key &key, bool metadata,
+      const string &txn_id, const Key &key, bool metadata,
       GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
       map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
       const vector<Tier> &tiers, bool &succeed, unsigned &seed, logger log);

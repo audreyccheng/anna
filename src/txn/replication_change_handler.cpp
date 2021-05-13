@@ -50,7 +50,7 @@ void replication_change_handler(
     if (stored_key_map.find(key) != stored_key_map.end()) {
       ServerThreadList orig_threads = kHashRingUtil->get_responsible_threads(
           wt.replication_response_connect_address(), request_type, // TODO(@accheng): what type should this be?
-          key, is_metadata(key),
+           "" /* txn_id */, key, is_metadata(key),
           global_hash_rings, local_hash_rings, key_replication_map, pushers,
           kAllTiers, succeed, seed, log);
 
@@ -80,7 +80,7 @@ void replication_change_handler(
 
         ServerThreadList threads = kHashRingUtil->get_responsible_threads(
             wt.replication_response_connect_address(), request_type, // TODO(@accheng): what type should this be?
-            key, is_metadata(key),
+            "" /* txn_id */, key, is_metadata(key),
             global_hash_rings, local_hash_rings, key_replication_map, pushers,
             kAllTiers, succeed, seed, log);
 

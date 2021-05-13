@@ -40,7 +40,8 @@ void user_txn_request_handler(
     }
 
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-        wt.replication_response_connect_address(), request_type, txn_id, is_metadata(txn_id), 
+        wt.replication_response_connect_address(), request_type, 
+        txn_id, txn_id, is_metadata(txn_id), 
         global_hash_rings, local_hash_rings, key_replication_map, 
         pushers, kSelfTierIdVector, succeed, seed, log);
 
@@ -62,7 +63,8 @@ void user_txn_request_handler(
           // if we don't know what threads are responsible, we issue a rep
           // factor request and make the request pending
           kHashRingUtil->issue_replication_factor_request(
-              wt.replication_response_connect_address(), request_type, key, Tier::TXN, 
+              wt.replication_response_connect_address(), request_type, 
+              txn_id, key, Tier::TXN, 
               global_hash_rings[Tier::TXN], local_hash_rings[Tier::TXN],
               pushers, seed, log);
 
@@ -74,7 +76,7 @@ void user_txn_request_handler(
       } else { // if we know the responsible threads, we process the request
         TxnKeyTuple *tp = response.add_tuples();
         tp->set_key(key);
-        
+
         // check if this is an replication factor request
         if (is_metadata(txn_id) && stored_txn_map.find(txn_id) == stored_txn_map.end()) {
           tp->set_error(AnnaError::KEY_DNE);
@@ -122,7 +124,8 @@ void user_txn_request_handler(
             for (const Tier &tier : kStorageTiers) {
               log->info("Getting threads for storage tiers");
               key_threads = kHashRingUtil->get_responsible_threads(
-                  wt.replication_response_connect_address(), request_type, key, is_metadata(key), 
+                  wt.replication_response_connect_address(), request_type, 
+                  txn_id, key, is_metadata(key), 
                   global_hash_rings, local_hash_rings, key_replication_map, 
                   pushers, {tier}, succeed, seed, log);
               if (key_threads.size() > 0) {
@@ -187,7 +190,8 @@ void user_txn_request_handler(
 
               for (const Tier &tier : kStorageTiers) {
                 key_threads = kHashRingUtil->get_responsible_threads(
-                    wt.replication_response_connect_address(), request_type, key, is_metadata(key), 
+                    wt.replication_response_connect_address(), request_type, 
+                    txn_id, key, is_metadata(key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
                     pushers, {tier}, succeed, seed, log);
                 if (key_threads.size() > 0) {

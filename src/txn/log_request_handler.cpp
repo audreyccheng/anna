@@ -45,7 +45,8 @@ void log_request_handler(
     string payload = tuple.payload();
 
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-        wt.replication_response_connect_address(), request_type, key, is_metadata(key),
+        wt.replication_response_connect_address(), request_type, txn_id, 
+        key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         kSelfTierIdVector, succeed, seed, log);
 
@@ -61,7 +62,8 @@ void log_request_handler(
           // if we don't know what threads are responsible, we issue a rep
           // factor request and make the request pending
           kHashRingUtil->issue_replication_factor_request(
-              wt.replication_response_connect_address(), request_type, key, kSelfTier,
+              wt.replication_response_connect_address(), request_type, 
+              txn_id, key, kSelfTier,
               global_hash_rings[kSelfTier], local_hash_rings[kSelfTier],
               pushers, seed, log);
 
@@ -72,7 +74,7 @@ void log_request_handler(
       } else { // if we know the responsible threads, we process the request
         TxnKeyTuple *tp = response.add_tuples();
         tp->set_key(key);
-        
+
          // check if this is an replication factor request
         if (is_metadata(key) && stored_key_map.find(key) == stored_key_map.end()) {
           tp->set_error(AnnaError::KEY_DNE);

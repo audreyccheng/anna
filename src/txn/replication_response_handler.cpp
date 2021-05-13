@@ -47,7 +47,8 @@ void replication_response_handler(
     txn_tier = true;
   }
 
-  log->info("Received replication_response request type {} key {} tier {}", response.type(), key, key_tier);
+  log->info("Received replication_response request type {} txn_id {} key {} tier {}",
+    response.type(), response.txn_id(), key, key_tier);
 
   if (error == AnnaError::NO_ERROR) {
     // TODO(@accheng): update; this is called in for replication_change only
@@ -65,6 +66,7 @@ void replication_response_handler(
       key_replication_map[key].local_replication_[local.tier()] = local.value();
     }
   } else if (error == AnnaError::KEY_DNE || error == AnnaError::TXN_DNE) {
+    log->info("replication_response request KEY_DNE");
     // KEY_DNE means that the receiving thread was responsible for the metadata
     // but didn't have any values stored -- we use the default rep factor
     init_tier_replication(key_replication_map, key, kSelfTier);
@@ -73,7 +75,8 @@ void replication_response_handler(
     // responsible for that metadata
     auto respond_address = wt.replication_response_connect_address();
     kHashRingUtil->issue_replication_factor_request( // TODO(@accheng): is this ok for non-txn_id keys?
-        respond_address, response.type(), key, key_tier, global_hash_rings[key_tier],
+        respond_address, response.type(), response.txn_id(),
+        key, key_tier, global_hash_rings[key_tier],
         local_hash_rings[key_tier], pushers, seed, log);
     return;
   } else {
@@ -85,8 +88,10 @@ void replication_response_handler(
   bool succeed;
 
   if (pending_requests.find(key) != pending_requests.end()) {
+    log->info("replication_response request found key {}", key);
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
-        wt.replication_response_connect_address(), response.type(), key, is_metadata(key),
+        wt.replication_response_connect_address(), response.type(), 
+        response.txn_id(), key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         kSelfTierIdVector, succeed, seed, log);
 
@@ -203,7 +208,7 @@ void replication_response_handler(
                 for (const Tier &tier : kStorageTiers) {
                   key_threads = kHashRingUtil->get_responsible_threads(
                       wt.replication_response_connect_address(), request.type_,
-                      tuple_key, is_metadata(tuple_key), 
+                      response.txn_id(), tuple_key, is_metadata(tuple_key), 
                       global_hash_rings, local_hash_rings, key_replication_map, 
                       pushers, {tier}, succeed, seed, log);
                   if (key_threads.size() > 0) {
@@ -294,7 +299,8 @@ void replication_response_handler(
 
                 // send replication / log requests
                 ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
-                    wt.replication_response_connect_address(), request.type_, key, is_metadata(key), 
+                    wt.replication_response_connect_address(), request.type_, 
+                    response.txn_id(), key, is_metadata(key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
                     pushers, {Tier::LOG}, succeed, seed, log);
 
@@ -321,7 +327,8 @@ void replication_response_handler(
 
                 // log commit
                 ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
-                      wt.replication_response_connect_address(), request.type_, key, is_metadata(key), 
+                      wt.replication_response_connect_address(), request.type_, 
+                      response.txn_id(), key, is_metadata(key), 
                       global_hash_rings, local_hash_rings, key_replication_map, 
                       pushers, {Tier::LOG}, succeed, seed, log);
 

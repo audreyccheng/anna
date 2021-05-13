@@ -16,7 +16,7 @@
 
 ServerThreadList MockHashRingUtil::get_responsible_threads(
     Address respond_address, const RequestType &request_type,
-    const Key &key, bool metadata,
+    const string &txn_id, const Key &key, bool metadata,
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
     const vector<Tier> &tiers, bool &succeed, unsigned &seed, logger log) {

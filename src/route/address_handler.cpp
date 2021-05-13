@@ -64,7 +64,7 @@ void address_handler(logger log, string &serialized, SocketCache &pushers,
           }
           threads = kHashRingUtil->get_responsible_threads(
               rt.replication_response_connect_address(), request_type, // TODO(@accheng): what type should this be?
-              key, is_metadata(key), 
+              "" /* txn_id */, key, is_metadata(key), 
               global_hash_rings, local_hash_rings, key_replication_map,
               pushers, {tier}, succeed, seed, log);
 
