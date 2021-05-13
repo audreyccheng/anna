@@ -216,8 +216,8 @@ void replication_response_handler(
                   if (succeed) {
                     suc = "true";
                   }
-                  log->info("replication_response request getting threads for tuple_key {} success {}",
-                    tuple_key, suc);
+                  log->info("replication_response request getting threads for tuple_key {} success {} key_threads size {}",
+                    tuple_key, suc, key_threads.size());
 
                   if (key_threads.size() > 0) {
                     break;
