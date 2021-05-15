@@ -80,10 +80,11 @@ void handle_request(TxnClientInterface *client, string input) {
       std::cout << "Error: received more than one response" << std::endl;
     }
 
-    // TODO(@accheng): deserialize payload
-    // LWWPairLattice<string> lww_lattice =
-    //     deserialize_lww(responses[0].tuples(0).payload());
-    // std::cout << lww_lattice.reveal().value << std::endl;
+    if (response.error() == AnnaError::NO_ERROR) {
+      std::cout << "Got value: " << response.payload() << std::endl;
+    } else {
+      std::cout << "Failure: " << response.error() << std::endl;
+    }
   } else if (v[0] == "TXN_PUT") {
     auto client_id = "0";
     // client must enter txn_id, key, and value
