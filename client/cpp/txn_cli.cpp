@@ -80,6 +80,8 @@ void handle_request(TxnClientInterface *client, string input) {
       std::cout << "Error: received more than one response" << std::endl;
     }
 
+    TxnResponse response = responses[0];
+
     if (response.error() == AnnaError::NO_ERROR) {
       std::cout << "Got value: " << response.payload() << std::endl;
     } else {
