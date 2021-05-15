@@ -80,7 +80,7 @@ void handle_request(TxnClientInterface *client, string input) {
       std::cout << "Error: received more than one response" << std::endl;
     }
 
-    // TxnResponse response = responses[0];
+    TxnResponse response = responses[0];
     TxnKeyTuple tuple = responses[0].tuples(0);
 
     if (tuple.error() == AnnaError::NO_ERROR) {
@@ -98,7 +98,7 @@ void handle_request(TxnClientInterface *client, string input) {
       responses = client->receive_txn_async();
     }
 
-    // TxnResponse response = responses[0];
+    TxnResponse response = responses[0];
     TxnKeyTuple tuple = responses[0].tuples(0);
 
     if (response.response_id() != rid) {
