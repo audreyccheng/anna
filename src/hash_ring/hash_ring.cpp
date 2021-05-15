@@ -61,7 +61,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
         ServerThreadList threads = responsible_global(
             key, key_replication_map[key].global_replication_[tier],
             global_hash_rings[tier]);
-        log->info("hash_ring grt responsible_global tier {} size {}", tier, threads.size());
+        // log->info("hash_ring grt responsible_global tier {} size {}", tier, threads.size());
 
         for (const ServerThread &thread : threads) {
           Address public_ip = thread.public_ip();
@@ -69,7 +69,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
           set<unsigned> tids = responsible_local(
               key, key_replication_map[key].local_replication_[tier],
               local_hash_rings[tier]);
-          log->info("hash_ring grt responsible_local tier {} size {}", tier, tids.size());
+          // log->info("hash_ring grt responsible_local tier {} size {}", tier, tids.size());
 
           for (const unsigned &tid : tids) {
             result.push_back(ServerThread(public_ip, private_ip, tid));

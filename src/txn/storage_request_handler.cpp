@@ -97,6 +97,7 @@ void storage_request_handler(
             AnnaError error = AnnaError::NO_ERROR;
             auto res = process_txn_get(txn_id, key, error, serializer,
                                        stored_key_map);
+            log->info("storage request process_txn_get payload {} error {}", res, error);
             tp->set_payload(res);
             tp->set_error(error);
           }
@@ -105,6 +106,7 @@ void storage_request_handler(
           AnnaError error = AnnaError::NO_ERROR;
           process_txn_put(txn_id, key, payload, error, is_primary, serializer, 
                           stored_key_map);
+          log->info("storage request process_txn_put payload {} error {}", res, error);
           tp->set_error(error);
 
           local_changeset.insert(key);
