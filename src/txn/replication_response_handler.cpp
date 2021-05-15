@@ -293,7 +293,7 @@ void replication_response_handler(
               AnnaError error = AnnaError::NO_ERROR;
               process_txn_put(request.txn_id_, key, payload, error,
                               is_primary, serializer, stored_key_map);
-              log->info("replication_response process_txn_put payload {} error {}", res, error);
+              log->info("replication_response process_txn_put error {}", error);
               tp->set_error(error);
 
               local_changeset.insert(key);
