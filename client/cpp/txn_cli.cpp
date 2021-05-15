@@ -80,12 +80,13 @@ void handle_request(TxnClientInterface *client, string input) {
       std::cout << "Error: received more than one response" << std::endl;
     }
 
-    TxnResponse response = responses[0];
+    // TxnResponse response = responses[0];
+    TxnKeyTuple tuple = responses[0].tuples(0);
 
-    if (response.tuples(0).error() == AnnaError::NO_ERROR) {
-      std::cout << "Got value: " << response.tuples(0).payload() << std::endl;
+    if (tuple.error() == AnnaError::NO_ERROR) {
+      std::cout << "Got value: " << tuple.payload() << " error: " << tuple.error() << std::endl;
     } else {
-      std::cout << "Failure: " << response.tuples(0).error() << std::endl;
+      std::cout << "Failure: " << tuple.error() << std::endl;
     }
   } else if (v[0] == "TXN_PUT") {
     auto client_id = "0";
@@ -97,16 +98,17 @@ void handle_request(TxnClientInterface *client, string input) {
       responses = client->receive_txn_async();
     }
 
-    TxnResponse response = responses[0];
+    // TxnResponse response = responses[0];
+    TxnKeyTuple tuple = responses[0].tuples(0);
 
     if (response.response_id() != rid) {
       std::cout << "Invalid response: ID did not match request ID!"
                 << std::endl;
     }
-    if (response.error() == AnnaError::NO_ERROR) {
+    if (tuple.error() == AnnaError::NO_ERROR) {
       std::cout << "Success!" << std::endl;
     } else {
-      std::cout << "Failure: " << response.error() << std::endl;
+      std::cout << "Failure: " << tuple.error() << std::endl;
     }
   } else if (v[0] == "COMMIT_TXN") {
     auto client_id = "0";
