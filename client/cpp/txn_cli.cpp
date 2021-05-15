@@ -82,10 +82,10 @@ void handle_request(TxnClientInterface *client, string input) {
 
     TxnResponse response = responses[0];
 
-    if (response.error() == AnnaError::NO_ERROR) {
-      std::cout << "Got value: " << response.payload() << std::endl;
+    if (response.tuples(0).error() == AnnaError::NO_ERROR) {
+      std::cout << "Got value: " << response.tuples(0).payload() << std::endl;
     } else {
-      std::cout << "Failure: " << response.error() << std::endl;
+      std::cout << "Failure: " << response.tuples(0).error() << std::endl;
     }
   } else if (v[0] == "TXN_PUT") {
     auto client_id = "0";
