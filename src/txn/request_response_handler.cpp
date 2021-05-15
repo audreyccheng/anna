@@ -111,11 +111,10 @@ void request_response_handler(
           	  if (tuple.error() != AnnaError::NO_ERROR) {
                   // TODO(@accheng): need to abort txn
 
-              } else { 
-                tp->set_key(tuple_key);
-                tp->set_error(error);
-                tp->set_payload(tuple.payload());
               }
+              tp->set_key(tuple_key);
+              tp->set_error(error);
+              tp->set_payload(tuple.payload());
             } else if (request.type_ == RequestType::PREPARE_TXN) {
               // rep_response.set_txn_id(request.txn_id_);
               send_response = false;
