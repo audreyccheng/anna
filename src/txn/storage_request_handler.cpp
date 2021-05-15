@@ -100,6 +100,7 @@ void storage_request_handler(
             log->info("storage request process_txn_get payload {} error {}", res, error);
             tp->set_payload(res);
             tp->set_error(error);
+            log->info("storage request tp payload {} error {}", tp->payload(), tp->error());
           }
         } else if (request_type == RequestType::TXN_PUT) {
           log->info("storage request putting txn id {} key {}", txn_id, key);
