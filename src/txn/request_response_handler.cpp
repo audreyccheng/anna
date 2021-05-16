@@ -134,7 +134,7 @@ void request_response_handler(
                            request_map[RequestType::COMMIT_TXN].size() != 1) {
                   log->error("Unable to find client request to commit");
                 } else {
-                  og->info("req_resp commit in map size {}", request_map[RequestType::COMMIT_TXN].size());
+                  log->info("req_resp commit in map size {}", request_map[RequestType::COMMIT_TXN].size());
                   TxnResponse commit_response;
                   commit_response.set_type(RequestType::COMMIT_TXN);
                   commit_response.set_txn_id(key);
