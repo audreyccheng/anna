@@ -123,7 +123,14 @@ void handle_request(TxnClientInterface *client, string input) {
       std::cout << "Error: received more than one response" << std::endl;
     }
 
-    std::cout << responses[0].txn_id() << std::endl;
+    TxnResponse response = responses[0];
+    TxnKeyTuple tuple = responses[0].tuples(0);
+
+    if (tuple.error() == AnnaError::NO_ERROR) {
+      std::cout << "Successfully committed txn: "<< response.txn_id() << std::endl;
+    } else {
+      std::cout << "Failure: " << tuple.error() << std::endl;
+    }
   } else {
     std::cout << "Unrecognized command " << v[0]
               << ". Valid commands are START_TXN, TXN_GET, TXN_PUT, "

@@ -214,6 +214,8 @@ void user_txn_request_handler(
               }
             }
 
+            log->info("user_txn_request commit threads {} abort_txn {}", key_threads.size(), abort_txn);
+
             // TODO(@accheng): send abort to client
             if (abort_txn) {
               tp->set_error(AnnaError::TXN_DNE);
@@ -224,8 +226,9 @@ void user_txn_request_handler(
                 auto op_payload = ops[i].get_value();
                 // send prepare request to storage tier
                 kHashRingUtil->issue_storage_request(
-                  wt.request_response_connect_address(), RequestType::PREPARE_TXN, txn_id, 
+                  wt.request_response_connect_address(), RequestType::PREPARE_TXN, txn_id, // TODO(@accheng) : don't send payload
                   op_key, op_payload, all_key_threads[i][0], pushers); // TODO(@accheng): how should we choose thread?
+                log->info("user_txn_request sending storage request  txn_id {} key {}", txn_id, key);
 
                 // this is the commit response we want to send back to the client
                 // both key and op_key are txn_id
