@@ -60,6 +60,7 @@ void request_response_handler(
       RequestTypeMap request_map; // map request types of this transaction
       for (unsigned i = 0; i < pending_requests[key].size(); ++i) {
         auto request = pending_requests[key][i];
+        log->info("iterating request type {} key {}", request.type_, request.key_);
         if (request.key_ == tuple_key && request.type_ == response.type()) {
           log->info("found index {}", i);
           indices.push_back(i);
@@ -71,6 +72,7 @@ void request_response_handler(
           request_map[request.type_].push_back(i);
         }
       }
+      log->info("made request map");
 
       unsigned erase_count = 0; // update index as requests are removed
       for (const unsigned &index : indices) {
@@ -78,6 +80,7 @@ void request_response_handler(
         auto now = std::chrono::system_clock::now();
 
         if (!responsible && request.addr_ != "") {
+          log->info("Req_resp_handler if 1");
           TxnResponse response;
 
           response.set_type(request.type_);
@@ -97,6 +100,7 @@ void request_response_handler(
           response.SerializeToString(&serialized_response);
           kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
         } else if (responsible && request.addr_ == "") {
+          log->info("Req_resp_handler if 2");
           // TODO(@accheng): only storage COMMIT_TXN?
           if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK &&
               request.type_ == RequestType::COMMIT_TXN) {
@@ -105,6 +109,7 @@ void request_response_handler(
             log->error("Received a request with no response address.");
           }
         } else if (responsible && request.addr_ != "") {
+          log->info("Req_resp_handler if 3");
           bool send_response = true;
 
           TxnResponse rep_response;
