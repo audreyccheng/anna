@@ -87,6 +87,8 @@ class BaseSerializer {
 public:
   virtual string get(const string& txn_id, const Key &key,
                      AnnaError &error) = 0;
+  virtual string reveal_element(const Key &key,
+                                AnnaError &error) = 0;
   virtual void put(const string& txn_id, const Key &key,
                    const string &serialized, AnnaError &error,
                    const bool &is_primary) = 0;
@@ -115,6 +117,11 @@ public:
 
     // return serialize(val);
     return val;
+  }
+
+  string reveal_element(const Key &key, AnnaError &error) {
+    // TODO(@accheng: Update
+    return "";
   }
 
   void put(const string& txn_id, const Key &key,
@@ -154,6 +161,10 @@ public:
 
     // return serialize(val);
     return val;
+  }
+
+  string reveal_element(const Key &key, AnnaError &error) {
+    return lock_node_->reveal_element(key, error);
   }
 
   void put(const string& txn_id, const Key &key, const string &serialized,
@@ -197,6 +208,11 @@ public:
     if (ebs_root_.back() != '/') {
       ebs_root_ += "/";
     }
+  }
+
+  string reveal_element(const Key &key, AnnaError &error) {
+    // TODO(@accheng: Update
+    return "";
   }
 
   bool get_is_primary(const Key &key, AnnaError &error) {

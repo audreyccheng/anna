@@ -101,6 +101,8 @@ void storage_request_handler(
             tp->set_payload(res);
             tp->set_error(error);
             log->info("storage request tp payload {} error {}", tp->payload(), tp->error());
+            auto temp_val = serializer->reveal_element(key, error);
+          log->info("**** storage request actually holds at key {} value {} error {}", key, temp_val, error);
           }
         } else if (request_type == RequestType::TXN_PUT) {
           log->info("storage request putting txn id {} key {}", txn_id, key);
@@ -108,6 +110,8 @@ void storage_request_handler(
           process_txn_put(txn_id, key, payload, error, is_primary, serializer, 
                           stored_key_map);
           log->info("storage request process_txn_put error {}", error);
+          auto temp_val = serializer->reveal_element(key, error);
+          log->info("**** storage request now holds at key {} value {} error {}", key, temp_val, error);
           tp->set_error(error);
 
           local_changeset.insert(key);

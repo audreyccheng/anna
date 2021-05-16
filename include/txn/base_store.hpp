@@ -151,6 +151,14 @@ public:
     return db.at(k).reveal();
   }
 
+  string reveal_element(const K &k, AnnaError &error) {
+    if (db.find(k) == db.end()) {
+      error = AnnaError::KEY_DNE;
+      return ""; 
+    }
+    return db.at(k).reveal();
+  }
+
   void release_rlock(const string& txn_id, const K &k) {
     if (db.find(k) != db.end()) {
       db.at(k).release_rlock(txn_id);
