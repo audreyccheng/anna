@@ -122,6 +122,7 @@ void request_response_handler(
               // check if any PREPARE_TXNs are still pending
               // if not, move onto commit phase
               if (request_map[request.type_].size() == 1) {
+                log->info("req_resp only 1 prepare key {} txn_id {}", tuple_key, txn_id);
                 AnnaError error = AnnaError::NO_ERROR;
                 auto ops = process_get_ops(key, error, serializer, stored_key_map);
                 tp->set_error(error);
@@ -133,6 +134,7 @@ void request_response_handler(
                            request_map[RequestType::COMMIT_TXN].size() != 1) {
                   log->error("Unable to find client request to commit");
                 } else {
+                  og->info("req_resp commit in map size {}", request_map[RequestType::COMMIT_TXN].size());
                   TxnResponse commit_response;
                   commit_response.set_type(RequestType::COMMIT_TXN);
                   commit_response.set_txn_id(key);
@@ -152,7 +154,7 @@ void request_response_handler(
                     for (const Tier &tier : kStorageTiers) {
                       key_threads = kHashRingUtil->get_responsible_threads(
                           wt.replication_response_connect_address(), request.type_, 
-                          response.txn_id(), tuple_key, is_metadata(tuple_key), 
+                          response.txn_id(), op_key, is_metadata(op_key), 
                           global_hash_rings, local_hash_rings, key_replication_map, 
                           pushers, {tier}, succeed, seed, log);
                       if (key_threads.size() > 0) {
@@ -182,12 +184,13 @@ void request_response_handler(
 
                     // send COMMIT_TXN requests to storage tiers
                     for (unsigned i = 0; i < ops.size(); i++) {
-                	  auto op_key = ops[i].get_key();
+                	    auto op_key = ops[i].get_key();
                   	  auto op_payload = ops[i].get_value();
 
                       kHashRingUtil->issue_storage_request(
                         wt.request_response_connect_address(), RequestType::COMMIT_TXN, key, 
                         op_key, op_payload, all_key_threads[i][0], pushers); // TODO(@accheng): how should we choose thread?
+                      log->info("req_resp sending storage request  txn_id {} key {}", key, op_key);
 
                       pending_requests[key].push_back(
                           PendingTxnRequest(RequestType::COMMIT_TXN, key, op_key, op_payload,

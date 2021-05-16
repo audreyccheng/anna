@@ -240,6 +240,7 @@ void user_txn_request_handler(
                     PendingTxnRequest(RequestType::COMMIT_TXN, txn_id, op_key,
                                       op_payload, response_address,
                                       response_id));
+                log->info("Adding request type {} key {} to pending_requests", request_type, key);
               }
             }
             // response.set_error() = error;
