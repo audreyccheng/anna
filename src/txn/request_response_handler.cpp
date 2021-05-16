@@ -146,6 +146,7 @@ void request_response_handler(
                 log->info("req_resp only 1 prepare key {} txn_id {}", tuple_key, key);
                 AnnaError error = AnnaError::NO_ERROR;
                 auto ops = process_get_ops(key, error, serializer, stored_key_map);
+                log->info("req_resp process_get_ops size {}", ops.size());
                 tp->set_error(error);
                 // TODO(@accheng): should txn abort if there is an error here?
                 if (error != AnnaError::NO_ERROR) {
@@ -193,6 +194,7 @@ void request_response_handler(
                       }
                     }
 
+                    log->info("user_txn_request ops size {} abort_txn {}", ops.size(), abort_txn);
                     if (abort_txn) {
                       break;
                     } else {
