@@ -248,7 +248,7 @@ void request_response_handler(
               if (request_map[request.type_].size() == 1) {
                 process_commit_txn(key, error, serializer, stored_key_map);
                 log->info("request_response process_commit_txn key {} error {}", key, error);
-                auto temp_val = serializer->reveal_element(key, error);
+                auto temp_val = base_serializer->reveal_element(key, error);
                 log->info("***** request_response now holds at key {} value {} error {}", key, temp_val, error);
 
 

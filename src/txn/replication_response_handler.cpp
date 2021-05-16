@@ -294,7 +294,7 @@ void replication_response_handler(
               process_txn_put(request.txn_id_, key, payload, error,
                               is_primary, serializer, stored_key_map);
               log->info("replication_response process_txn_put payload{} error {}", payload, error);
-              auto temp_val = serializer->reveal_temp_element(key, error);
+              auto temp_val = base_serializer->reveal_temp_element(key, error);
               log->info("***** storage request now holds at key {} temp_value {} error {}", key, temp_val, error);
               tp->set_error(error);
 
