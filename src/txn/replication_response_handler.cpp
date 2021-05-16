@@ -38,7 +38,7 @@ void replication_response_handler(
     key = tuple_key;
   }
   Tier key_tier = get_tier_from_anna_tier(response.tier());
-  string payload = tuple.payload();
+  // string payload = tuple.payload();
 
   AnnaError error = tuple.error();
 
@@ -236,7 +236,7 @@ void replication_response_handler(
                   log->info("replication_response issuing storage request");
                   kHashRingUtil->issue_storage_request(
                     wt.request_response_connect_address(), request.type_, key, tuple_key, 
-                    payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+                    request.payload_, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
 
                   // add to pending request
                   // pending_requests[key].push_back(
@@ -291,9 +291,9 @@ void replication_response_handler(
               }
             } else if (request.type_ == RequestType::TXN_PUT) {
               AnnaError error = AnnaError::NO_ERROR;
-              process_txn_put(request.txn_id_, key, payload, error,
+              process_txn_put(request.txn_id_, key, request.payload_, error,
                               is_primary, serializer, stored_key_map);
-              log->info("replication_response process_txn_put payload{} error {}", payload, error);
+              log->info("replication_response process_txn_put payload{} error {}", request.payload_, error);
               auto temp_val = base_serializer->reveal_temp_element(key, error);
               log->info("***** storage request now holds at key {} temp_value {} error {}", key, temp_val, error);
               tp->set_error(error);
@@ -366,7 +366,7 @@ void replication_response_handler(
             /* LOG tier */
             if (request.type_ == RequestType::PREPARE_TXN || 
                 request.type_ == RequestType::COMMIT_TXN) {
-              process_log(request.txn_id_, key, payload, error, serializer); // TODO(@accheng): update
+              process_log(request.txn_id_, key, request.payload_, error, serializer); // TODO(@accheng): update
               tp->set_error(error);
             } else {
               log->error("Unknown request type {} in user request handler.",
