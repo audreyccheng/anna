@@ -194,6 +194,8 @@ void user_txn_request_handler(
                     txn_id, op_key, is_metadata(op_key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
                     pushers, {tier}, succeed, seed, log);
+                log->info("Getting threads for storage tiers for key {} value {} tier {} key_threads size {} suc {}", 
+                  op_key, op_payload, tier, key_threads.size(), succeed);
                 if (key_threads.size() > 0) {
                   break;
                 }
