@@ -11,6 +11,7 @@ void request_response_handler(
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
     ServerThread &wt, TxnSerializer *txn_serializer, BaseSerializer *base_serializer, 
     LogSerializer *log_serializer, SocketCache &pushers) {
+  log->info("Received request_response in handler");
   TxnResponse response;
   response.ParseFromString(serialized);
 
@@ -30,6 +31,7 @@ void request_response_handler(
 
   bool succeed;
 
+  log->info("Received request_response key {} tuple_key {} type {}", key, tuple_key, response.type());
   if (pending_requests.find(key) != pending_requests.end()) {
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), response.type(), 
@@ -46,6 +48,7 @@ void request_response_handler(
       for (unsigned i = 0; i < pending_requests[key].size(); ++i) {
         auto request = pending_requests[key][i];
         if (request.key_ == tuple_key && request.type_ == response.type()) {
+          log->info("found index {}", i);
           indices.push_back(i);
         }
         if (request_map.find(request.type_) == request_map.end()) {
