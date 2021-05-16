@@ -234,16 +234,17 @@ void user_txn_request_handler(
                   op_key, op_payload, all_key_threads[i][0], pushers); // TODO(@accheng): how should we choose thread?
                 log->info("user_txn_request sending storage request  txn_id {} key {}", txn_id, key);
 
-                // this is the commit response we want to send back to the client
-                // both key and op_key are txn_id
                 pending_requests[txn_id].push_back(
                     PendingTxnRequest(RequestType::PREPARE_TXN, txn_id, op_key,
                                       op_payload, response_address, sresponse_id));
-                log->info("Adding request type {} key {} to pending_requests", request_type, key);
+                log->info("Adding request type {} key {} to pending_requests", RequestType::PREPARE_TXN, key);
               }
+              // this is the commit response we want to send back to the client
+              // both key and op_key are txn_id
               pending_requests[txn_id].push_back(
                   PendingTxnRequest(RequestType::COMMIT_TXN, txn_id, key,
                                     "" /* payload */, response_address, response_id));
+              log->info("Adding commit request type pending_requests size {}", pending_requests[txn_id].size());
             }
             // response.set_error() = error;
 

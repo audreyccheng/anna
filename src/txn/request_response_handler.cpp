@@ -230,12 +230,12 @@ void request_response_handler(
 
                   // erase the client COMMIT_TXN pending request
                   pending_requests[key].erase(pending_requests[key].begin() + commit_index);
-		          request_map[RequestType::COMMIT_TXN].erase(request_map[RequestType::COMMIT_TXN].begin());
-		          if (commit_index + erase_count < index) {
-		          	erase_count++;
-		          }
-                }
-              } 
+    		          request_map[RequestType::COMMIT_TXN].erase(request_map[RequestType::COMMIT_TXN].begin());
+    		          if (commit_index + erase_count < index) {
+    		          	erase_count++;
+    		          }
+                    }
+                  } 
           	} else if (request.type_ == RequestType::COMMIT_TXN) {
               // response sent to client after prepare phase
               send_response = false;
