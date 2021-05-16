@@ -214,7 +214,7 @@ void user_txn_request_handler(
               }
             }
 
-            log->info("user_txn_request commit threads {} abort_txn {}", key_threads.size(), abort_txn);
+            log->info("user_txn_request commit threads {} abort_txn {}", all_key_threads.size(), abort_txn);
 
             // TODO(@accheng): send abort to client
             if (abort_txn) {
