@@ -39,9 +39,22 @@ void request_response_handler(
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         kSelfTierIdVector, succeed, seed, log);
 
+    string suc = "false";
+    if (succeed) {
+      suc = "true";
+    }
+    log->info("request_response request getting threads success: {}", suc);
+
     if (succeed) {
       bool responsible =
           std::find(threads.begin(), threads.end(), wt) != threads.end();
+
+      suc = "false";
+      if (responsible) {
+        suc = "true";
+      }
+      log->info("request_response request getting threads responsible: {}", suc);
+      log->info("request_response pending_requests[key] {} size {} ", key, pending_requests[key].size());
 
       vector<unsigned> indices; // get requests with this tuple_key
       RequestTypeMap request_map; // map request types of this transaction
