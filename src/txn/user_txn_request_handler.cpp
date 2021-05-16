@@ -236,7 +236,7 @@ void user_txn_request_handler(
 
                 pending_requests[txn_id].push_back(
                     PendingTxnRequest(RequestType::PREPARE_TXN, txn_id, op_key,
-                                      op_payload, response_address, sresponse_id));
+                                      op_payload, response_address, response_id));
                 log->info("Adding request type {} key {} to pending_requests", RequestType::PREPARE_TXN, key);
               }
               // this is the commit response we want to send back to the client
