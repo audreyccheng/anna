@@ -90,7 +90,8 @@ void user_txn_request_handler(
             response.set_txn_id(new_txn_id);
 
             // need to add txn_id to key_rep_map
-            init_tier_replication(key_replication_map, txn_id, kSelfTier);
+            init_tier_replication(key_replication_map, new_txn_id, kSelfTier);
+            // log->info("adding client_id {} new txn_id {} to key_rep_map")
 
             // TODO(@accheng): make sure all relevant threads know that it is now responsbile for this txn_id
             // kHashRingUtil->issue_replication_factor_request( 
