@@ -181,6 +181,8 @@ void request_response_handler(
                       if (key_threads.size() > 0) {
                         break;
                       }
+                      log->info("Getting threads for storage tiers for key {} value {} tier {} key_threads size {} suc {}", 
+                        op_key, op_payload, tier, key_threads.size(), succeed);
 
                       if (!succeed) { // this means we don't have the replication factor for
                                       // the key
@@ -236,6 +238,7 @@ void request_response_handler(
     		          }
                     }
                   } 
+                  log->info("request_response pending_requests[key] {} size {} ", key, pending_requests[key].size());
           	} else if (request.type_ == RequestType::COMMIT_TXN) {
               // response sent to client after prepare phase
               send_response = false;
