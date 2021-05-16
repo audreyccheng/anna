@@ -121,6 +121,8 @@ void handle_request(TxnClientInterface *client, string input) {
 
     if (responses.size() > 1) {
       std::cout << "Error: received more than one response" << std::endl;
+    } else if (responses[0].tuples().size() == 0) {
+      std::cout << "Error: no response tuples" << std::endl;
     }
 
     TxnResponse response = responses[0];

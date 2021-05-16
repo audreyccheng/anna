@@ -238,10 +238,12 @@ void user_txn_request_handler(
                 // both key and op_key are txn_id
                 pending_requests[txn_id].push_back(
                     PendingTxnRequest(RequestType::PREPARE_TXN, txn_id, op_key,
-                                      op_payload, response_address,
-                                      response_id));
+                                      op_payload, response_address, sresponse_id));
                 log->info("Adding request type {} key {} to pending_requests", request_type, key);
               }
+              pending_requests[txn_id].push_back(
+                  PendingTxnRequest(RequestType::COMMIT_TXN, txn_id, key,
+                                    "" /* payload */, response_address, response_id));
             }
             // response.set_error() = error;
 
