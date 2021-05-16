@@ -71,6 +71,8 @@ class LockElement {
 
   const string &reveal() const { return element; }
 
+  const string &temp_reveal() const { return temp_element; }
+
   void assign(const string e) { temp_element = e; }
 
   void assign_primary(const bool &primary) {
@@ -157,6 +159,14 @@ public:
       return ""; 
     }
     return db.at(k).reveal();
+  }
+
+  string reveal_temp_element(const K &k, AnnaError &error) {
+    if (db.find(k) == db.end()) {
+      error = AnnaError::KEY_DNE;
+      return ""; 
+    }
+    return db.at(k).temp_reveal();
   }
 
   void release_rlock(const string& txn_id, const K &k) {

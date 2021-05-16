@@ -89,6 +89,8 @@ public:
                      AnnaError &error) = 0;
   virtual string reveal_element(const Key &key,
                                 AnnaError &error) = 0;
+  virtual string reveal_temp_element(const Key &key,
+                                     AnnaError &error) = 0;
   virtual void put(const string& txn_id, const Key &key,
                    const string &serialized, AnnaError &error,
                    const bool &is_primary) = 0;
@@ -120,6 +122,11 @@ public:
   }
 
   string reveal_element(const Key &key, AnnaError &error) {
+    // TODO(@accheng: Update
+    return "";
+  }
+
+  string reveal_temp_element(const Key &key, AnnaError &error) {
     // TODO(@accheng: Update
     return "";
   }
@@ -167,6 +174,10 @@ public:
     return lock_node_->reveal_element(key, error);
   }
 
+  string reveal_temp_element(const Key &key, AnnaError &error) {
+    return lock_node_->reveal_temp_element(key, error);
+  }
+
   void put(const string& txn_id, const Key &key, const string &serialized,
            AnnaError &error, const bool &is_primary) {
     // Operation val = deserialize_op(serialized);
@@ -211,6 +222,11 @@ public:
   }
 
   string reveal_element(const Key &key, AnnaError &error) {
+    // TODO(@accheng: Update
+    return "";
+  }
+
+  string reveal_temp_element(const Key &key, AnnaError &error) {
     // TODO(@accheng: Update
     return "";
   }

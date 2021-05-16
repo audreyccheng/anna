@@ -293,7 +293,9 @@ void replication_response_handler(
               AnnaError error = AnnaError::NO_ERROR;
               process_txn_put(request.txn_id_, key, payload, error,
                               is_primary, serializer, stored_key_map);
-              log->info("replication_response process_txn_put error {}", error);
+              log->info("replication_response process_txn_put payload{} error {}", payload, error);
+              auto temp_val = serializer->reveal_temp_element(key, error);
+              log->info("***** storage request now holds at key {} temp_value {} error {}", key, temp_val, error);
               tp->set_error(error);
 
               local_changeset.insert(key);
@@ -329,7 +331,7 @@ void replication_response_handler(
                 // continue;
                 /* NO LOG */
               }
-            } else if (request.type_ == RequestType::COMMIT_TXN) {
+            } else if (request.type_ == RequestType::COMMIT_TXN) { // TODO(@accheng): this should never happen?
               if (stored_key_map.find(key) == stored_key_map.end()) {
                 tp->set_error(AnnaError::KEY_DNE);
               } else {
