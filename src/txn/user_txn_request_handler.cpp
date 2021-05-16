@@ -196,6 +196,7 @@ void user_txn_request_handler(
                     pushers, {tier}, succeed, seed, log);
                 log->info("Getting threads for storage tiers for key {} value {} tier {} key_threads size {} suc {}", 
                   op_key, op_payload, tier, key_threads.size(), succeed);
+                
                 if (key_threads.size() > 0) {
                   break;
                 }
@@ -209,6 +210,7 @@ void user_txn_request_handler(
                 }
               }
 
+              log->info("user_txn_request ops size {} abort_txn {}", ops.size(), abort_txn);
               if (abort_txn) {
                 break;
               } else {
