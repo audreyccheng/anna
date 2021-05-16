@@ -122,7 +122,7 @@ void request_response_handler(
               // check if any PREPARE_TXNs are still pending
               // if not, move onto commit phase
               if (request_map[request.type_].size() == 1) {
-                log->info("req_resp only 1 prepare key {} txn_id {}", tuple_key, txn_id);
+                log->info("req_resp only 1 prepare key {} txn_id {}", tuple_key, key);
                 AnnaError error = AnnaError::NO_ERROR;
                 auto ops = process_get_ops(key, error, serializer, stored_key_map);
                 tp->set_error(error);
