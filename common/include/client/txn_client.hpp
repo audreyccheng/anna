@@ -25,12 +25,6 @@
 
 using TimePoint = std::chrono::time_point<std::chrono::system_clock>;
 
-struct PendingRequest {
-  TimePoint tp_;
-  Address worker_addr_;
-  KeyRequest request_;
-};
-
 struct PendingTxn {
   TimePoint tp_;
   Address worker_addr_;
@@ -49,9 +43,6 @@ inline string get_client_id_from_txn_id(const string& txn_id) {
 
 class TxnClientInterface {
  public:
-  virtual string put_async(const Key& key, const string& payload,
-                           LatticeType lattice_type) = 0;
-  virtual void get_async(const Key& key) = 0;
   virtual void start_txn(const string& client_id) = 0;
   virtual void txn_get(const string& client_id, const string& txn_id,
                        const Key& key) = 0;
@@ -108,49 +99,23 @@ class TxnClient : public TxnClientInterface {
 
  public:
   /**
-   * Issue an async PUT request to the KVS for a certain lattice typed value.
+   * Issue an async START_TXN request to the KVS.
    */
-  string put_async(const Key& key, const string& payload,
-                   LatticeType lattice_type) {
-    KeyRequest request;
-    KeyTuple* tuple = prepare_data_request(request, key);
-    request.set_type(RequestType::PUT);
-    tuple->set_lattice_type(lattice_type);
-    tuple->set_payload(payload);
-
-    try_request(request);
-    return request.request_id();
-  }
-
-  /**
-   * Issue an async GET request to the KVS.
-   */
-  void get_async(const Key& key) {
-    // we issue GET only when it is not in the pending map
-    if (pending_get_response_map_.find(key) ==
-        pending_get_response_map_.end()) {
-      KeyRequest request;
-      prepare_data_request(request, key);
-      request.set_type(RequestType::GET);
-
-      try_request(request);
-    }
-  }
-
   void start_txn(const string& client_id) {
     // TODO(@accheng): only issue start_txn if not in the pending map?
     if (pending_txn_response_map_.find(client_id) ==
         pending_txn_response_map_.end()) {
       TxnRequest request;
-      prepare_txn_data_request(request, client_id); // TODO(@accheng): change this to txn_id
+      prepare_txn_data_request(request, client_id);
       request.set_type(RequestType::START_TXN);
-      // No transaction id yet
-      // request.set_txn_id("");
 
       try_txn_request(request, client_id);
     }
   }
 
+  /**
+   * Issue an async TXN_GET request to the KVS.
+   */
   void txn_get(const string& client_id, const string& txn_id,
                const Key& key) {
     // // TODO(@accheng): Is this if needed??
@@ -165,6 +130,9 @@ class TxnClient : public TxnClientInterface {
     // }
   }
 
+  /**
+   * Issue an async TXN_PUT request to the KVS.
+   */
   string txn_put(const string& client_id, const string& txn_id,
                  const Key& key, const string& payload) {
     TxnRequest request;
@@ -177,6 +145,9 @@ class TxnClient : public TxnClientInterface {
     return request.request_id();
   }
 
+  /**
+   * Issue an async COMMIT_TXN request to the KVS.
+   */
   void commit_txn(const string& client_id, const string& txn_id) {
     // TODO(@accheng): only issue commit_txn if not in the pending map?
     if (pending_txn_response_map_.find(txn_id) ==
@@ -189,148 +160,6 @@ class TxnClient : public TxnClientInterface {
       try_txn_request(request, client_id);
     }
   }
-
-  // vector<KeyResponse> receive_async() {
-  //   vector<KeyResponse> result;
-  //   kZmqUtil->poll(0, &pollitems_);
-
-  //   if (pollitems_[0].revents & ZMQ_POLLIN) {
-  //     string serialized = kZmqUtil->recv_string(&key_address_puller_);
-  //     KeyAddressResponse response;
-  //     response.ParseFromString(serialized);
-  //     Key key = response.addresses(0).key();
-
-  //     if (pending_request_map_.find(key) != pending_request_map_.end()) {
-  //       if (response.error() == AnnaError::NO_SERVERS) {
-  //         log_->error(
-  //             "No servers have joined the cluster yet. Retrying request.");
-  //         pending_request_map_[key].first = std::chrono::system_clock::now();
-
-  //         query_routing_async(key);
-  //       } else {
-  //         // populate cache
-  //         for (const Address& ip : response.addresses(0).ips()) {
-  //           key_address_cache_[key].insert(ip);
-  //         }
-
-  //         // handle stuff in pending request map
-  //         for (auto& req : pending_request_map_[key].second) {
-  //           try_request(req);
-  //         }
-
-  //         // GC the pending request map
-  //         pending_request_map_.erase(key);
-  //       }
-  //     }
-  //   }
-
-  //   if (pollitems_[1].revents & ZMQ_POLLIN) {
-  //     string serialized = kZmqUtil->recv_string(&response_puller_);
-  //     KeyResponse response;
-  //     response.ParseFromString(serialized);
-  //     Key key;  = response.tuples(0).key();
-
-  //     if (response.type() == RequestType::GET) {
-  //       if (pending_get_response_map_.find(key) !=
-  //           pending_get_response_map_.end()) {
-  //         if (check_tuple(response.tuples(0))) {
-  //           // error no == 2, so re-issue request
-  //           pending_get_response_map_[key].tp_ =
-  //               std::chrono::system_clock::now();
-
-  //           try_request(pending_get_response_map_[key].request_);
-  //         } else {
-  //           // error no == 0 or 1
-  //           result.push_back(response);
-  //           pending_get_response_map_.erase(key);
-  //         }
-  //       }
-  //     } else {
-  //       if (pending_put_response_map_.find(key) !=
-  //               pending_put_response_map_.end() &&
-  //           pending_put_response_map_[key].find(response.response_id()) !=
-  //               pending_put_response_map_[key].end()) {
-  //         if (check_tuple(response.tuples(0))) {
-  //           // error no == 2, so re-issue request
-  //           pending_put_response_map_[key][response.response_id()].tp_ =
-  //               std::chrono::system_clock::now();
-
-  //           try_request(pending_put_response_map_[key][response.response_id()]
-  //                           .request_);
-  //         } else {
-  //           // error no == 0
-  //           result.push_back(response);
-  //           pending_put_response_map_[key].erase(response.response_id());
-
-  //           if (pending_put_response_map_[key].size() == 0) {
-  //             pending_put_response_map_.erase(key);
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-
-  //   // GC the pending request map
-  //   set<Key> to_remove;
-  //   for (const auto& pair : pending_request_map_) {
-  //     if (std::chrono::duration_cast<std::chrono::milliseconds>(
-  //             std::chrono::system_clock::now() - pair.second.first)
-  //             .count() > timeout_) {
-  //       // query to the routing tier timed out
-  //       for (const auto& req : pair.second.second) {
-  //         result.push_back(generate_bad_response(req));
-  //       }
-
-  //       to_remove.insert(pair.first);
-  //     }
-  //   }
-
-  //   for (const Key& key : to_remove) {
-  //     pending_request_map_.erase(key);
-  //   }
-
-  //   // GC the pending get response map
-  //   to_remove.clear();
-  //   for (const auto& pair : pending_get_response_map_) {
-  //     if (std::chrono::duration_cast<std::chrono::milliseconds>(
-  //             std::chrono::system_clock::now() - pair.second.tp_)
-  //             .count() > timeout_) {
-  //       // query to server timed out
-  //       result.push_back(generate_bad_response(pair.second.request_));
-  //       to_remove.insert(pair.first);
-  //       invalidate_cache_for_worker(pair.second.worker_addr_);
-  //     }
-  //   }
-
-  //   for (const Key& key : to_remove) {
-  //     pending_get_response_map_.erase(key);
-  //   }
-
-  //   // GC the pending put response map
-  //   map<Key, set<string>> to_remove_put;
-  //   for (const auto& key_map_pair : pending_put_response_map_) {
-  //     for (const auto& id_map_pair :
-  //          pending_put_response_map_[key_map_pair.first]) {
-  //       if (std::chrono::duration_cast<std::chrono::milliseconds>(
-  //               std::chrono::system_clock::now() -
-  //               pending_put_response_map_[key_map_pair.first][id_map_pair.first]
-  //                   .tp_)
-  //               .count() > timeout_) {
-  //         result.push_back(generate_bad_response(id_map_pair.second.request_));
-  //         to_remove_put[key_map_pair.first].insert(id_map_pair.first);
-  //         invalidate_cache_for_worker(id_map_pair.second.worker_addr_);
-  //       }
-  //     }
-  //   }
-
-  //   for (const auto& key_set_pair : to_remove_put) {
-  //     for (const auto& id : key_set_pair.second) {
-  //       pending_put_response_map_[key_set_pair.first].erase(id);
-  //     }
-  //   }
-
-  //   return result;
-  // }
 
   vector<TxnResponse> receive_txn_async() {
     vector<TxnResponse> result;
@@ -532,60 +361,19 @@ class TxnClient : public TxnClientInterface {
 
  private:
   /**
-   * A recursive helper method for the get and put implementations that tries
+   * A recursive helper method for that tries
    * to issue a request at most trial_limit times before giving up. It  checks
    * for the default failure modes (timeout, errno == 2, and cache
    * invalidation). If there are no issues, it returns the set of responses to
-   * the respective implementations for them to deal with. This is the same as
-   * the above implementation of try_multi_request, except it only operates on
-   * a single request.
+   * the respective implementations for them to deal with.
    */
-  void try_request(KeyRequest& request) {
-    // we only get NULL back for the worker thread if the query to the routing
-    // tier timed out, which should never happen.
-    Key key = request.tuples(0).key();
-    Address worker = get_worker_thread("", false);
-    if (worker.length() == 0) {
-      // this means a key addr request is issued asynchronously
-      if (pending_request_map_.find(key) == pending_request_map_.end()) {
-        pending_request_map_[key].first = std::chrono::system_clock::now();
-      }
-      pending_request_map_[key].second.push_back(request);
-      return;
-    }
-
-    request.mutable_tuples(0)->set_address_cache_size(
-        key_address_cache_[key].size());
-
-    send_request<KeyRequest>(request, socket_cache_[worker]);
-
-    if (request.type() == RequestType::GET) {
-      if (pending_get_response_map_.find(key) ==
-          pending_get_response_map_.end()) {
-        pending_get_response_map_[key].tp_ = std::chrono::system_clock::now();
-        pending_get_response_map_[key].request_ = request;
-      }
-
-      pending_get_response_map_[key].worker_addr_ = worker;
-    } else {
-      if (pending_put_response_map_[key].find(request.request_id()) ==
-          pending_put_response_map_[key].end()) {
-        pending_put_response_map_[key][request.request_id()].tp_ =
-            std::chrono::system_clock::now();
-        pending_put_response_map_[key][request.request_id()].request_ = request;
-      }
-      pending_put_response_map_[key][request.request_id()].worker_addr_ =
-          worker;
-    }
-  }
-
   void try_txn_request(TxnRequest& request, const string &client_id) {
     // we only get NULL back for the worker thread if the query to the routing
     // tier timed out, which should never happen.
     Key key = request.tuples(0).key();
     log_->info("Trying request with type {} and key {}", request.type(), key);
 
-    Address worker = get_worker_thread(client_id, true);
+    Address worker = get_worker_thread(client_id);
     if (worker.length() == 0) {
       log_->info("No worker threads for client {} yet", client_id);
       // this means a key addr request is issued asynchronously
@@ -630,28 +418,6 @@ class TxnClient : public TxnClientInterface {
    * the request (this happens if errno == 2). Otherwise, it returns false. It
    * invalidates the local cache if the information is out of date.
    */
-  bool check_tuple(const KeyTuple& tuple) {
-    Key key = tuple.key();
-    if (tuple.error() == 2) {
-      log_->info(
-          "Server ordered invalidation of key address cache for key {}. "
-          "Retrying request.",
-          key);
-
-      invalidate_cache_for_key(key, tuple);
-      return true;
-    }
-
-    if (tuple.invalidate()) {
-      invalidate_cache_for_key(key, tuple);
-
-      log_->info("Server ordered invalidation of key address cache for key {}",
-                 key);
-    }
-
-    return false;
-  }
-
   bool check_txn_tuple(const TxnKeyTuple& tuple) {
     Key key = tuple.key();
     if (tuple.error() == 2) {
@@ -680,10 +446,6 @@ class TxnClient : public TxnClientInterface {
    * the updated information for that key, and update our cache with that
    * information.
    */
-  void invalidate_cache_for_key(const Key& key, const KeyTuple& tuple) {
-    key_address_cache_.erase(key);
-  }
-
   void invalidate_txn_cache_for_key(const Key& key, const TxnKeyTuple& tuple) {
     key_address_cache_.erase(key);
   }
@@ -722,16 +484,6 @@ class TxnClient : public TxnClientInterface {
    * KeyRequest and also returns a pointer to the KeyTuple contained by this
    * request.
    */
-  KeyTuple* prepare_data_request(KeyRequest& request, const Key& key) {
-    request.set_request_id(get_request_id());
-    request.set_response_address(ut_.response_connect_address());
-
-    KeyTuple* tp = request.add_tuples();
-    tp->set_key(key);
-
-    return tp;
-  }
-
   TxnKeyTuple* prepare_txn_data_request(TxnRequest& request, const Key& key) {
     request.set_request_id(get_request_id());
     request.set_response_address(ut_.response_connect_address());
@@ -747,17 +499,11 @@ class TxnClient : public TxnClientInterface {
    * threads, a request is sent to the routing tier. If the query times out,
    * NULL is returned.
    */
-  set<Address> get_all_worker_threads(const Key& key, bool is_txn) {
+  set<Address> get_all_worker_threads(const Key& key) {
     if (key_address_cache_.find(key) == key_address_cache_.end() ||
         key_address_cache_[key].size() == 0) {
-      if (is_txn) {
-        if (pending_txn_map_.find(key) == pending_txn_map_.end()) {
-          query_routing_async(key);
-        }
-      } else {
-        if (pending_request_map_.find(key) == pending_request_map_.end()) {
-          query_routing_async(key);
-        }
+      if (pending_txn_map_.find(key) == pending_txn_map_.end()) {
+        query_routing_async(key);
       }
       return set<Address>();
     } else {
@@ -769,8 +515,8 @@ class TxnClient : public TxnClientInterface {
    * Similar to the previous method, but only returns one (randomly chosen)
    * worker address instead of all of them.
    */
-  Address get_worker_thread(const Key& key, bool is_txn) {
-    set<Address> local_cache = get_all_worker_threads(key, is_txn);
+  Address get_worker_thread(const Key& key) {
+    set<Address> local_cache = get_all_worker_threads(key);
 
     // This will be empty if the worker threads are not cached locally
     if (local_cache.size() == 0) {
@@ -816,24 +562,6 @@ class TxnClient : public TxnClientInterface {
            std::to_string(rid_++);
   }
 
-  KeyResponse generate_bad_response(const KeyRequest& req) {
-    KeyResponse resp;
-
-    resp.set_type(req.type());
-    resp.set_response_id(req.request_id());
-    resp.set_error(AnnaError::TIMEOUT);
-
-    KeyTuple* tp = resp.add_tuples();
-    tp->set_key(req.tuples(0).key());
-
-    if (req.type() == RequestType::PUT) {
-      tp->set_lattice_type(req.tuples(0).lattice_type());
-      tp->set_payload(req.tuples(0).payload());
-    }
-
-    return resp;
-  }
-
   TxnResponse generate_bad_txn_response(const TxnRequest& req) {
     TxnResponse resp;
 
@@ -877,15 +605,6 @@ class TxnClient : public TxnClientInterface {
 
   // GC timeout
   unsigned timeout_;
-
-  // keeps track of pending requests due to missing worker address
-  map<Key, pair<TimePoint, vector<KeyRequest>>> pending_request_map_;
-
-  // keeps track of pending get responses
-  map<Key, PendingRequest> pending_get_response_map_;
-
-  // keeps track of pending put responses
-  map<Key, map<string, PendingRequest>> pending_put_response_map_;
 
   // keeps track of pending txn requests due to missing worker address
   map<Key, pair<TimePoint, vector<TxnRequest>>> pending_txn_map_;
