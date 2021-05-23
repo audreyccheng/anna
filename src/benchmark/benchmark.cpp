@@ -126,9 +126,7 @@ void run(const unsigned &thread_id,
         auto warmup_start = std::chrono::system_clock::now();
 
         for (unsigned i = 1; i <= num_keys; i++) {
-          if (i % 50000 == 0) {
-            log->info("Warming up cache for key {}.", i);
-          }
+          log->info("Warming up cache for key {}.", i);
 
           client.get_async(generate_key(i));
         }
@@ -301,7 +299,13 @@ void run(const unsigned &thread_id,
         Key key;
         auto warmup_start = std::chrono::system_clock::now();
 
+        log->info("Finish init time: {}", std::chrono::duration_cast<std::chrono::seconds>(
+                               std::chrono::system_clock::now() - warmup_start)
+                               .count());
         for (unsigned i = start; i < end; i++) {
+          log->info("Loop start time: {}", std::chrono::duration_cast<std::chrono::seconds>(
+                               std::chrono::system_clock::now() - warmup_start)
+                               .count());
           if (i % 50000 == 0) {
             log->info("Creating key {}.", i);
           }
@@ -310,7 +314,13 @@ void run(const unsigned &thread_id,
           LWWPairLattice<string> val(
               TimestampValuePair<string>(ts, string(length, 'a')));
 
+          log->info("Pre-put time: {}", std::chrono::duration_cast<std::chrono::seconds>(
+                               std::chrono::system_clock::now() - warmup_start)
+                               .count());
           client.put_async(generate_key(i), serialize(val), LatticeType::LWW);
+          log->info("Post-put time: {}", std::chrono::duration_cast<std::chrono::seconds>(
+                               std::chrono::system_clock::now() - warmup_start)
+                               .count());
           receive(&client);
         }
 

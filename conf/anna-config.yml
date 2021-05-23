@@ -1,0 +1,57 @@
+monitoring:
+  mgmt_ip: 127.0.0.1
+  ip: 127.0.0.1
+routing:
+  monitoring: 
+      - 127.0.0.1
+  ip: 127.0.0.1
+user:
+  monitoring:
+      - 127.0.0.1
+  routing: 
+      - 127.0.0.1
+  ip: 127.0.0.1
+benchmark:
+  - 127.0.0.1
+server:
+  monitoring:
+      - 127.0.0.1
+  routing: 
+      - 127.0.0.1
+  seed_ip: 127.0.0.1
+  public_ip: 127.0.0.1
+  private_ip: 127.0.0.1
+  mgmt_ip: "NULL"
+txn-server:
+  monitoring:
+      - 127.0.0.1
+  routing: 
+      - 127.0.0.1
+  seed_ip: 127.0.0.1 #127.0.1.1
+  public_ip: 127.0.0.1 #127.0.1.1
+  private_ip: 127.0.0.1 #127.0.1.1
+  mgmt_ip: "NULL"
+policy:
+  elasticity: false
+  selective-rep: false
+  tiering: false
+ebs: ./
+capacities: # in GB
+  txn-cap: 1
+  memory-cap: 1 
+  ebs-cap: 0
+  log-cap: 1
+threads:
+  txn: 1
+  memory: 1
+  ebs: 1
+  log: 1
+  routing: 1
+  benchmark: 1
+replication:
+  txn: 1
+  memory: 1
+  ebs: 0
+  log: 1
+  minimum: 1
+  local: 1
