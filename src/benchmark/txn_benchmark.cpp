@@ -39,10 +39,10 @@ double get_zipf_prob(unsigned rank, double skew, double base) {
   return pow(rank, -1 * skew) / base;
 }
 
-void receive(KvsClientInterface *client) {
-  vector<KeyResponse> responses = client->receive_async();
+void receive(TxnClientInterface *client) {
+  vector<TxnResponse> responses = client->receive_txn_async();
   while (responses.size() == 0) {
-    responses = client->receive_async();
+    responses = client->receive_txn_async();
   }
 }
 
@@ -143,6 +143,7 @@ void run(const unsigned &thread_id,
         for (unsigned i = 1; i <= num_keys; i++) {
           log->info("Warming up cache for key {}.", i);
           client.txn_get(0, txn_id, generate_key(i));
+          receive(&client);
         }
 
         // commit dummy txn
@@ -306,45 +307,43 @@ void run(const unsigned &thread_id,
         //       &pushers[thread.feedback_report_connect_address()]);
         // }
       } else if (mode == "WARM") {
-        // unsigned num_keys = stoi(v[1]);
-        // unsigned length = stoi(v[2]);
-        // unsigned total_threads = stoi(v[3]);
-        // unsigned range = num_keys / total_threads;
-        // unsigned start = thread_id * range + 1;
-        // unsigned end = thread_id * range + 1 + range;
+        // WARM:<number of keys>:<length of values>:<threads>
+        unsigned num_keys = stoi(v[1]);
+        unsigned length = stoi(v[2]);
+        unsigned total_threads = stoi(v[3]);
+        unsigned range = num_keys / total_threads;
+        unsigned start = thread_id * range + 1;
+        unsigned end = thread_id * range + 1 + range;
 
-        // Key key;
-        // auto warmup_start = std::chrono::system_clock::now();
+        // create dummy txn for warming cache
+        client.start_txn(client_id);
 
-        // log->info("Finish init time: {}", std::chrono::duration_cast<std::chrono::seconds>(
-        //                        std::chrono::system_clock::now() - warmup_start)
-        //                        .count());
-        // for (unsigned i = start; i < end; i++) {
-        //   log->info("Loop start time: {}", std::chrono::duration_cast<std::chrono::seconds>(
-        //                        std::chrono::system_clock::now() - warmup_start)
-        //                        .count());
-        //   if (i % 50000 == 0) {
-        //     log->info("Creating key {}.", i);
-        //   }
+        // get txn id
+        vector<TxnResponse> responses = client.receive_txn_async();
+        while (responses.size() == 0) {
+          responses = client.receive_txn_async();
+        }
+        auto txn_id = responses[0].txn_id();
 
-        //   unsigned ts = generate_timestamp(thread_id);
-        //   LWWPairLattice<string> val(
-        //       TimestampValuePair<string>(ts, string(length, 'a')));
+        Key key;
+        auto warmup_start = std::chrono::system_clock::now();
 
-        //   log->info("Pre-put time: {}", std::chrono::duration_cast<std::chrono::seconds>(
-        //                        std::chrono::system_clock::now() - warmup_start)
-        //                        .count());
-        //   client.put_async(generate_key(i), serialize(val), LatticeType::LWW);
-        //   log->info("Post-put time: {}", std::chrono::duration_cast<std::chrono::seconds>(
-        //                        std::chrono::system_clock::now() - warmup_start)
-        //                        .count());
-        //   receive(&client);
-        // }
+        for (unsigned i = start; i < end; i++) {
+          if (i % 50000 == 0) {
+            log->info("Creating key {}.", i);
+          }
 
-        // auto warmup_time = std::chrono::duration_cast<std::chrono::seconds>(
-        //                        std::chrono::system_clock::now() - warmup_start)
-        //                        .count();
-        // log->info("Warming up data took {} seconds.", warmup_time);
+          client.txn_put(client_id, txn_id, generate_key(i), string(length, 'a'));
+          receive(&client);
+        }
+
+        // commit dummy txn
+        client.commit_txn(client_id, txn_id);
+
+        auto warmup_time = std::chrono::duration_cast<std::chrono::seconds>(
+                               std::chrono::system_clock::now() - warmup_start)
+                               .count();
+        log->info("Warming up data took {} seconds.", warmup_time);
       } else {
         log->info("{} is an invalid mode.", mode);
       }
