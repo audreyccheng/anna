@@ -21,6 +21,11 @@ TARGET_LINK_LIBRARIES(anna-bench anna-hash-ring ${KV_LIBRARY_DEPENDENCIES}
   anna-bench-proto)
 ADD_DEPENDENCIES(anna-bench zeromq zeromqcpp)
 
+ADD_EXECUTABLE(anna-txn-bench txn_benchmark.cpp)
+TARGET_LINK_LIBRARIES(anna-txn-bench anna-hash-ring ${KV_LIBRARY_DEPENDENCIES}
+  anna-bench-proto)
+ADD_DEPENDENCIES(anna-txn-bench zeromq zeromqcpp)
+
 ADD_EXECUTABLE(anna-bench-trigger trigger.cpp)
 TARGET_LINK_LIBRARIES(anna-bench-trigger anna-hash-ring ${KV_LIBRARY_DEPENDENCIES}
   anna-bench-proto)
