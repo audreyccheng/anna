@@ -225,5 +225,113 @@ public:
   void remove(const K &k) { db.erase(k); }
 };
 
+// template <typename T>
+class MVCCVersion {
+ protected:
+  string value;
+  long wts;
+  long rts;
+  bool is_primary;
+
+ public:
+  MVCCVersion(const long tts, const string &e, const bool &primary) { 
+    wts = tts;
+    rts = tts;
+    value = e;
+    is_primary = primary;
+  }
+
+  const string &read() const { 
+    return value;
+  }
+
+  void update_rts(const long tts) { 
+    rts = std::max(tts, rts);
+  }
+
+  void assign_primary(const bool &primary) {
+    is_primary = primary;
+  }
+
+  const bool &get_is_primary() const { return is_primary; }
+
+  const long &get_wts() {
+    return wts;
+  }
+
+  const bool write_allowed(const long tts) {
+    return rts <= tts;
+  }
+};
+
+template <typename K> class MVCCNode {
+protected:
+  // Versions stored in reverse chronological order
+  map<K, vector<MVCCVersion>> db;
+
+public:
+  MVCCNode<K>() {}
+
+  MVCCNode<K>(map<K, vector<MVCCVersion>> &other) { db = other; }
+
+  string get(const long tts, const K &k, AnnaError &error) {
+    MVCCVersion *snapshot = snapshot(tts, k);
+
+    if (snapshot == NULL) {
+      // Key never written to before this transaction
+      error = AnnaError::KEY_DNE;
+      return "";
+    }
+    
+    return snapshot->read();
+  }
+
+  bool get_is_primary(const K &k, AnnaError &error) {
+    if (db.find(k) != db.end()) {
+      return db.at(k).get_is_primary();
+    } else {
+      error = AnnaError::FAILED_OP;
+      return false;
+    }
+  }
+
+  MVCCVersion* snapshot(const long tts, const K &k) {
+    if (db.find(k) == db.end()) {
+      return NULL; 
+    }
+
+    vector<MVCCVersion> versions = db.at(k);
+
+    // Find last version written before TTS
+    MVCCVersion snapshot;
+    for (MVCCVersion &version : versions) {
+      if (version.get_wts() <= tts) {
+        version.update_rts(tts);
+        return &version;
+      }
+    }
+
+    return NULL;
+  }
+
+  void put(const long tts, const K &k, const string &v,
+           AnnaError &error, const bool &is_primary) {
+    if (db.find(k) == db.end()) {
+      // Key doesn't exist in db yet
+      db[k] = { MVCCVersion(tts, v, is_primary) };
+    } else {
+      // Key exists in db; get snapshot version
+      MVCCVersion *snapshot = snapshot(tts, k);
+      
+      // Check rts <= tts
+      if (snapshot == NULL || snapshot->write_allowed(tts)) {
+        db[k].insert(0, MVCCVersion(tts, v, is_primary));
+      } else {
+        error = AnnaError::FAILED_OP;
+      }
+    }
+  }
+};
+
 
 #endif // INCLUDE_TXN_BASE_STORE_HPP_
