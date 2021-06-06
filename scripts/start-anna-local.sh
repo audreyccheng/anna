@@ -34,6 +34,7 @@ RPID=$!
 # export SERVER_TYPE="memory"
 # ./build/target/kvs/anna-txn &
 # SPID=$!
+export SERIALIZABILITY_PROTOCOL="locking"
 export SERVER_TYPE="txn"
 ./build/target/kvs/anna-txn &
 S2PID=$!

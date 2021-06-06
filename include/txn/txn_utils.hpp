@@ -396,8 +396,8 @@ public:
 using RequestTypeMap =
     std::unordered_map<RequestType, vector<unsigned>, request_type_hash>;
 
-// using SerializerMap =
-//     std::unordered_map<LatticeType, Serializer *, lattice_type_hash>;
+using StorageSerializerMap =
+    std::unordered_map<SerializabilityProtocol, BaseSerializer *, serializability_protocol_hash>;
 
 struct PendingTxnRequest {
   PendingTxnRequest() {}

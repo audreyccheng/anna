@@ -27,6 +27,8 @@ unsigned kThreadNum;
 Tier kSelfTier;
 vector<Tier> kSelfTierIdVector;
 
+unsigned kSerializabilityProtocol;
+
 unsigned kTxnThreadCount;
 unsigned kMemoryThreadCount;
 unsigned kEbsThreadCount;
@@ -201,23 +203,41 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
   }
 
   SerializerMap serializers;
+  StorageSerializerMap storage_serializers;
 
   TxnSerializer *txn_serialier;
-  BaseSerializer *base_serializer;
+  BaseSerializer *base_serializer; // TODO(@accheng): make this per-request instead?
   LogSerializer *log_serializer;
+
+  BaseSerializer *lock_serializer;
+  BaseSerializer *mvcc_serializer;
 
   if (kSelfTier == Tier::TXN || kSelfTier == Tier::MEMORY || 
       kSelfTier == Tier::DISK || kSelfTier == Tier::LOG) { // TODO(@accheng): update
     BaseTxn *base_txn_node = new BaseTxn();
     txn_serialier = new BaseTxnSerializer(base_txn_node);
 
-    LockStore *base_node = new LockStore();
-    base_serializer = new LockStoreSerializer(base_node);
+    LockStore *lock_node = new LockStore();
+    lock_serializer = new LockStoreSerializer(lock_node);
+
+    // TODO(@darkterber): add MVCC serializer
 
     BaseLog *base_log_node = new BaseLog();
     log_serializer = new BaseLogSerializer(base_log_node);
   } else {
     log->info("Invalid node type");
+    exit(1);
+  }
+
+  storage_serializers[SerializabilityProtocol::LOCKING] = lock_serializer;
+  storage_serializers[SerializabilityProtocol::MVCC] = mvcc_serializer;
+
+  if (kSerializabilityProtocol == SerializabilityProtocol::LOCKING) {
+    base_serializer = lock_serializer;
+  } else if (kSerializabilityProtocol == SerializabilityProtocol::MVCC) {
+    base_serializer = mvcc_serializer;
+  } else {
+    log->info("Invalid serializability protocol");
     exit(1);
   }
 
@@ -816,6 +836,25 @@ int main(int argc, char *argv[]) {
            "server in memory mode."
         << std::endl;
     kSelfTier = Tier::MEMORY;
+  }
+
+  char *sptype = getenv("SERIALIZABILITY_PROTOCOL");
+  if (sptype != NULL) {
+    if (strncmp(sptype, "locking", 7) == 0) {
+      kSerializabilityProtocol = SerializabilityProtocol::LOCKING;
+    } else if (strncmp(sptype, "mvcc", 4) == 0) {
+      kSerializabilityProtocol = SerializabilityProtocol::MVCC;
+    } else {
+      std::cout << "Unrecognized serializability protocol " << sptype
+                << ". Valid types are locking or mvcc." << std::endl;
+      return 1;
+    }
+  } else {
+    std::cout
+        << "No serializability protocol specified. The default behavior "
+           "is to use two-phase locking."
+        << std::endl;
+    kSerializabilityProtocol = SerializabilityProtocol::LOCKING;
   }
 
   kSelfTierIdVector = {kSelfTier};

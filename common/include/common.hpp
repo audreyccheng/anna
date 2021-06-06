@@ -337,4 +337,10 @@ struct request_type_hash {
   }
 };
 
+struct serializability_protocol_hash {
+  std::size_t operator()(const SerializabilityProtocol& sp) const {
+    return std::hash<string>()(SerializabilityProtocol_Name(sp));
+  }
+};
+
 #endif  // INCLUDE_COMMON_HPP_

@@ -83,6 +83,14 @@ enum LatticeType {
   PRIORITY = 6;
 }
 
+enum SerializabilityProtocol {
+  // Two-phase locking
+  LOCKING = 0;
+
+  // Multiversion concurrency control
+  MVCC = 1;
+}
+
 enum AnnaError {
   // The request did not have an error.
   NO_ERROR = 0;
