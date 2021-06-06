@@ -27,17 +27,17 @@ unsigned kDefaultLocalReplication;
 ZmqUtil zmq_util;
 ZmqUtilInterface *kZmqUtil = &zmq_util;
 
-// double get_base(unsigned N, double skew) {
-//   double base = 0;
-//   for (unsigned k = 1; k <= N; k++) {
-//     base += pow(k, -1 * skew);
-//   }
-//   return (1 / base);
-// }
+double get_base(unsigned N, double skew) {
+  double base = 0;
+  for (unsigned k = 1; k <= N; k++) {
+    base += pow(k, -1 * skew);
+  }
+  return (1 / base);
+}
 
-// double get_zipf_prob(unsigned rank, double skew, double base) {
-//   return pow(rank, -1 * skew) / base;
-// }
+double get_zipf_prob(unsigned rank, double skew, double base) {
+  return pow(rank, -1 * skew) / base;
+}
 
 void receive(TxnClientInterface *client) {
   vector<TxnResponse> responses = client->receive_txn_async();
@@ -46,38 +46,38 @@ void receive(TxnClientInterface *client) {
   }
 }
 
-// int sample(int n, unsigned &seed, double base,
-//            map<unsigned, double> &sum_probs) {
-//   double z;           // Uniform random number (0 < z < 1)
-//   int zipf_value;     // Computed exponential value to be returned
-//   int i;              // Loop counter
-//   int low, high, mid; // Binary-search bounds
+int sample(int n, unsigned &seed, double base,
+           map<unsigned, double> &sum_probs) {
+  double z;           // Uniform random number (0 < z < 1)
+  int zipf_value;     // Computed exponential value to be returned
+  int i;              // Loop counter
+  int low, high, mid; // Binary-search bounds
 
-//   // Pull a uniform random number (0 < z < 1)
-//   do {
-//     z = rand_r(&seed) / static_cast<double>(RAND_MAX);
-//   } while ((z == 0) || (z == 1));
+  // Pull a uniform random number (0 < z < 1)
+  do {
+    z = rand_r(&seed) / static_cast<double>(RAND_MAX);
+  } while ((z == 0) || (z == 1));
 
-//   // Map z to the value
-//   low = 1, high = n;
+  // Map z to the value
+  low = 1, high = n;
 
-//   do {
-//     mid = floor((low + high) / 2);
-//     if (sum_probs[mid] >= z && sum_probs[mid - 1] < z) {
-//       zipf_value = mid;
-//       break;
-//     } else if (sum_probs[mid] >= z) {
-//       high = mid - 1;
-//     } else {
-//       low = mid + 1;
-//     }
-//   } while (low <= high);
+  do {
+    mid = floor((low + high) / 2);
+    if (sum_probs[mid] >= z && sum_probs[mid - 1] < z) {
+      zipf_value = mid;
+      break;
+    } else if (sum_probs[mid] >= z) {
+      high = mid - 1;
+    } else {
+      low = mid + 1;
+    }
+  } while (low <= high);
 
-//   // Assert that zipf_value is between 1 and N
-//   assert((zipf_value >= 1) && (zipf_value <= n));
+  // Assert that zipf_value is between 1 and N
+  assert((zipf_value >= 1) && (zipf_value <= n));
 
-//   return zipf_value;
-// }
+  return zipf_value;
+}
 
 string generate_key(unsigned n) {
   return string(8 - std::to_string(n).length(), '0') + std::to_string(n);
@@ -160,6 +160,22 @@ void run(const unsigned &thread_id,
         unsigned actions_per_txn = stoi(v[2]);
         unsigned num_keys = stoi(v[3]);
         unsigned length = stoi(v[4]);
+        double zipf = stod(v[5]);
+
+        map<unsigned, double> sum_probs;
+        double base;
+
+        if (zipf > 0) {
+          log->info("Zipf coefficient is {}.", zipf);
+          base = get_base(num_keys, zipf);
+          sum_probs[0] = 0;
+
+          for (unsigned i = 1; i <= num_keys; i++) {
+            sum_probs[i] = sum_probs[i - 1] + base / pow((double)i, zipf);
+          }
+        } else {
+          log->info("Using a uniform random distribution.");
+        }
 
         auto benchmark_start = std::chrono::system_clock::now();
         auto benchmark_end = std::chrono::system_clock::now();
@@ -200,7 +216,12 @@ void run(const unsigned &thread_id,
             bool type = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) >= 0.5 ? true : false;
 
             // get a random key
-            unsigned k = rand() % (num_keys) + 1;
+            unsigned k;
+            if (zipf > 0) {
+              k = sample(num_keys, seed, base, sum_probs);
+            } else {
+              k = rand_r(&seed) % (num_keys) + 1;
+            }
             Key key = generate_key(k);
 
             if (type) {
