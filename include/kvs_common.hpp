@@ -43,6 +43,8 @@ const unsigned kSloWorst = 3000;
 extern Tier kSelfTier;
 extern vector<Tier> kSelfTierIdVector;
 
+extern unsigned kSerializabilityProtocol;
+
 extern unsigned kTxnNodeCapacity;
 extern unsigned kMemoryNodeCapacity;
 extern unsigned kEbsNodeCapacity;
