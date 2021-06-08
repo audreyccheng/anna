@@ -220,7 +220,8 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
     LockStore *lock_node = new LockStore();
     lock_serializer = new LockStoreSerializer(lock_node);
 
-    // TODO(@darkterber): add MVCC serializer
+    MVCCStore *mvcc_node = new MVCCStore();
+    mvcc_serializer = new MVCCStoreSerializer(mvcc_node);
 
     BaseLog *base_log_node = new BaseLog();
     log_serializer = new BaseLogSerializer(base_log_node);

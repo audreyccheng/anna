@@ -232,11 +232,13 @@ class MVCCVersion {
   long wts;
   long rts;
   bool is_primary;
+  long visibility;
 
  public:
   MVCCVersion(const long tts, const string &e, const bool &primary) { 
     wts = tts;
     rts = tts;
+    visibility = tts;
     value = e;
     is_primary = primary;
   }
@@ -245,24 +247,46 @@ class MVCCVersion {
     return value;
   }
 
+  const bool &get_is_primary() const { return is_primary; }
+
+
+  const bool write_allowed(const long tts) {
+    return rts <= tts;
+  }
+
+  const bool visible_by(const long tts) {
+    return (visibility == tts || visibility == -1) && wts <= tts;
+  }
+
+  const bool globally_visible() {
+    return visibility == -1;
+  }
+
   void update_rts(const long tts) { 
     rts = std::max(tts, rts);
+  }
+
+  void assign(const string v) {
+    value = v;
   }
 
   void assign_primary(const bool &primary) {
     is_primary = primary;
   }
 
-  const bool &get_is_primary() const { return is_primary; }
-
-  const long &get_wts() {
-    return wts;
-  }
-
-  const bool write_allowed(const long tts) {
-    return rts <= tts;
+  void make_globally_visible() {
+    visibility = -1;
   }
 };
+
+inline long get_tts(const string& txn_id) {
+  string::size_type n_id;
+  string::size_type n_time;
+
+  n_id = txn_id.find(":"); // TODO(@accheng): update to constant
+  string tts_string = txn_id.substr(n_id + 1);
+  return stol(tts_string);
+}
 
 template <typename K> class MVCCNode {
 protected:
@@ -274,8 +298,14 @@ public:
 
   MVCCNode<K>(map<K, vector<MVCCVersion>> &other) { db = other; }
 
-  string get(const long tts, const K &k, AnnaError &error) {
-    MVCCVersion *snapshot = snapshot(tts, k);
+  string get(const string& txn_id, const K &k, AnnaError &error) {
+    long tts = get_tts(txn_id);
+    // TODO: verify this is correct behavior
+    /**
+     * Get should always get most recent, visible version, even if this txn was the one
+     * who wrote that version.
+     */
+    MVCCVersion *snapshot = get_snapshot(tts, k, false);
 
     if (snapshot == NULL) {
       // Key never written to before this transaction
@@ -287,25 +317,34 @@ public:
   }
 
   bool get_is_primary(const K &k, AnnaError &error) {
-    if (db.find(k) != db.end()) {
-      return db.at(k).get_is_primary();
-    } else {
+    if (db.find(k) == db.end()) {
       error = AnnaError::FAILED_OP;
       return false;
     }
+
+    MVCCVersion *snapshot = get_snapshot(LONG_MAX, k, true);
+    if (snapshot == NULL) {
+      error = AnnaError::FAILED_OP;
+      return false;
+    }
+
+    return snapshot->get_is_primary();
   }
 
-  MVCCVersion* snapshot(const long tts, const K &k) {
+  /**
+   * Gets a relevant snapshot for key k for this transaction.
+   * If original, gets the version that this transaction originally read from (i.e. latest, globally-visible version with wts <= tts).
+   * If !original, gets the latest version visible to this txn (may be a new version in-progress, written by this txn).
+   */
+  MVCCVersion* get_snapshot(const long tts, const K &k, bool original) {
     if (db.find(k) == db.end()) {
       return NULL; 
     }
 
     vector<MVCCVersion> versions = db.at(k);
 
-    // Find last version written before TTS
-    MVCCVersion snapshot;
     for (MVCCVersion &version : versions) {
-      if (version.get_wts() <= tts) {
+      if (version.visible_by(tts) && (!original || version.globally_visible())) {
         version.update_rts(tts);
         return &version;
       }
@@ -314,23 +353,58 @@ public:
     return NULL;
   }
 
-  void put(const long tts, const K &k, const string &v,
+  void put(const string& txn_id, const K &k, const string &v,
            AnnaError &error, const bool &is_primary) {
+    long tts = get_tts(txn_id);
     if (db.find(k) == db.end()) {
       // Key doesn't exist in db yet
       db[k] = { MVCCVersion(tts, v, is_primary) };
     } else {
-      // Key exists in db; get snapshot version
-      MVCCVersion *snapshot = snapshot(tts, k);
-      
-      // Check rts <= tts
-      if (snapshot == NULL || snapshot->write_allowed(tts)) {
-        db[k].insert(0, MVCCVersion(tts, v, is_primary));
-      } else {
+      // Key exists in db
+      // TODO: verify this is correct behavior
+
+      // Check if we are allowed to write to this key
+      MVCCVersion *original_snapshot = get_snapshot(tts, k, true);
+      if (original_snapshot != NULL && !original_snapshot->write_allowed(tts)) {
         error = AnnaError::FAILED_OP;
+        return;
+      }
+
+
+      MVCCVersion *latest_visible_snapshot = get_snapshot(tts, k, false);
+      if (!latest_visible_snapshot->globally_visible()) {
+        // If this txn already created a new version, just modify that version directly (it's visible only to us anyways)
+        latest_visible_snapshot->assign(v);
+        latest_visible_snapshot->assign_primary(is_primary);
+      } else {
+        // ... otherwise, create a new version
+        vector<MVCCVersion> &versions = db.at(k);
+        versions.insert(versions.begin(), MVCCVersion(tts, v, is_primary));
       }
     }
   }
+
+  void commit(const string& txn_id, const K &k, AnnaError &error) {
+    long tts = get_tts(txn_id);
+    MVCCVersion *snapshot = get_snapshot(tts, k, false);
+
+    // check this key exists
+    if (snapshot == NULL) {
+      error = AnnaError::FAILED_OP;
+      return;
+    }
+
+    // if currently only visible to us, make visible to everyone
+    if (!(snapshot->globally_visible())) {
+      snapshot->make_globally_visible();
+    } else {
+      // TODO: should there be an error if nothing to commit?
+    }
+  }
+
+  unsigned size() { return db.size(); }
+
+  void remove(const K &k) { db.erase(k); }
 };
 
 

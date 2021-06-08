@@ -25,6 +25,7 @@
 typedef TxnNode BaseTxn;
 typedef BaseNode<Key, string> BaseStore;
 typedef LockNode<Key> LockStore;
+typedef MVCCNode<Key> MVCCStore;
 // typedef LogNode<Operation> BaseLog;
 
 // a map that represents which keys should be sent to which IP-port combinations
@@ -344,6 +345,51 @@ public:
       std::cerr << "Error deleting file" << std::endl;
     }
   }
+};
+
+class MVCCStoreSerializer : public BaseSerializer {
+  MVCCStore *mvcc_node_;
+
+public:
+  MVCCStoreSerializer(MVCCStore *mvcc_node) : mvcc_node_(mvcc_node) {}
+
+  string get(const string& txn_id, const Key &key, AnnaError &error) {
+    auto val = mvcc_node_->get(txn_id, key, error);
+
+    return val;
+  }
+
+  string reveal_element(const Key &key, AnnaError &error) {
+    // Not used by MVCC
+    return "";
+  }
+
+  string reveal_temp_element(const Key &key, AnnaError &error) {
+    // Not used by MVCC
+    return "";
+  }
+
+  void put(const string& txn_id, const Key &key, const string &serialized,
+           AnnaError &error, const bool &is_primary) {
+    mvcc_node_->put(txn_id, key, serialized, error, is_primary);
+  }
+
+  void prepare(const string& txn_id, const Key &key, AnnaError &error) {
+    // Not used by MVCC
+  }
+
+  void commit(const string& txn_id, const Key &key, AnnaError &error) {
+    mvcc_node_->commit(txn_id, key, error);
+  }
+
+  bool get_is_primary(const Key &key, AnnaError &error) {
+    return mvcc_node_->get_is_primary(key, error);
+  }
+
+  unsigned size() { return mvcc_node_->size(); }
+
+  void remove(const string& txn_id, const Key &key) { mvcc_node_->remove(key); }
+
 };
 
 class LogSerializer {
