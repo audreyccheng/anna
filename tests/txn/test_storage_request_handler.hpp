@@ -265,19 +265,19 @@ TEST_F(ServerHandlerTest, StorageTxnPutAndCommitTest) {
   EXPECT_EQ(error, 0);
 }
 
-// TEST_F(ServerHandlerTest, MVCCStorageTxnGetTest) {
-//   Key key = "key";
-//   string value = "value";
-//   AnnaError error = AnnaError::NO_ERROR;
-//   bool is_primary = true;
-//   mvcc_serializer->put(kTxnId, key, value, error, is_primary);
+TEST_F(ServerHandlerTest, MVCCStorageTxnGetTest) {
+  Key key = "key";
+  string value = "value";
+  AnnaError error = AnnaError::NO_ERROR;
+  bool is_primary = true;
+  mvcc_serializer->put(kTxnId, key, value, error, is_primary);
 
-//   EXPECT_EQ(error, 0);
-//   error = AnnaError::NO_ERROR;
-//   EXPECT_EQ(base_serializer->get_is_primary(key, error), true);
-//   EXPECT_EQ(error, 0);
-//   base_serializer->commit(kTxnId, key, error);
-//   EXPECT_EQ(error, 0);
-//   unsigned num_keys = base_serializer->size();
-//   EXPECT_EQ(num_keys, 1);
-// }
+  EXPECT_EQ(error, 0);
+  error = AnnaError::NO_ERROR;
+  EXPECT_EQ(base_serializer->get_is_primary(key, error), true);
+  EXPECT_EQ(error, 0);
+  // base_serializer->commit(kTxnId, key, error);
+  // EXPECT_EQ(error, 0);
+  // unsigned num_keys = base_serializer->size();
+  // EXPECT_EQ(num_keys, 1);
+}

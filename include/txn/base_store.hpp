@@ -235,7 +235,7 @@ class MVCCVersion {
   long visibility;
 
  public:
-  MVCCVersion(const long tts, const string &e, const bool &primary) { 
+  MVCCVersion(const long &tts, const string &e, const bool &primary) { 
     wts = tts;
     rts = tts;
     visibility = tts;
@@ -250,11 +250,11 @@ class MVCCVersion {
   const bool &get_is_primary() const { return is_primary; }
 
 
-  const bool write_allowed(const long tts) {
+  const bool write_allowed(const long &tts) {
     return rts <= tts;
   }
 
-  const bool visible_by(const long tts) {
+  const bool visible_by(const long &tts) {
     return (visibility == tts || visibility == -1) && wts <= tts;
   }
 
@@ -262,11 +262,11 @@ class MVCCVersion {
     return visibility == -1;
   }
 
-  void update_rts(const long tts) { 
+  void update_rts(const long &tts) { 
     rts = std::max(tts, rts);
   }
 
-  void assign(const string v) {
+  void assign(const string &v) {
     value = v;
   }
 
@@ -300,7 +300,6 @@ public:
 
   string get(const string& txn_id, const K &k, AnnaError &error) {
     long tts = get_tts(txn_id);
-    // TODO: verify this is correct behavior
     /**
      * Get should always get most recent, visible version, even if this txn was the one
      * who wrote that version.
@@ -336,14 +335,12 @@ public:
    * If original, gets the version that this transaction originally read from (i.e. latest, globally-visible version with wts <= tts).
    * If !original, gets the latest version visible to this txn (may be a new version in-progress, written by this txn).
    */
-  MVCCVersion* get_snapshot(const long tts, const K &k, bool original) {
+  MVCCVersion* get_snapshot(const long &tts, const K &k, const bool &original) {
     if (db.find(k) == db.end()) {
       return NULL; 
     }
 
-    vector<MVCCVersion> versions = db.at(k);
-
-    for (MVCCVersion &version : versions) {
+    for (MVCCVersion &version : db.at(k)) {
       if (version.visible_by(tts) && (!original || version.globally_visible())) {
         version.update_rts(tts);
         return &version;
@@ -361,7 +358,6 @@ public:
       db[k] = { MVCCVersion(tts, v, is_primary) };
     } else {
       // Key exists in db
-      // TODO: verify this is correct behavior
 
       // Check if we are allowed to write to this key
       MVCCVersion *original_snapshot = get_snapshot(tts, k, true);
@@ -378,8 +374,7 @@ public:
         latest_visible_snapshot->assign_primary(is_primary);
       } else {
         // ... otherwise, create a new version
-        vector<MVCCVersion> &versions = db.at(k);
-        versions.insert(versions.begin(), MVCCVersion(tts, v, is_primary));
+        db.at(k).insert(db.at(k).begin(), MVCCVersion(tts, v, is_primary));
       }
     }
   }
