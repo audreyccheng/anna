@@ -317,12 +317,14 @@ public:
 
   bool get_is_primary(const K &k, AnnaError &error) {
     if (db.find(k) == db.end()) {
+      std::cout << "Can't find key k" << std::endl;
       error = AnnaError::FAILED_OP;
       return false;
     }
 
     MVCCVersion *snapshot = get_snapshot(LONG_MAX, k, true);
     if (snapshot == NULL) {
+      std::cout << "No snapshot available" << std::endl;
       error = AnnaError::FAILED_OP;
       return false;
     }
@@ -340,7 +342,10 @@ public:
       return NULL; 
     }
 
+    
     for (MVCCVersion &version : db.at(k)) {
+      std::cout << version.read() << std::endl;
+      std::cout << version.get_is_primary() << std::endl;
       if (version.visible_by(tts) && (!original || version.globally_visible())) {
         version.update_rts(tts);
         return &version;
