@@ -236,14 +236,14 @@ class MVCCVersion {
 
  public:
   MVCCVersion(const long &tts, const string &e, const bool &primary) { 
-    wts = tts;
+    wts = tts; // Equals tts oof txn that wrote this, or 0 for initial version
     rts = tts;
-    visibility = tts;
+    visibility = tts; // Equals tts of txn that can see this, or -1 for globally visible
     value = e;
     is_primary = primary;
   }
 
-  const string &read() const { 
+  const string &read() const {
     return value;
   }
 
@@ -251,6 +251,7 @@ class MVCCVersion {
 
 
   const bool write_allowed(const long &tts) {
+    std::cout << rts << " " << tts << std::endl;
     return rts <= tts;
   }
 
@@ -262,8 +263,13 @@ class MVCCVersion {
     return visibility == -1;
   }
 
-  void update_rts(const long &tts) { 
+  const bool is_initial_version() {
+    return wts == 0;
+  }
+
+  void update_rts(const long &tts) {
     rts = std::max(tts, rts);
+    std::cout << "Update rts to " << rts << std::endl;
   }
 
   void assign(const string &v) {
@@ -300,29 +306,24 @@ public:
 
   string get(const string& txn_id, const K &k, AnnaError &error) {
     long tts = get_tts(txn_id);
-    /**
-     * Get should always get most recent, visible version, even if this txn was the one
-     * who wrote that version.
-     */
+    // Get should always get most recent, visible version, even if this txn wrote that version.
     MVCCVersion *snapshot = get_snapshot(tts, k, false);
 
-    if (snapshot == NULL) {
-      // Key never written to before this transaction
+    if (snapshot->is_initial_version()) {
+      // Key doesn't yet exist, we're reading the initial "empty" version
       error = AnnaError::KEY_DNE;
-      return "";
     }
-    
+
+    snapshot->update_rts(tts);
     return snapshot->read();
   }
 
   bool get_is_primary(const K &k, AnnaError &error) {
-    if (db.find(k) == db.end()) {
-      error = AnnaError::FAILED_OP;
-      return false;
-    }
-
+    // Uses the latest, globally visible version
     MVCCVersion *snapshot = get_snapshot(LONG_MAX, k, true);
-    if (snapshot == NULL) {
+
+    if (snapshot->is_initial_version()) {
+      // Key doesn't yet exist, we're reading the initial "empty" version
       error = AnnaError::FAILED_OP;
       return false;
     }
@@ -337,45 +338,53 @@ public:
    */
   MVCCVersion* get_snapshot(const long &tts, const K &k, const bool &original) {
     if (db.find(k) == db.end()) {
-      return NULL; 
+      // Key doesn't yet exist; create initial, globally visible, empty version
+      return initialize_key(k);
     }
-
     
     for (MVCCVersion &version : db.at(k)) {
       if (version.visible_by(tts) && (!original || version.globally_visible())) {
-        version.update_rts(tts);
         return &version;
       }
     }
 
+    // Should never reach here
     return NULL;
+  }
+
+  /**
+   * Creates an "empty", globally visible version to represent "key doesn't exist". Needed to maintain consistency via MVCC rules.
+   */
+  MVCCVersion* initialize_key(const K &k) {
+    db[k] = { MVCCVersion(0, "", true) }; // TODO: for these initial versions, what should is_primary be?
+    MVCCVersion* initial = &db.at(k)[0];
+    initial->make_globally_visible();
+    return initial;
   }
 
   void put(const string& txn_id, const K &k, const string &v,
            AnnaError &error, const bool &is_primary) {
     long tts = get_tts(txn_id);
     if (db.find(k) == db.end()) {
-      // Key doesn't exist in db yet
-      db[k] = { MVCCVersion(tts, v, is_primary) };
+      // Key doesn't yet exist; create initial, globally visible, empty version
+      initialize_key(k);
+    }
+    
+    // Check if we are allowed to write to this key
+    MVCCVersion *original_snapshot = get_snapshot(tts, k, true);
+    if (!original_snapshot->write_allowed(tts)) {
+      error = AnnaError::FAILED_OP;
+      return;
+    }
+
+    MVCCVersion *latest_visible_snapshot = get_snapshot(tts, k, false);
+    if (!latest_visible_snapshot->globally_visible()) {
+      // If this txn already created a new version, just modify that version directly (it's visible only to us anyways)
+      latest_visible_snapshot->assign(v);
+      latest_visible_snapshot->assign_primary(is_primary);
     } else {
-      // Key exists in db
-
-      // Check if we are allowed to write to this key
-      MVCCVersion *original_snapshot = get_snapshot(tts, k, true);
-      if (original_snapshot != NULL && !original_snapshot->write_allowed(tts)) {
-        error = AnnaError::FAILED_OP;
-        return;
-      }
-
-      MVCCVersion *latest_visible_snapshot = get_snapshot(tts, k, false);
-      if (!latest_visible_snapshot->globally_visible()) {
-        // If this txn already created a new version, just modify that version directly (it's visible only to us anyways)
-        latest_visible_snapshot->assign(v);
-        latest_visible_snapshot->assign_primary(is_primary);
-      } else {
-        // ... otherwise, create a new version
-        db.at(k).insert(db.at(k).begin(), MVCCVersion(tts, v, is_primary));
-      }
+      // ... otherwise, create a new version
+      db.at(k).insert(db.at(k).begin(), MVCCVersion(tts, v, is_primary));
     }
   }
 
@@ -384,7 +393,7 @@ public:
     MVCCVersion *snapshot = get_snapshot(tts, k, false);
 
     // check this key exists
-    if (snapshot == NULL) {
+    if (snapshot->is_initial_version()) {
       error = AnnaError::FAILED_OP;
       return;
     }

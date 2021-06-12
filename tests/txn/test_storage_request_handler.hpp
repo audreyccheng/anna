@@ -266,13 +266,15 @@ TEST_F(ServerHandlerTest, StorageTxnPutAndCommitTest) {
 }
 
 TEST_F(ServerHandlerTest, MVCCStorageTxnPutAndGetTest) {
+  // Can't use kTxnId since it has timestamp = 0, which is reserved in MVCC implementation
+  string main_txn_id = "0:1";
   string other_txn_id = "0:10";
 
   Key key = "key";
   string value = "value";
   AnnaError error = AnnaError::NO_ERROR;
   bool is_primary = true;
-  mvcc_serializer->put(kTxnId, key, value, error, is_primary);
+  mvcc_serializer->put(main_txn_id, key, value, error, is_primary);
   EXPECT_EQ(error, 0);
 
   // Another transaction reading the key before commit should NOT see it
@@ -283,7 +285,7 @@ TEST_F(ServerHandlerTest, MVCCStorageTxnPutAndGetTest) {
 
   // Same transaction reading the key before commit SHOULD see it
   error = AnnaError::NO_ERROR;
-  readValue = mvcc_serializer->get(kTxnId, key, error);
+  readValue = mvcc_serializer->get(main_txn_id, key, error);
   EXPECT_EQ(error, 0);
   EXPECT_EQ(readValue, value);
 
@@ -293,7 +295,7 @@ TEST_F(ServerHandlerTest, MVCCStorageTxnPutAndGetTest) {
 
   // *** COMMIT ***
   error = AnnaError::NO_ERROR;
-  mvcc_serializer->commit(kTxnId, key, error);
+  mvcc_serializer->commit(main_txn_id, key, error);
   EXPECT_EQ(error, 0);
 
   error = AnnaError::NO_ERROR;
@@ -305,7 +307,7 @@ TEST_F(ServerHandlerTest, MVCCStorageTxnPutAndGetTest) {
 
   // Same transaction reading the key after commit SHOULD see it
   error = AnnaError::NO_ERROR;
-  readValue = mvcc_serializer->get(kTxnId, key, error);
+  readValue = mvcc_serializer->get(main_txn_id, key, error);
   EXPECT_EQ(error, 0);
   EXPECT_EQ(readValue, value);
 
@@ -338,5 +340,3 @@ TEST_F(ServerHandlerTest, MVCCConflictWriteTest) {
   mvcc_serializer->put(txn_id_1, key, value + value, error, true);
   EXPECT_EQ(error, AnnaError::FAILED_OP);
 }
-
-
