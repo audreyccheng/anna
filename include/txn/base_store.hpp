@@ -251,7 +251,6 @@ class MVCCVersion {
 
 
   const bool write_allowed(const long &tts) {
-    std::cout << rts << " " << tts << std::endl;
     return rts <= tts;
   }
 
@@ -269,7 +268,6 @@ class MVCCVersion {
 
   void update_rts(const long &tts) {
     rts = std::max(tts, rts);
-    std::cout << "Update rts to " << rts << std::endl;
   }
 
   void assign(const string &v) {
