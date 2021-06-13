@@ -46,9 +46,11 @@ protected:
 
   TxnSerializer *txn_serializer;
   BaseSerializer *base_serializer;
+  MVCCStoreSerializer *mvcc_serializer;
   LogSerializer *log_serializer;
   BaseTxn *base_txn_node;
   LockStore *base_node;
+  MVCCStore *base_mvcc_node;
   BaseLog *base_log_node;
 
   ServerHandlerTest() {
@@ -57,6 +59,9 @@ protected:
 
     base_node = new LockStore();
     base_serializer = new LockStoreSerializer(base_node);
+
+    base_mvcc_node = new MVCCStore();
+    mvcc_serializer = new MVCCStoreSerializer(base_mvcc_node);
 
     base_log_node = new BaseLog();
     log_serializer = new BaseLogSerializer(base_log_node);
@@ -68,9 +73,11 @@ protected:
   virtual ~ServerHandlerTest() {
     delete base_txn_node;
     delete base_node;
+    delete base_mvcc_node;
     delete base_log_node;
     delete txn_serializer;
     delete base_serializer;
+    delete mvcc_serializer;
     delete log_serializer;
   }
 

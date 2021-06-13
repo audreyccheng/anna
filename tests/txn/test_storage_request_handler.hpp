@@ -264,3 +264,106 @@ TEST_F(ServerHandlerTest, StorageTxnPutAndCommitTest) {
   base_serializer->put(new_txn_id, key, value, error, is_primary);
   EXPECT_EQ(error, 0);
 }
+
+TEST_F(ServerHandlerTest, MVCCStorageTxnPutAndGetTest) {
+  // Can't use kTxnId since it has timestamp = 0, which is reserved in MVCC implementation
+  string main_txn_id = "0:1";
+  string other_txn_id = "0:10";
+
+  Key key = "key";
+  string value = "value";
+  AnnaError error = AnnaError::NO_ERROR;
+  bool is_primary = true;
+  mvcc_serializer->put(main_txn_id, key, value, error, is_primary);
+  EXPECT_EQ(error, 0);
+
+  // Another transaction reading the key before commit should NOT see it
+  error = AnnaError::NO_ERROR;
+  string readValue = mvcc_serializer->get(other_txn_id, key, error);
+  EXPECT_EQ(error, AnnaError::KEY_DNE);
+  EXPECT_EQ(readValue, "");
+
+  // Same transaction reading the key before commit SHOULD see it
+  error = AnnaError::NO_ERROR;
+  readValue = mvcc_serializer->get(main_txn_id, key, error);
+  EXPECT_EQ(error, 0);
+  EXPECT_EQ(readValue, value);
+
+  error = AnnaError::NO_ERROR;
+  EXPECT_EQ(mvcc_serializer->get_is_primary(key, error), false);
+  EXPECT_EQ(error, AnnaError::FAILED_OP);
+
+  // *** COMMIT ***
+  error = AnnaError::NO_ERROR;
+  mvcc_serializer->commit(main_txn_id, key, error);
+  EXPECT_EQ(error, 0);
+
+  error = AnnaError::NO_ERROR;
+  EXPECT_EQ(mvcc_serializer->get_is_primary(key, error), true);
+  EXPECT_EQ(error, 0);
+  
+  unsigned num_keys = mvcc_serializer->size();
+  EXPECT_EQ(num_keys, 1);
+
+  // Same transaction reading the key after commit SHOULD see it
+  error = AnnaError::NO_ERROR;
+  readValue = mvcc_serializer->get(main_txn_id, key, error);
+  EXPECT_EQ(error, 0);
+  EXPECT_EQ(readValue, value);
+
+  // Another transaction reading the key after commit SHOULD see it
+  error = AnnaError::NO_ERROR;
+  readValue = mvcc_serializer->get(other_txn_id, key, error);
+  EXPECT_EQ(error, 0);
+  EXPECT_EQ(readValue, value);
+}
+
+TEST_F(ServerHandlerTest, MVCCConflictWriteTestA) {
+  string txn_id_1 = "0:1";
+  string txn_id_2 = "0:10";
+
+  Key key = "key";
+  string value = "value";
+
+  AnnaError error = AnnaError::NO_ERROR;
+  mvcc_serializer->put(txn_id_1, key, value, error, true);
+  EXPECT_EQ(error, 0);
+
+  // Another transaction reading the key before commit should NOT see it
+  error = AnnaError::NO_ERROR;
+  string readValue = mvcc_serializer->get(txn_id_2, key, error);
+  EXPECT_EQ(error, AnnaError::KEY_DNE);
+  EXPECT_EQ(readValue, "");
+
+  // Since another transaction with larger tts read this key, we can no longer write to it
+  error = AnnaError::NO_ERROR;
+  mvcc_serializer->put(txn_id_1, key, value + value, error, true);
+  EXPECT_EQ(error, AnnaError::FAILED_OP);
+}
+
+TEST_F(ServerHandlerTest, MVCCConflictWriteTestB) {
+  string txn_id_1 = "0:1";
+  string txn_id_2 = "0:10";
+
+  Key key = "key";
+  string value = "value";
+
+  AnnaError error = AnnaError::NO_ERROR;
+  mvcc_serializer->put(txn_id_1, key, value, error, true);
+  EXPECT_EQ(error, 0);
+
+  error = AnnaError::NO_ERROR;
+  mvcc_serializer->commit(txn_id_1, key, error);
+  EXPECT_EQ(error, 0);
+
+  // Another transaction reading the key before commit SHOULD see it
+  error = AnnaError::NO_ERROR;
+  string readValue = mvcc_serializer->get(txn_id_2, key, error);
+  EXPECT_EQ(error, AnnaError::NO_ERROR);
+  EXPECT_EQ(readValue, value);
+
+  // Since another transaction with larger tts read this key, we can no longer write to it
+  error = AnnaError::NO_ERROR;
+  mvcc_serializer->put(txn_id_1, key, value + value, error, true);
+  EXPECT_EQ(error, AnnaError::FAILED_OP);
+}
