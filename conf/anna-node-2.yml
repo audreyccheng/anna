@@ -1,16 +1,16 @@
-# monitoring:
-#   mgmt_ip: 35.81.167.161
-#   ip: 35.81.167.161
-# routing:
-#   monitoring: 
-#       - 35.81.167.161
-#   ip: 35.81.167.161
-# user:
-#   monitoring:
-#       - 35.81.167.161
-#   routing: 
-#       - 35.81.167.161
-#   ip: 35.81.167.161
+monitoring:
+  mgmt_ip: 35.81.167.161
+  ip: 35.81.167.161
+routing:
+  monitoring: 
+      - 35.81.167.161
+  ip: 35.81.167.161
+user:
+  monitoring:
+      - 35.81.167.161
+  routing: 
+      - 35.81.167.161
+  ip: 35.81.167.161
 server:
   monitoring:
       - 172.31.55.143
