@@ -1,23 +1,23 @@
-monitoring:
-  mgmt_ip: 35.81.167.161
-  ip: 35.81.167.161
-routing:
-  monitoring: 
-      - 35.81.167.161
-  ip: 35.81.167.161
-user:
-  monitoring:
-      - 35.81.167.161
-  routing: 
-      - 35.81.167.161
-  ip: 35.81.167.161
+# monitoring:
+#   mgmt_ip: 35.81.167.161
+#   ip: 35.81.167.161
+# routing:
+#   monitoring: 
+#       - 35.81.167.161
+#   ip: 35.81.167.161
+# user:
+#   monitoring:
+#       - 35.81.167.161
+#   routing: 
+#       - 35.81.167.161
+#   ip: 35.81.167.161
 server:
   monitoring:
       - 172.31.55.143
   routing: 
       - 172.31.55.143
   seed_ip: 172.31.55.143
-  public_ip: 44.233.116.59
+  public_ip: 35.80.32.94
   private_ip: 172.31.49.254
   mgmt_ip: "NULL"
 # txn-server:

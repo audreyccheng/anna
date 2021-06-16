@@ -132,23 +132,23 @@ void storage_request_handler(
             }
 
             /* NO LOG */
-            // send replication / log requests
-            ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
-                wt.replication_response_connect_address(), request_type, txn_id, 
-                key, is_metadata(key), 
-                global_hash_rings, local_hash_rings, key_replication_map, 
-                pushers, {Tier::LOG}, succeed, seed, log);
+            // // send replication / log requests
+            // ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
+            //     wt.replication_response_connect_address(), request_type, txn_id, 
+            //     key, is_metadata(key), 
+            //     global_hash_rings, local_hash_rings, key_replication_map, 
+            //     pushers, {Tier::LOG}, succeed, seed, log);
 
-            // send request to log if possible
-            if (key_threads.size() > 0) {
-              kHashRingUtil->issue_log_request(
-                wt.request_response_connect_address(), request_type, txn_id,
-                key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
-            }
+            // // send request to log if possible
+            // if (key_threads.size() > 0) {
+            //   kHashRingUtil->issue_log_request(
+            //     wt.request_response_connect_address(), request_type, txn_id,
+            //     key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+            // }
 
-            pending_requests[key].push_back( 
-              PendingTxnRequest(request_type, txn_id, key, payload,
-                                response_address, response_id));
+            // pending_requests[key].push_back( 
+            //   PendingTxnRequest(request_type, txn_id, key, payload,
+            //                     response_address, response_id));
             /* NO LOG */
           }
         } else if (request_type == RequestType::COMMIT_TXN) {
@@ -165,22 +165,22 @@ void storage_request_handler(
 
           /* NO LOG */
           // log commit
-          ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
-                wt.replication_response_connect_address(), request_type, txn_id, 
-                key, is_metadata(key), 
-                global_hash_rings, local_hash_rings, key_replication_map, 
-                pushers, {Tier::LOG}, succeed, seed, log);
+          // ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
+          //       wt.replication_response_connect_address(), request_type, txn_id, 
+          //       key, is_metadata(key), 
+          //       global_hash_rings, local_hash_rings, key_replication_map, 
+          //       pushers, {Tier::LOG}, succeed, seed, log);
 
-          // send request to log if possible
-          if (key_threads.size() > 0) {
-            kHashRingUtil->issue_log_request(
-              wt.request_response_connect_address(), request_type, txn_id,
-              key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
-          }
+          // // send request to log if possible
+          // if (key_threads.size() > 0) {
+          //   kHashRingUtil->issue_log_request(
+          //     wt.request_response_connect_address(), request_type, txn_id,
+          //     key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+          // }
 
-          pending_requests[key].push_back( 
-              PendingTxnRequest(request_type, txn_id, key, payload, "", /* response_address */
-                                response_id));
+          // pending_requests[key].push_back( 
+          //     PendingTxnRequest(request_type, txn_id, key, payload, "", /* response_address */
+          //                       response_id));
           /* NO LOG */
         } else {
           log->error("Unknown request type {} in user request handler.",
@@ -202,8 +202,8 @@ void storage_request_handler(
     }
   }
 
-  if (response.tuples_size() > 0 && request.response_address() != "" // ) {
-      && request_type != RequestType::PREPARE_TXN) { // need to wait for operation to be saved durably /* NO LOG */
+  if (response.tuples_size() > 0 && request.response_address() != ""  ) {
+      // && request_type != RequestType::PREPARE_TXN) { // need to wait for operation to be saved durably /* NO LOG */
     string serialized_response;
     response.SerializeToString(&serialized_response);
     kZmqUtil->send_string(serialized_response,
