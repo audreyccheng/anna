@@ -31,7 +31,7 @@ cp conf/anna-node-2.yml conf/anna-config.yml
 # MPID=$!
 # ./build/target/kvs/anna-route &
 # RPID=$!
-export SERIALIZABILITY_PROTOCOL="locking"
+# export SERIALIZABILITY_PROTOCOL="locking"
 export SERVER_TYPE="memory"
 ./build/target/kvs/anna-txn &
 SPID=$!
