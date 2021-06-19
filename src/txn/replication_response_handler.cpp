@@ -72,9 +72,10 @@ void replication_response_handler(
     init_tier_replication(key_replication_map, tuple_key, key_tier);
     log->info("replication_response init_tier_replication tier {} key {}", key_tier, tuple_key);
 
-    if (error == AnnaError::KEY_DNE) {
+    if (error == AnnaError::KEY_DNE && kSelfTier != Tier::TXN) {
       AnnaError notify_error = AnnaError::NO_ERROR;
       base_serializer->notify_dne_get(response.txn_id(), key, notify_error);
+      
       if (notify_error != AnnaError::NO_ERROR) {
         // TODO: for some reason, the key exists now?
       }
