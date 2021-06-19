@@ -182,88 +182,88 @@ TEST_F(ServerHandlerTest, StorageTxnPutAndPrepareTest) {
   EXPECT_EQ(pending_requests.size(), 1);
 }
 
-// TEST_F(ServerHandlerTest, StorageTxnPutAndCommitTest) {
-//   Key key = "key";
-//   string value = "value";
-//   string put_request = txn_put_key_request(kTxnId, key, value, ip);
+TEST_F(ServerHandlerTest, StorageTxnPutAndCommitTest) {
+  Key key = "key";
+  string value = "value";
+  string put_request = txn_put_key_request(kTxnId, key, value, ip);
 
-//   unsigned access_count = 0;
-//   unsigned seed = 0;
+  unsigned access_count = 0;
+  unsigned seed = 0;
 
-//   EXPECT_EQ(local_changeset.size(), 0);
+  EXPECT_EQ(local_changeset.size(), 0);
 
-//   storage_request_handler(access_count, seed, put_request, log_, global_hash_rings,
-//                           local_hash_rings, pending_requests, key_access_tracker,
-//                           stored_key_map, key_replication_map, local_changeset, wt,
-//                           base_serializer, pushers);
+  storage_request_handler(access_count, seed, put_request, log_, global_hash_rings,
+                          local_hash_rings, pending_requests, key_access_tracker,
+                          stored_key_map, key_replication_map, local_changeset, wt,
+                          base_serializer, pushers);
 
-//   vector<string> messages = get_zmq_messages();
-//   EXPECT_EQ(messages.size(), 1);
+  vector<string> messages = get_zmq_messages();
+  EXPECT_EQ(messages.size(), 1);
 
-//   TxnResponse response;
-//   response.ParseFromString(messages[0]);
+  TxnResponse response;
+  response.ParseFromString(messages[0]);
 
-//   EXPECT_EQ(response.txn_id(), kTxnId);
-//   EXPECT_EQ(response.response_id(), kRequestId);
-//   EXPECT_EQ(response.tier(), AnnaTier::AMEMORY);
-//   EXPECT_EQ(response.tuples().size(), 1);
+  EXPECT_EQ(response.txn_id(), kTxnId);
+  EXPECT_EQ(response.response_id(), kRequestId);
+  EXPECT_EQ(response.tier(), AnnaTier::AMEMORY);
+  EXPECT_EQ(response.tuples().size(), 1);
 
-//   TxnKeyTuple rtp = response.tuples(0);
+  TxnKeyTuple rtp = response.tuples(0);
 
-//   EXPECT_EQ(rtp.key(), key);
-//   EXPECT_EQ(rtp.error(), 0);
+  EXPECT_EQ(rtp.key(), key);
+  EXPECT_EQ(rtp.error(), 0);
 
-//   EXPECT_EQ(local_changeset.size(), 1);
-//   EXPECT_EQ(access_count, 1);
-//   EXPECT_EQ(key_access_tracker[key].size(), 1);
+  EXPECT_EQ(local_changeset.size(), 1);
+  EXPECT_EQ(access_count, 1);
+  EXPECT_EQ(key_access_tracker[key].size(), 1);
 
-//   string commit_request = txn_commit_key_request(kTxnId, key, ip);
+  string commit_request = txn_commit_key_request(kTxnId, key, ip);
 
-//   storage_request_handler(access_count, seed, commit_request, log_, global_hash_rings,
-//                           local_hash_rings, pending_requests, key_access_tracker,
-//                           stored_key_map, key_replication_map, local_changeset, wt,
-//                           base_serializer, pushers);
+  storage_request_handler(access_count, seed, commit_request, log_, global_hash_rings,
+                          local_hash_rings, pending_requests, key_access_tracker,
+                          stored_key_map, key_replication_map, local_changeset, wt,
+                          base_serializer, pushers);
 
-//   messages = get_zmq_messages();
-//   EXPECT_EQ(messages.size(), 3);
+  messages = get_zmq_messages();
+  EXPECT_EQ(messages.size(), 3);
 
-//   // check that request to log_request_handler is well-formed
-//   TxnRequest request;
-//   request.ParseFromString(messages[1]);
-//   string req_rep_addr = "tcp://127.0.0.1:6260";
+  // check that request to log_request_handler is well-formed
+  TxnRequest request;
+  request.ParseFromString(messages[1]);
+  string req_rep_addr = "tcp://127.0.0.1:6260";
 
-//   EXPECT_EQ(request.txn_id(), kTxnId);
-//   EXPECT_EQ(request.type(), RequestType::COMMIT_TXN);
-//   EXPECT_EQ(request.response_address(), req_rep_addr);
-//   EXPECT_EQ(request.tuples().size(), 1);
+  EXPECT_EQ(request.txn_id(), kTxnId);
+  EXPECT_EQ(request.type(), RequestType::COMMIT_TXN);
+  EXPECT_EQ(request.response_address(), req_rep_addr);
+  EXPECT_EQ(request.tuples().size(), 1);
 
-//   rtp = request.tuples(0);
+  rtp = request.tuples(0);
 
-//   EXPECT_EQ(rtp.key(), key);
-//   EXPECT_EQ(rtp.error(), 0);
+  EXPECT_EQ(rtp.key(), key);
+  EXPECT_EQ(rtp.error(), 0);
 
-//   // check response
-//   response.ParseFromString(messages[2]);
+  // check response
+  response.ParseFromString(messages[2]);
 
-//   EXPECT_EQ(response.txn_id(), kTxnId);
-//   EXPECT_EQ(response.response_id(), kRequestId);
-//   EXPECT_EQ(response.tier(), AnnaTier::AMEMORY);
-//   EXPECT_EQ(response.tuples().size(), 1);
+  EXPECT_EQ(response.txn_id(), kTxnId);
+  EXPECT_EQ(response.response_id(), kRequestId);
+  EXPECT_EQ(response.tier(), AnnaTier::AMEMORY);
+  EXPECT_EQ(response.tuples().size(), 1);
 
-//   rtp = request.tuples(0);
+  rtp = request.tuples(0);
 
-//   EXPECT_EQ(rtp.key(), key);
-//   EXPECT_EQ(rtp.error(), 0);
+  EXPECT_EQ(rtp.key(), key);
+  EXPECT_EQ(rtp.error(), 0);
 
-//   EXPECT_EQ(pending_requests.size(), 1);
+  EXPECT_EQ(pending_requests.size(), 1);
 
-//   // check lock can be held
-//   string new_txn_id = "0:1";
-//   AnnaError error = AnnaError::NO_ERROR;
-//   bool is_primary = true;
-//   base_serializer->put(new_txn_id, key, value, error, is_primary);
-//   EXPECT_EQ(error, 0);
-// }
+  // check lock can be held
+  string new_txn_id = "0:1";
+  AnnaError error = AnnaError::NO_ERROR;
+  bool is_primary = true;
+  base_serializer->put(new_txn_id, key, value, error, is_primary);
+  EXPECT_EQ(error, 0);
+}
 
 TEST_F(ServerHandlerTest, MVCCStorageTxnPutAndGetTest) {
   // Can't use kTxnId since it has timestamp = 0, which is reserved in MVCC implementation
