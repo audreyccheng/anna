@@ -166,7 +166,7 @@ void request_response_handler(
                   Address commit_response_addr = pending_requests[key][commit_index].addr_;
                   commit_response.set_response_id(pending_requests[key][commit_index].response_id_);
 
-                  bool abort_txn;
+                  bool abort_txn = false;
                   vector<ServerThreadList> all_key_threads;
                   for (const Operation &op: ops) {
                     auto op_key = op.get_key();

@@ -182,7 +182,7 @@ void user_txn_request_handler(
               log->error("Unable to prepare to commit transaction");
             }
 
-            bool abort_txn;
+            bool abort_txn = false;
             vector<ServerThreadList> all_key_threads;
             for (const Operation &op: ops) {
               auto op_key = op.get_key();
