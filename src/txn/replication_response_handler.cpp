@@ -311,24 +311,24 @@ void replication_response_handler(
                 tp->set_error(error);
 
                 /* NO LOG */
-                // // send replication / log requests
-                // ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
-                //     wt.replication_response_connect_address(), request.type_, 
-                //     response.txn_id(), key, is_metadata(key), 
-                //     global_hash_rings, local_hash_rings, key_replication_map, 
-                //     pushers, {Tier::LOG}, succeed, seed, log);
+                // send replication / log requests
+                ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
+                    wt.replication_response_connect_address(), request.type_, 
+                    response.txn_id(), key, is_metadata(key), 
+                    global_hash_rings, local_hash_rings, key_replication_map, 
+                    pushers, {Tier::LOG}, succeed, seed, log);
 
-                // // send request to log if possible
-                // if (key_threads.size() > 0) {
-                //   kHashRingUtil->issue_log_request(
-                //     wt.request_response_connect_address(), request.type_, request.txn_id_,
-                //     key, request.payload_, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
-                // }
+                // send request to log if possible
+                if (key_threads.size() > 0) {
+                  kHashRingUtil->issue_log_request(
+                    wt.request_response_connect_address(), request.type_, request.txn_id_,
+                    key, request.payload_, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+                }
 
-                // // pending_requests[key].push_back( 
-                // //   PendingTxnRequest(request.type_, key, tuple_key, payload,
-                // //                     request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
-                // continue;
+                // pending_requests[key].push_back( 
+                //   PendingTxnRequest(request.type_, key, tuple_key, payload,
+                //                     request.addr_, request.response_id_)); // TODO(@accheng): UPDATE
+                continue;
                 /* NO LOG */
               }
             } else if (request.type_ == RequestType::COMMIT_TXN) { // TODO(@accheng): this should never happen?
@@ -342,20 +342,20 @@ void replication_response_handler(
 
                 /* NO LOG */
                 // log commit
-                // ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
-                //       wt.replication_response_connect_address(), request.type_, 
-                //       response.txn_id(), key, is_metadata(key), 
-                //       global_hash_rings, local_hash_rings, key_replication_map, 
-                //       pushers, {Tier::LOG}, succeed, seed, log);
+                ServerThreadList key_threads = kHashRingUtil->get_responsible_threads(
+                      wt.replication_response_connect_address(), request.type_, 
+                      response.txn_id(), key, is_metadata(key), 
+                      global_hash_rings, local_hash_rings, key_replication_map, 
+                      pushers, {Tier::LOG}, succeed, seed, log);
 
-                // // send request to log if possible
-                // if (key_threads.size() > 0) {
-                //   kHashRingUtil->issue_log_request(
-                //     wt.request_response_connect_address(), request.type_, 
-                //     request.txn_id_, key, request.payload_, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
-                // }
+                // send request to log if possible
+                if (key_threads.size() > 0) {
+                  kHashRingUtil->issue_log_request(
+                    wt.request_response_connect_address(), request.type_, 
+                    request.txn_id_, key, request.payload_, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+                }
 
-                // continue;
+                continue;
                 /* NO LOG */
               }
             }

@@ -253,6 +253,7 @@ void request_response_handler(
 
 
                 // TODO(@accheng): Log commit on coordinator
+                /* NO LOG */
               }
             } else {
               log->error("Wrong request type to transactional tier");
