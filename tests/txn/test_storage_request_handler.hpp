@@ -305,12 +305,6 @@ TEST_F(ServerHandlerTest, MVCCStorageTxnPutAndGetTest) {
   unsigned num_keys = mvcc_serializer->size();
   EXPECT_EQ(num_keys, 1);
 
-  // Same transaction reading the key after commit SHOULD see it
-  error = AnnaError::NO_ERROR;
-  readValue = mvcc_serializer->get(main_txn_id, key, error);
-  EXPECT_EQ(error, 0);
-  EXPECT_EQ(readValue, value);
-
   // Another transaction reading the key after commit SHOULD see it
   error = AnnaError::NO_ERROR;
   readValue = mvcc_serializer->get(other_txn_id, key, error);
@@ -348,19 +342,11 @@ TEST_F(ServerHandlerTest, MVCCConflictWriteTestB) {
   Key key = "key";
   string value = "value";
 
+  // Another transaction reading the key before commit should NOT see it
   AnnaError error = AnnaError::NO_ERROR;
-  mvcc_serializer->put(txn_id_1, key, value, error, true);
-  EXPECT_EQ(error, 0);
-
-  error = AnnaError::NO_ERROR;
-  mvcc_serializer->commit(txn_id_1, key, error);
-  EXPECT_EQ(error, 0);
-
-  // Another transaction reading the key before commit SHOULD see it
-  error = AnnaError::NO_ERROR;
   string readValue = mvcc_serializer->get(txn_id_2, key, error);
-  EXPECT_EQ(error, AnnaError::NO_ERROR);
-  EXPECT_EQ(readValue, value);
+  EXPECT_EQ(error, AnnaError::KEY_DNE);
+  EXPECT_EQ(readValue, "");
 
   // Since another transaction with larger tts read this key, we can no longer write to it
   error = AnnaError::NO_ERROR;
