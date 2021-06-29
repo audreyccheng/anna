@@ -71,15 +71,6 @@ void replication_response_handler(
     // but didn't have any values stored -- we use the default rep factor
     init_tier_replication(key_replication_map, tuple_key, key_tier);
     log->info("replication_response init_tier_replication tier {} key {}", key_tier, tuple_key);
-
-    if (error == AnnaError::KEY_DNE && kSelfTier != Tier::TXN) {
-      AnnaError notify_error = AnnaError::NO_ERROR;
-      base_serializer->notify_dne_get(response.txn_id(), key, notify_error);
-      
-      if (notify_error != AnnaError::NO_ERROR) {
-        // TODO: for some reason, the key exists now?
-      }
-    }
   } else if (error == AnnaError::WRONG_THREAD) {
     // this means that the node that received the rep factor request was not
     // responsible for that metadata
@@ -289,6 +280,9 @@ void replication_response_handler(
             if (request.type_ == RequestType::TXN_GET) {
               if (stored_key_map.find(key) == stored_key_map.end()) {
                 tp->set_error(AnnaError::KEY_DNE);
+
+                AnnaError notify_error = AnnaError::NO_ERROR;
+                base_serializer->notify_dne_get(response.txn_id(), key, notify_error);
               } else {
                 AnnaError error = AnnaError::NO_ERROR;
                 auto res = process_txn_get(request.txn_id_, key, error,
