@@ -238,9 +238,9 @@ void request_response_handler(
     		          if (commit_index + erase_count < index) {
     		          	erase_count++;
     		          }
-                    }
-                  } 
-                  log->info("request_response pending_requests[key] {} size {} ", key, pending_requests[key].size());
+                }
+              }
+              log->info("request_response pending_requests[key] {} size {} ", key, pending_requests[key].size());
           	} else if (request.type_ == RequestType::COMMIT_TXN) {
               // response sent to client after prepare phase
               send_response = false;
