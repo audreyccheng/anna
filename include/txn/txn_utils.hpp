@@ -92,6 +92,7 @@ public:
                                 AnnaError &error) = 0;
   virtual string reveal_temp_element(const Key &key,
                                      AnnaError &error) = 0;
+  virtual void notify_dne_get(const string& txn_id, const Key &key, AnnaError &error) = 0;
   virtual void put(const string& txn_id, const Key &key,
                    const string &serialized, AnnaError &error,
                    const bool &is_primary) = 0;
@@ -130,6 +131,10 @@ public:
   string reveal_temp_element(const Key &key, AnnaError &error) {
     // TODO(@accheng: Update
     return "";
+  }
+
+  void notify_dne_get(const string& txn_id, const Key &key, AnnaError &error) {
+    // nothing needs to be done
   }
 
   void put(const string& txn_id, const Key &key,
@@ -177,6 +182,10 @@ public:
 
   string reveal_temp_element(const Key &key, AnnaError &error) {
     return lock_node_->reveal_temp_element(key, error);
+  }
+
+  void notify_dne_get(const string& txn_id, const Key &key, AnnaError &error) {
+    // nothing needs to be done
   }
 
   void put(const string& txn_id, const Key &key, const string &serialized,
@@ -265,6 +274,10 @@ public:
       }
     }
     return value;
+  }
+
+  void notify_dne_get(const string& txn_id, const Key &key, AnnaError &error) {
+    // nothing needs to be done
   }
 
   void put(const string& txn_id, const Key &key, const string &serialized,
@@ -367,6 +380,15 @@ public:
   string reveal_temp_element(const Key &key, AnnaError &error) {
     // Not used by MVCC
     return "";
+  }
+
+  void notify_dne_get(const string& txn_id, const Key &key, AnnaError &error) {
+    AnnaError get_error = AnnaError::NO_ERROR;
+    get(txn_id, key, get_error);
+
+    if (get_error != AnnaError::KEY_DNE) {
+      error = AnnaError::FAILED_OP;
+    }
   }
 
   void put(const string& txn_id, const Key &key, const string &serialized,
