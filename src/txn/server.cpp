@@ -826,6 +826,8 @@ int main(int argc, char *argv[]) {
       kSelfTier = Tier::MEMORY;
     } else if (strncmp(stype, "ebs", 3) == 0) {
       kSelfTier = Tier::DISK;
+    } else if (strncmp(stype, "log", 3) == 0) {
+      kSelfTier = Tier::LOG;
     } else {
       std::cout << "Unrecognized server type " << stype
                 << ". Valid types are memory or ebs." << std::endl;
