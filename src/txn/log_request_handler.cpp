@@ -82,6 +82,7 @@ void log_request_handler(
             request_type == RequestType::COMMIT_TXN) {
 
           AnnaError error = AnnaError::NO_ERROR;
+          log->info("Logged for txn {}, type {} ", txn_id, key);
           process_log(txn_id, key, payload, error, serializer); // TODO(@accheng): update
           tp->set_error(error);
 
