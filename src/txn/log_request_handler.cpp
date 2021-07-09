@@ -44,12 +44,20 @@ void log_request_handler(
     Key key = tuple.key();
     string payload = tuple.payload();
 
+    log->info("Received log_request of type {} for key {}", request_type, key);
+
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), request_type, txn_id, 
         key, is_metadata(key),
         global_hash_rings, local_hash_rings, key_replication_map, pushers,
         kSelfTierIdVector, succeed, seed, log);
 
+    string suc = "false";
+    if (succeed) {
+      suc = "true";
+    }
+    log->info("Log request getting threads success: {}", suc);
+    
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
         if (is_metadata(key)) {

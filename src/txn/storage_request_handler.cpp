@@ -140,10 +140,12 @@ void storage_request_handler(
                 pushers, {Tier::LOG}, succeed, seed, log);
 
             // send request to log if possible
+            log->info("storage request getting threads success: {}, {} threads", succeed, key_threads.size());
             if (key_threads.size() > 0) {
               kHashRingUtil->issue_log_request(
                 wt.request_response_connect_address(), request_type, txn_id,
                 key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+              log->info("storage request issued log request for txn_id {} type {}", txn_id, request_type);
             }
 
             pending_requests[key].push_back( 
