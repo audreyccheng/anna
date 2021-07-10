@@ -60,6 +60,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
       succeed = false;
     } else {
       for (const Tier &tier : tiers) {
+        log->info("replication {}", key_replication_map[key].global_replication_);
         ServerThreadList threads = responsible_global(
             key, key_replication_map[key].global_replication_[tier],
             global_hash_rings[tier]);
