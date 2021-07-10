@@ -27,6 +27,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
     const vector<Tier> &tiers, bool &succeed, unsigned &seed, logger log) {
+  log->info("getting responsive threads, type {}, txn_id {}, key {}, metadata {}", request_type, txn_id, key, metadata);
   if (metadata) {
     succeed = true;
     // TODO(@accheng): where should metadata be kept?
@@ -42,6 +43,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
     ServerThreadList result;
 
     if (key_replication_map.find(key) == key_replication_map.end()) {
+      log->info("key not in key_replication_map");
       // If this a transaction id, only the txnal tier should be responsible for it
       if (tiers.size() > 0 && tiers[0] == Tier::TXN) {
         kHashRingUtil->issue_replication_factor_request(
@@ -61,7 +63,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
         ServerThreadList threads = responsible_global(
             key, key_replication_map[key].global_replication_[tier],
             global_hash_rings[tier]);
-        // log->info("hash_ring grt responsible_global tier {} size {}", tier, threads.size());
+        log->info("hash_ring get responsible_global tier {} size {}", tier, threads.size());
 
         for (const ServerThread &thread : threads) {
           Address public_ip = thread.public_ip();
@@ -69,7 +71,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
           set<unsigned> tids = responsible_local(
               key, key_replication_map[key].local_replication_[tier],
               local_hash_rings[tier]);
-          // log->info("hash_ring grt responsible_local tier {} size {}", tier, tids.size());
+          log->info("hash_ring get responsible_local tier {} size {}", tier, tids.size());
 
           for (const unsigned &tid : tids) {
             result.push_back(ServerThread(public_ip, private_ip, tid));
