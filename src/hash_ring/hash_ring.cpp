@@ -50,6 +50,11 @@ ServerThreadList HashRingUtil::get_responsible_threads(
             response_address, request_type, txn_id, key, tiers[0],
             global_hash_rings[Tier::TXN], local_hash_rings[Tier::TXN], 
             pushers, seed, log);
+      } else if (tiers.size() > 0 && tiers[0] == Tier::LOG) {
+        kHashRingUtil->issue_replication_factor_request(
+            response_address, request_type, txn_id, key, tiers[0],
+            global_hash_rings[Tier::LOG], local_hash_rings[Tier::LOG],
+            pushers, seed, log);
       } else { // TODO(@accheng): set which tier to replicate key at
         Tier key_tier = Tier::MEMORY; // get_random_tier();
         kHashRingUtil->issue_replication_factor_request(
