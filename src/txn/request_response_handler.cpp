@@ -265,10 +265,6 @@ void request_response_handler(
                     key, payload, log_key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
                   log->info("request response issued log request for txn_id {} type {}", key, request.type_);
                 }
-
-                pending_requests[key].push_back( 
-                  PendingTxnRequest(request.type_, key, key, payload,
-                                    request.addr_, request.response_id_));
               }
             } else {
               log->error("Wrong request type to transactional tier");
