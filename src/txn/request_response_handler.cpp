@@ -252,8 +252,23 @@ void request_response_handler(
                 log->info("***** request_response now holds at key {} value {} error {}", key, temp_val, error);
 
 
-                // TODO(@accheng): Log commit on coordinator
-                /* NO LOG */
+                // Log commit on coordinator
+                ServerThreadList log_key_threads = kHashRingUtil->get_responsible_threads(
+                    wt.replication_response_connect_address(), request.type_, key, 
+                    key, is_metadata(key), 
+                    global_hash_rings, local_hash_rings, key_replication_map, 
+                    pushers, {Tier::LOG}, succeed, seed, log);
+
+                if (log_key_threads.size() > 0) {
+                  kHashRingUtil->issue_log_request(
+                    wt.request_response_connect_address(), request.type_, key,
+                    key, payload, log_key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
+                  log->info("request response issued log request for txn_id {} type {}", key, request.type_);
+                }
+
+                pending_requests[key].push_back( 
+                  PendingTxnRequest(request.type_, key, key, payload,
+                                    request.addr_, request.response_id_));
               }
             } else {
               log->error("Wrong request type to transactional tier");
