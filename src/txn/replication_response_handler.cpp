@@ -194,6 +194,7 @@ void replication_response_handler(
 
               // need to add txn_id to key_rep_map
               init_tier_replication(key_replication_map, txn_id, kSelfTier);
+              init_tier_replication(key_replication_map, txn_id, Tier::LOG);
 
               // TODO(@accheng): erase from pending requests
             } else if (request.type_ == RequestType::TXN_GET || 
