@@ -372,6 +372,7 @@ void replication_response_handler(
             /* LOG tier */
             if (request.type_ == RequestType::PREPARE_TXN || 
                 request.type_ == RequestType::COMMIT_TXN) {
+              log->info("Logged for txn {}, type {} ", request.txn_id_, request.type_);
               process_log(request.txn_id_, key, request.payload_, error, serializer); // TODO(@accheng): update
               tp->set_error(error);
             } else {

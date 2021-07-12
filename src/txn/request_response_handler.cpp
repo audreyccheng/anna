@@ -297,6 +297,7 @@ void request_response_handler(
             /* LOG tier */
             if (request.type_ == RequestType::PREPARE_TXN || 
                 request.type_ == RequestType::COMMIT_TXN) {
+              log->info("Logged for txn {}, type {} ", key, request.type_);
               process_log(key, tuple_key, payload, error, serializer); // TODO(@accheng): update
           	  tp->set_error(error);
             } else {
