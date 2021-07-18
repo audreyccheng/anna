@@ -180,3 +180,8 @@ bool is_primary_replica(const Key &key,
     return false;
   }
 }
+
+bool should_abort(AnnaError error) {
+  return error != AnnaError::NO_ERROR && error != AnnaError::KEY_DNE && error != AnnaError::TXN_DNE;
+}
+

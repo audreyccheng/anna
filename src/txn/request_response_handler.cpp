@@ -125,13 +125,13 @@ void request_response_handler(
 
           /* TXN tier */
           if (kSelfTier == Tier::TXN) {
-          	auto serializer = txn_serializer;
-          	// handle response from storage tier
-          	if (request.type_ == RequestType::TXN_GET || request.type_ == RequestType::TXN_PUT) {
+            auto serializer = txn_serializer;
+            // handle response from storage tier
+            if (request.type_ == RequestType::TXN_GET || request.type_ == RequestType::TXN_PUT) {
               rep_response.set_txn_id(request.txn_id_);
-          	  if (tuple.error() != AnnaError::NO_ERROR) {
-                  // TODO(@accheng): need to abort txn
-
+              if (should_abort(tuple.error())) {
+                rep_response.set_error(AnnaError::FAILED_OP);
+                // TODO(@darkterbear): need to abort txn
               }
               tp->set_key(tuple_key);
               tp->set_error(error);

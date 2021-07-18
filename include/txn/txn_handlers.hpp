@@ -172,6 +172,6 @@ bool is_primary_replica(const Key &key,
                         GlobalRingMap &global_hash_rings,
                         LocalRingMap &local_hash_rings, ServerThread &st);
 
-
+bool should_abort(AnnaError error);
 
 #endif // INCLUDE_TXN_TXN_HANDLERS_HPP_
