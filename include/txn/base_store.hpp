@@ -215,7 +215,7 @@ public:
   }
 
   void abort(const string& txn_id, const K &k, AnnaError &error) {
-    std::cout << "serializer abort" << std::endl;
+    std::cout << txn_id << " serializer abort" << std::endl;
     // check this key exists
     if (db.find(k) == db.end()) {
       error = AnnaError::FAILED_OP;
@@ -223,10 +223,10 @@ public:
     }
 
     if (db.at(k).holds_wlock(txn_id)) {
-      std::cout << "release wlock" << std::endl;
+      std::cout << txn_id << " release wlock on " << k << std::endl;
       db.at(k).release_wlock(txn_id);
     } else if (db.at(k).holds_rlock(txn_id)) {
-      std::cout << "release rlock" << std::endl;
+      std::cout << txn_id << " release wlock on " << k << std::endl;
       db.at(k).release_rlock(txn_id);
     }
   }
