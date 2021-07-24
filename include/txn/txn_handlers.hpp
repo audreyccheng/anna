@@ -142,6 +142,11 @@ vector<Operation> process_get_ops(
           TxnSerializer *serializer,
           map<Key, TxnKeyProperty> &stored_txn_map);
 
+vector<Key> process_get_keys(
+          const string &txn_id, AnnaError &error,
+          TxnSerializer *serializer,
+          map<Key, TxnKeyProperty> &stored_txn_map);
+
 void process_commit_txn(const string &txn_id, AnnaError &error, 
                         TxnSerializer *serializer,
                         map<Key, TxnKeyProperty> &stored_txn_map);
@@ -160,6 +165,10 @@ void process_txn_prepare(const string &txn_id, const Key &key,
                          map<Key, TxnKeyProperty> &stored_key_map);
 
 void process_txn_commit(const string &txn_id, const Key &key,
+                        AnnaError &error, BaseSerializer *serializer,
+                        map<Key, TxnKeyProperty> &stored_key_map);
+
+void process_txn_abort(const string &txn_id, const Key &key,
                         AnnaError &error, BaseSerializer *serializer,
                         map<Key, TxnKeyProperty> &stored_key_map);
 

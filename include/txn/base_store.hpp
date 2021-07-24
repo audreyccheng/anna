@@ -214,6 +214,20 @@ public:
     }
   }
 
+  void abort(const string& txn_id, const K &k, AnnaError &error) {
+    // check this key exists
+    if (db.find(k) == db.end()) {
+      error = AnnaError::FAILED_OP;
+      return;
+    }
+
+    if (db.at(k).holds_wlock(txn_id)) {
+      db.at(k).release_wlock(txn_id);
+    } else if (db.at(k).holds_rlock(txn_id)) {
+      db.at(k).release_rlock(txn_id);
+    }
+  }
+
   void release_wlock(const string& txn_id, const K &k) {
     if (db.find(k) != db.end()) {
       db.at(k).release_wlock(txn_id);

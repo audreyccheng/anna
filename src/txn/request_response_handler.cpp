@@ -132,6 +132,22 @@ void request_response_handler(
               if (should_abort(tuple.error())) {
                 rep_response.set_error(AnnaError::FAILED_OP);
                 // TODO(@darkterbear): need to abort txn
+
+                // Send ABORT_TXN request to storage tier for each key touched
+                vector<Key> keys = process_get_keys(key, error, serializer, stored_key_map);
+                for (Key k : keys) {
+                  ServerThread thread = kHashRingUtil->get_responsible_threads(
+                          wt.replication_response_connect_address(), RequestType::ABORT_TXN, 
+                          response.txn_id(), k, is_metadata(k), 
+                          global_hash_rings, local_hash_rings, key_replication_map, 
+                          pushers, kStorageTiers, succeed, seed, log)[0];
+
+                  kHashRingUtil->issue_storage_request(
+                        wt.request_response_connect_address(), RequestType::ABORT_TXN, response.txn_id(), 
+                        k, "", thread, pushers);
+
+                  log->info("req_resp storage request ABORT txn_id {} key {}", response.txn_id(), k);
+                }
               }
               tp->set_key(tuple_key);
               tp->set_error(error);

@@ -184,6 +184,17 @@ void storage_request_handler(
               PendingTxnRequest(request_type, txn_id, key, payload, "", /* response_address */
                                 response_id));
           /* NO LOG */
+        } else if (request_type == RequestType::ABORT_TXN) {
+          if (stored_key_map.find(key) == stored_key_map.end()) {
+            tp->set_error(AnnaError::KEY_DNE);
+          } else {
+            AnnaError error = AnnaError::NO_ERROR;
+            process_txn_abort(txn_id, key, error, serializer,
+                                       stored_key_map);
+            tp->set_error(error);
+            
+            log->info("storage request process_txn_abort error {}", error);
+          }
         } else {
           log->error("Unknown request type {} in user request handler.",
                      request_type);
