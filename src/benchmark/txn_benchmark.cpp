@@ -80,7 +80,7 @@ int sample(int n, unsigned &seed, double base,
 }
 
 string generate_key(unsigned n) {
-  return string(8 - std::to_string(n).length(), '0') + std::to_string(n);
+  return std::string(8 - std::to_string(n).length(), '0') + std::to_string(n);
 }
 
 void run(const unsigned &thread_id,
@@ -142,7 +142,7 @@ void run(const unsigned &thread_id,
         // warm up cache
         for (unsigned i = 1; i <= num_keys; i++) {
           log->info("Warming up cache for key {}.", i);
-          client.txn_get(0, txn_id, generate_key(i));
+          client.txn_get(client_id, txn_id, generate_key(i));
           receive(&client);
         }
 
