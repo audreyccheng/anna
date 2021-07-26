@@ -67,16 +67,16 @@ public:
           kDefaultGlobalMemoryReplication;
       key_replication_map[key].global_replication_[Tier::DISK] =
           kDefaultGlobalEbsReplication;
-      // key_replication_map[key].global_replication_[Tier::LOG] =
-      //     kDefaultGlobalLogReplication;
+      key_replication_map[key].global_replication_[Tier::LOG] =
+          kDefaultGlobalLogReplication;
       key_replication_map[key].local_replication_[Tier::TXN] =
           kDefaultLocalReplication;
       key_replication_map[key].local_replication_[Tier::MEMORY] =
           kDefaultLocalReplication;
       key_replication_map[key].local_replication_[Tier::DISK] =
           kDefaultLocalReplication;
-      // key_replication_map[key].local_replication_[Tier::LOG] =
-      //     kDefaultLocalReplication;
+      key_replication_map[key].local_replication_[Tier::LOG] =
+          kDefaultLocalReplication;
     }
   }
 };

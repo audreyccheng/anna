@@ -69,8 +69,10 @@ void replication_response_handler(
     log->info("replication_response request KEY_DNE");
     // KEY_DNE means that the receiving thread was responsible for the metadata
     // but didn't have any values stored -- we use the default rep factor
-    init_tier_replication(key_replication_map, tuple_key, key_tier);
-    log->info("replication_response init_tier_replication tier {} key {}", key_tier, tuple_key);
+    // init_tier_replication(key_replication_map, tuple_key, key_tier);
+    init_replication(key_replication_map, tuple_key);
+    // log->info("replication_response init_tier_replication tier {} key {}", key_tier, tuple_key);
+    log->info("replication_response init_replication key {}", tuple_key);
   } else if (error == AnnaError::WRONG_THREAD) {
     // this means that the node that received the rep factor request was not
     // responsible for that metadata
@@ -192,6 +194,7 @@ void replication_response_handler(
 
               // need to add txn_id to key_rep_map
               init_tier_replication(key_replication_map, txn_id, kSelfTier);
+              init_tier_replication(key_replication_map, txn_id, Tier::LOG);
 
               // TODO(@accheng): erase from pending requests
             } else if (request.type_ == RequestType::TXN_GET || 
@@ -369,6 +372,7 @@ void replication_response_handler(
             /* LOG tier */
             if (request.type_ == RequestType::PREPARE_TXN || 
                 request.type_ == RequestType::COMMIT_TXN) {
+              log->info("Logged for txn {}, type {} ", request.txn_id_, request.type_);
               process_log(request.txn_id_, key, request.payload_, error, serializer); // TODO(@accheng): update
               tp->set_error(error);
             } else {
