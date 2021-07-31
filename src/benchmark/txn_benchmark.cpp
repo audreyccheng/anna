@@ -214,6 +214,7 @@ void run(const unsigned &thread_id,
               responses = client.receive_txn_async();
             }
             txn_id = responses[0].txn_id();
+            log->info("[TPS] START TXN {}", txn_id);
           } else {
             // do an action for this txn
             // true for get, false for put
@@ -236,8 +237,10 @@ void run(const unsigned &thread_id,
 
             if (type) {
               client.txn_get(client_id, txn_id, key);
+              log->info("[TPS] TXN GET {}, {}", txn_id, key);
             } else {
               client.txn_put(client_id, txn_id, key, payload);
+              log->info("[TPS] TXN PUT {}, {}", txn_id, key);
             }
             receive(&client);
 
@@ -248,6 +251,8 @@ void run(const unsigned &thread_id,
             }
 
             if (g >= gets_per_txn && p >= puts_per_txn) {
+              log->info("[TPS] COMMIT TXN {}", txn_id);
+
               // finished last action for this txn, commit
               client.commit_txn(client_id, txn_id);
               receive(&client);
