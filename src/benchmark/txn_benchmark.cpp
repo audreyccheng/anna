@@ -154,14 +154,17 @@ void run(const unsigned &thread_id,
                                std::chrono::system_clock::now() - warmup_start)
                                .count();
         log->info("Puts took {} ms", warmup_time);
-      } else if (mode == "LOAD") {
-        // LOAD:<num_txns>:<actions_per_txn>:<len>
-        unsigned num_txns = stoi(v[1]);
-        unsigned actions_per_txn = stoi(v[2]);
-        unsigned num_keys = stoi(v[3]);
-        unsigned length = stoi(v[4]);
-        double zipf = stod(v[5]);
+      } else if (mode == "TPS") {
+        // To measure Transactions per second
+        // TPS:<num_txns>:<zipf>:<gets_per_txn>:<puts_per_txn>
 
+        unsigned num_txns = stod(v[1]);
+        double zipf = stod(v[2]);
+        unsigned gets_per_txn = stod(v[3]);
+        unsigned puts_per_txn = stod(v[4]);
+        auto payload = "payload";
+        unsigned num_keys = 10000;
+        
         map<unsigned, double> sum_probs;
         double base;
 
@@ -183,11 +186,11 @@ void run(const unsigned &thread_id,
                               benchmark_end - benchmark_start)
                               .count();
 
-        // map of txn index to # actions completed, txn_id pair
-        map<unsigned, pair<unsigned, string>> actions_done;
+        // map of txn index to (gets completed, puts completed, txn_id) tuple
+        map<unsigned, std::tuple<unsigned, unsigned, string>> actions_done;
 
         for (unsigned i = 0; i < num_txns; i++) {
-          actions_done.insert(pair<unsigned, pair<unsigned, string>>(i, pair<unsigned, string>(0, "")));
+          actions_done.insert(pair<unsigned, std::tuple<unsigned, unsigned, string>>(i, std::tuple<unsigned, unsigned, string>(0, 0, "")));
         }
 
         while (true) {
@@ -197,8 +200,9 @@ void run(const unsigned &thread_id,
           auto it = actions_done.begin();
           std::advance(it, rand() % actions_done.size());
           unsigned i = it->first;
-          unsigned n = (it->second).first;
-          string txn_id = (it->second).second;
+          unsigned& g = std::get<0>(it->second);
+          unsigned& p = std::get<1>(it->second);
+          string& txn_id = std::get<2>(it->second);
 
           if (txn_id.empty()) {
             // start this txn
@@ -209,11 +213,17 @@ void run(const unsigned &thread_id,
             while (responses.size() == 0) {
               responses = client.receive_txn_async();
             }
-            (it->second).second = responses[0].txn_id();
+            txn_id = responses[0].txn_id();
           } else {
             // do an action for this txn
             // true for get, false for put
-            bool type = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) >= 0.5 ? true : false;
+            bool type;
+
+            if (g < gets_per_txn) {
+              type = true;
+            } else {
+              type = false;
+            }
 
             // get a random key
             unsigned k;
@@ -227,11 +237,17 @@ void run(const unsigned &thread_id,
             if (type) {
               client.txn_get(client_id, txn_id, key);
             } else {
-              client.txn_put(client_id, txn_id, key, string(length, 'a'));
+              client.txn_put(client_id, txn_id, key, payload);
             }
             receive(&client);
 
-            if (++((it->second).first) >= actions_per_txn) {
+            if (type) {
+              g++;
+            } else {
+              p++;
+            }
+
+            if (g >= gets_per_txn && p >= puts_per_txn) {
               // finished last action for this txn, commit
               client.commit_txn(client_id, txn_id);
               receive(&client);
@@ -242,10 +258,10 @@ void run(const unsigned &thread_id,
         }
 
         benchmark_end = std::chrono::system_clock::now();
-        total_time = std::chrono::duration_cast<std::chrono::seconds>(
+        total_time = std::chrono::duration_cast<std::chrono::milliseconds>(
                           benchmark_end - benchmark_start)
                           .count();
-        log->info("Finished; took {} seconds.", total_time);
+        log->info("Finished; took {} ms.", total_time);
 
         UserFeedback feedback;
 
