@@ -122,8 +122,8 @@ void run(const unsigned &thread_id,
       split(msg, ':', v);
       string mode = v[0];
 
-      if (mode == "CACHE") {
-        // CACHE:<number of keys>
+      if (mode == "PUTS") {
+        // PUTS:<number of keys>
         unsigned num_keys = stoi(v[1]);
 
         client.clear_cache();
@@ -142,7 +142,7 @@ void run(const unsigned &thread_id,
         // warm up cache
         for (unsigned i = 1; i <= num_keys; i++) {
           log->info("Warming up cache for key {}.", i);
-          client.txn_get(client_id, txn_id, generate_key(i));
+          client.txn_put(client_id, txn_id, generate_key(i), "payload");
           receive(&client);
         }
 
@@ -150,10 +150,10 @@ void run(const unsigned &thread_id,
         client.commit_txn(client_id, txn_id);
         receive(&client);
 
-        auto warmup_time = std::chrono::duration_cast<std::chrono::seconds>(
+        auto warmup_time = std::chrono::duration_cast<std::chrono::milliseconds>(
                                std::chrono::system_clock::now() - warmup_start)
                                .count();
-        log->info("Cache warm-up took {} seconds.", warmup_time);
+        log->info("Puts took {} ms", warmup_time);
       } else if (mode == "LOAD") {
         // LOAD:<num_txns>:<actions_per_txn>:<len>
         unsigned num_txns = stoi(v[1]);
@@ -260,45 +260,6 @@ void run(const unsigned &thread_id,
               serialized_latency,
               &pushers[thread.feedback_report_connect_address()]);
         }
-      } else if (mode == "WARM") {
-        // WARM:<number of keys>:<length of values>:<threads>
-        unsigned num_keys = stoi(v[1]);
-        unsigned length = stoi(v[2]);
-        unsigned total_threads = stoi(v[3]);
-        unsigned range = num_keys / total_threads;
-        unsigned start = thread_id * range + 1;
-        unsigned end = thread_id * range + 1 + range;
-
-        // create dummy txn for warming cache
-        client.start_txn(client_id);
-
-        // get txn id
-        vector<TxnResponse> responses = client.receive_txn_async();
-        while (responses.size() == 0) {
-          responses = client.receive_txn_async();
-        }
-        auto txn_id = responses[0].txn_id();
-
-        Key key;
-        auto warmup_start = std::chrono::system_clock::now();
-
-        for (unsigned i = start; i < end; i++) {
-          if (i % 50000 == 0) {
-            log->info("Creating key {}.", i);
-          }
-
-          client.txn_put(client_id, txn_id, generate_key(i), string(length, 'a'));
-          receive(&client);
-        }
-
-        // commit dummy txn
-        client.commit_txn(client_id, txn_id);
-        receive(&client);
-
-        auto warmup_time = std::chrono::duration_cast<std::chrono::seconds>(
-                               std::chrono::system_clock::now() - warmup_start)
-                               .count();
-        log->info("Warming up data took {} seconds.", warmup_time);
       } else {
         log->info("{} is an invalid mode.", mode);
       }
