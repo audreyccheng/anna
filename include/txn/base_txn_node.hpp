@@ -41,7 +41,7 @@ public:
     string time = std::to_string(
       std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count());
-    string txn_id = client_id + ":" + time;
+    string txn_id = client_id + "-" + std::to_string(rand()) + ":" + time;
     vector<Operation> vec;
     db[txn_id] = vec;
     return txn_id;
