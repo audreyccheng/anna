@@ -93,6 +93,7 @@ void storage_request_handler(
           log->info("storage request getting txn id {} key {}", txn_id, key);
           if (stored_key_map.find(key) == stored_key_map.end()) {
             tp->set_error(AnnaError::KEY_DNE);
+            stored_key_map[key].lock_ = 1;
           } else {
             AnnaError error = AnnaError::NO_ERROR;
             auto res = process_txn_get(txn_id, key, error, serializer,
