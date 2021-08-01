@@ -5,7 +5,7 @@ MPID=$!
 ./build/target/kvs/anna-route &
 RPID=$!
 
-export SERIALIZABILITY_PROTOCOL="locking"
+export SERIALIZABILITY_PROTOCOL="mvcc"
 export SERVER_TYPE="txn"
 ./build/target/kvs/anna-txn &
 S2PID=$!
