@@ -301,11 +301,10 @@ class MVCCVersion {
 };
 
 inline long get_tts(const string& txn_id) {
-  string::size_type n_id;
-  string::size_type n_time;
+  string::size_type n_rand;
 
-  n_id = txn_id.find(":"); // TODO(@accheng): update to constant
-  string tts_string = txn_id.substr(n_id + 1);
+  n_rand = txn_id.find(":"); // TODO(@accheng): update to constant
+  string tts_string = txn_id.substr(n_rand + 1);
   return stol(tts_string);
 }
 
