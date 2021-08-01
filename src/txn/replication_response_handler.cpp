@@ -283,7 +283,7 @@ void replication_response_handler(
             if (request.type_ == RequestType::TXN_GET) {
               if (stored_key_map.find(key) == stored_key_map.end()) {
                 tp->set_error(AnnaError::KEY_DNE);
-
+                stored_key_map[key].lock_ = 1;
                 AnnaError notify_error = AnnaError::NO_ERROR;
                 base_serializer->notify_dne_get(response.txn_id(), key, notify_error);
               } else {
