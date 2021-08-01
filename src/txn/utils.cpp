@@ -122,7 +122,7 @@ string process_txn_get(const string &txn_id, const Key &key,
                        map<Key, TxnKeyProperty> &stored_key_map) {
   auto res = serializer->get(txn_id, key, error);
   // if read is successful, read lock is now held
-  if (error == AnnaError::NO_ERROR) {
+  if (error == AnnaError::NO_ERROR || error == AnnaError::KEY_DNE) {
     stored_key_map[key].lock_ = 1;
   }
   return std::move(res);
@@ -134,7 +134,7 @@ void process_txn_put(const string &txn_id, const Key &key,
                      map<Key, TxnKeyProperty> &stored_key_map) {
   serializer->put(txn_id, key, payload, error, is_primary);
   // if write is successful, write lock is now held
-  if (error == AnnaError::NO_ERROR || error == AnnaError::KEY_DNE) {
+  if (error == AnnaError::NO_ERROR) {
     stored_key_map[key].lock_ = 2;
   }
 }
