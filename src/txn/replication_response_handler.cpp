@@ -48,7 +48,7 @@ void replication_response_handler(
   }
 
   // log->info("Received replication_response request type {} txn_id {} key {} tier {}",
-    // response.type(), response.txn_id(), key, key_tier);
+    response.type(), response.txn_id(), key, key_tier);
 
   if (error == AnnaError::NO_ERROR) {
     // TODO(@accheng): update; this is called in for replication_change only
