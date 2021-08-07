@@ -122,7 +122,7 @@ void run(const unsigned &thread_id,
       split(msg, ':', v);
       string mode = v[0];
 
-      unsigned num_keys = 10000;
+      unsigned num_keys = 1000;
 
       if (mode == "CACHE") {
         client.clear_cache();
