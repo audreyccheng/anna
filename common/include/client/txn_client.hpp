@@ -164,7 +164,7 @@ class TxnClient : public TxnClientInterface {
     kZmqUtil->poll(0, &pollitems_);
 
     if (pollitems_[0].revents & ZMQ_POLLIN) {
-      // log_->info("Key address response");
+      log_->info("Key address response");
       string serialized = kZmqUtil->recv_string(&key_address_puller_);
       KeyAddressResponse response;
       response.ParseFromString(serialized);
@@ -181,7 +181,7 @@ class TxnClient : public TxnClientInterface {
           // populate cache
           for (const Address& ip : response.addresses(0).ips()) {
             key_address_cache_[key].insert(ip);
-            // log_->info("Got ip {}", ip);
+            log_->info("Got ip {}", ip);
           }
 
           // handle stuff in pending request map
@@ -201,18 +201,18 @@ class TxnClient : public TxnClientInterface {
     }
 
     if (pollitems_[1].revents & ZMQ_POLLIN) {
-      // log_->info("Txn response");
+      log_->info("Txn response");
       string serialized = kZmqUtil->recv_string(&response_puller_);
       TxnResponse response;
       response.ParseFromString(serialized);
       Key key;
 
-      // log_->info("Txn response of type {} with tuple_key {}", response.type(), response.tuples(0).key());
+      log_->info("Txn response of type {} with tuple_key {}", response.type(), response.tuples(0).key());
 
       if (response.type() == RequestType::START_TXN) {
         key = get_client_id_from_txn_id(response.txn_id());
 
-        // log_->info("Txn response start_txn client_id {}", key);
+        log_->info("Txn response start_txn client_id {}", key);
 
         if (pending_txn_response_map_.find(key) !=
             pending_txn_response_map_.end()) {
@@ -369,11 +369,11 @@ class TxnClient : public TxnClientInterface {
     // we only get NULL back for the worker thread if the query to the routing
     // tier timed out, which should never happen.
     Key key = request.tuples(0).key();
-    // log_->info("Trying request with type {} and key {}", request.type(), key);
+    log_->info("Trying request with type {} and key {}", request.type(), key);
 
     Address worker = get_worker_thread(client_id);
     if (worker.length() == 0) {
-      // log_->info("No worker threads for client {} yet", client_id);
+      log_->info("No worker threads for client {} yet", client_id);
       // this means a key addr request is issued asynchronously
       if (pending_txn_map_.find(key) == pending_txn_map_.end()) {
         pending_txn_map_[key].first = std::chrono::system_clock::now();
@@ -419,10 +419,10 @@ class TxnClient : public TxnClientInterface {
   bool check_txn_tuple(const TxnKeyTuple& tuple) {
     Key key = tuple.key();
     if (tuple.error() == 2) {
-      // log_->info(
-      //     "Server ordered invalidation of key address cache for key {}. "
-      //     "Retrying request.",
-      //     key);
+      log_->info(
+          "Server ordered invalidation of key address cache for key {}. "
+          "Retrying request.",
+          key);
 
       invalidate_txn_cache_for_key(key, tuple);
       return true;
@@ -431,8 +431,8 @@ class TxnClient : public TxnClientInterface {
     if (tuple.invalidate()) {
       invalidate_txn_cache_for_key(key, tuple);
 
-      // log_->info("Server ordered invalidation of key address cache for key {}",
-      //            key);
+      log_->info("Server ordered invalidation of key address cache for key {}",
+                 key);
     }
 
     return false;
