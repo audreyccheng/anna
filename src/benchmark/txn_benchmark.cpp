@@ -155,12 +155,12 @@ void run(const unsigned &thread_id,
         log->info("Puts took {} ms", warmup_time);
       } else if (mode == "TPS") {
         // To measure Transactions per second
-        // TPS:<num_txns>:<zipf>:<gets_per_txn>:<puts_per_txn>
+        // TPS:<num_txns>:<zipf>
 
         unsigned num_txns = stod(v[1]);
         double zipf = stod(v[2]);
-        unsigned gets_per_txn = stod(v[3]);
-        unsigned puts_per_txn = stod(v[4]);
+        unsigned gets_per_txn = 1;
+        unsigned puts_per_txn = 1;
         auto payload = "payload";
         
         map<unsigned, double> sum_probs;
