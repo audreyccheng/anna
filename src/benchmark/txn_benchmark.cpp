@@ -122,10 +122,9 @@ void run(const unsigned &thread_id,
       split(msg, ':', v);
       string mode = v[0];
 
-      if (mode == "PUTS") {
-        // PUTS:<number of keys>
-        unsigned num_keys = stoi(v[1]);
+      unsigned num_keys = 10000;
 
+      if (mode == "CACHE") {
         client.clear_cache();
         auto warmup_start = std::chrono::system_clock::now();
 
@@ -163,7 +162,6 @@ void run(const unsigned &thread_id,
         unsigned gets_per_txn = stod(v[3]);
         unsigned puts_per_txn = stod(v[4]);
         auto payload = "payload";
-        unsigned num_keys = 10000;
         
         map<unsigned, double> sum_probs;
         double base;
