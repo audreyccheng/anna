@@ -199,7 +199,7 @@ void request_response_handler(
                         break;
                       }
                       // log->info("Getting threads for storage tiers for key {} value {} tier {} key_threads size {} suc {}", 
-                        // op_key, op_payload, tier, key_threads.size(), succeed);
+                        op_key, op_payload, tier, key_threads.size(), succeed);
 
                       if (!succeed) { // this means we don't have the replication factor for
                                       // the key
