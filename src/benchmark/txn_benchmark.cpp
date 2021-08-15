@@ -116,7 +116,7 @@ void run(const unsigned &thread_id,
 
     if (pollitems[0].revents & ZMQ_POLLIN) {
       string msg = kZmqUtil->recv_string(&command_puller);
-      log->info("Received benchmark command: {}", msg);
+      // log->info("Received benchmark command: {}", msg);
 
       vector<string> v;
       split(msg, ':', v);
@@ -126,7 +126,7 @@ void run(const unsigned &thread_id,
 
       if (mode == "CACHE") {
         if (thread_id > 0) {
-          log->info("Received cache warming command, not thread 0");
+          // log->info("Received cache warming command, not thread 0");
         } else {
           client.clear_cache();
           auto warmup_start = std::chrono::system_clock::now();
@@ -143,7 +143,7 @@ void run(const unsigned &thread_id,
 
           // warm up cache
           for (unsigned i = 1; i <= num_keys; i++) {
-            log->info("Warming up cache for key {}.", i);
+            // log->info("Warming up cache for key {}.", i);
             client.txn_put(client_id, txn_id, generate_key(i), "payload");
             receive(&client);
           }
@@ -171,7 +171,7 @@ void run(const unsigned &thread_id,
         double base;
 
         if (zipf > 0) {
-          log->info("Zipf coefficient is {}.", zipf);
+          // log->info("Zipf coefficient is {}.", zipf);
           base = get_base(num_keys, zipf);
           sum_probs[0] = 0;
 
@@ -179,7 +179,7 @@ void run(const unsigned &thread_id,
             sum_probs[i] = sum_probs[i - 1] + base / pow((double)i, zipf);
           }
         } else {
-          log->info("Using a uniform random distribution.");
+          // log->info("Using a uniform random distribution.");
         }
 
         auto benchmark_start = std::chrono::system_clock::now();
@@ -216,7 +216,7 @@ void run(const unsigned &thread_id,
               responses = client.receive_txn_async();
             }
             txn_id = responses[0].txn_id();
-            log->info("[TPS] START TXN {}", txn_id);
+            // log->info("[TPS] START TXN {}", txn_id);
           } else {
             // do an action for this txn
             // true for get, false for put
@@ -239,10 +239,10 @@ void run(const unsigned &thread_id,
 
             if (type) {
               client.txn_get(client_id, txn_id, key);
-              log->info("[TPS] TXN GET {}, {}", txn_id, key);
+              // log->info("[TPS] TXN GET {}, {}", txn_id, key);
             } else {
               client.txn_put(client_id, txn_id, key, payload);
-              log->info("[TPS] TXN PUT {}, {}", txn_id, key);
+              // log->info("[TPS] TXN PUT {}, {}", txn_id, key);
             }
             receive(&client);
 
@@ -253,7 +253,7 @@ void run(const unsigned &thread_id,
             }
 
             if (g >= gets_per_txn && p >= puts_per_txn) {
-              log->info("[TPS] COMMIT TXN {}", txn_id);
+              // log->info("[TPS] COMMIT TXN {}", txn_id);
 
               // finished last action for this txn, commit
               client.commit_txn(client_id, txn_id);
@@ -268,7 +268,7 @@ void run(const unsigned &thread_id,
         total_time = std::chrono::duration_cast<std::chrono::milliseconds>(
                           benchmark_end - benchmark_start)
                           .count();
-        log->info("Finished; took {} ms.", total_time);
+        log->info("TPS{}:{}\t{}", total_time);
 
         UserFeedback feedback;
 
