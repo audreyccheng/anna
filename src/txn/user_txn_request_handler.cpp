@@ -49,7 +49,7 @@ void user_txn_request_handler(
     if (succeed) {
       suc = "true";
     }
-    log->info("User txn request getting threads success: {}", suc);
+    log->info("User txn request getting {} threads success: {}", threads.size(), suc);
 
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
