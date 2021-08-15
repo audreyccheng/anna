@@ -56,7 +56,7 @@ void storage_request_handler(
     if (succeed) {
       suc = "true";
     }
-    log->info("Storage request getting threads success: {}, num threads: {}", suc, threads.size());
+    // log->info("Storage request getting threads success: {}, num threads: {}", suc, threads.size());
 
     bool is_primary = true; // TODO(@accheng): update
 
@@ -87,10 +87,10 @@ void storage_request_handler(
 
         // check if this is an replication factor request
         if (is_metadata(key) && stored_key_map.find(key) == stored_key_map.end()) {
-          log->info("storage request metadata req txn id {} key {}", txn_id, key);
+          // log->info("storage request metadata req txn id {} key {}", txn_id, key);
           tp->set_error(AnnaError::KEY_DNE);
         } else if (request_type == RequestType::TXN_GET) {
-          log->info("storage request getting txn id {} key {}", txn_id, key);
+          // log->info("storage request getting txn id {} key {}", txn_id, key);
           if (stored_key_map.find(key) == stored_key_map.end()) {
             tp->set_error(AnnaError::KEY_DNE);
             stored_key_map[key].lock_ = 1;
@@ -98,21 +98,21 @@ void storage_request_handler(
             AnnaError error = AnnaError::NO_ERROR;
             auto res = process_txn_get(txn_id, key, error, serializer,
                                        stored_key_map);
-            log->info("storage request process_txn_get payload {} error {}", res, error);
+            // log->info("storage request process_txn_get payload {} error {}", res, error);
             tp->set_payload(res);
             tp->set_error(error);
-            log->info("storage request tp payload {} error {}", tp->payload(), tp->error());
+            // log->info("storage request tp payload {} error {}", tp->payload(), tp->error());
             auto temp_val = serializer->reveal_element(key, error);
-          log->info("***** storage request actually holds at key {} value {} error {}", key, temp_val, error);
+          // log->info("***** storage request actually holds at key {} value {} error {}", key, temp_val, error);
           }
         } else if (request_type == RequestType::TXN_PUT) {
-          log->info("storage request putting txn id {} key {}", txn_id, key);
+          // log->info("storage request putting txn id {} key {}", txn_id, key);
           AnnaError error = AnnaError::NO_ERROR;
           process_txn_put(txn_id, key, payload, error, is_primary, serializer, 
                           stored_key_map);
-          log->info("storage request process_txn_put error {}", error);
+          // log->info("storage request process_txn_put error {}", error);
           auto temp_val = serializer->reveal_element(key, error);
-          log->info("***** storage request now holds at key {} value {} error {}", key, temp_val, error);
+          // log->info("***** storage request now holds at key {} value {} error {}", key, temp_val, error);
           tp->set_error(error);
 
           local_changeset.insert(key);
@@ -125,7 +125,7 @@ void storage_request_handler(
             process_txn_prepare(txn_id, key, error, serializer, stored_key_map);
             tp->set_error(error);
 
-            log->info("storage request process_txn_prepare error {}", error);
+            // log->info("storage request process_txn_prepare error {}", error);
 
             if (error != AnnaError::NO_ERROR) {
               // TODO(@accheng): abort txn
@@ -141,12 +141,12 @@ void storage_request_handler(
                 pushers, {Tier::LOG}, succeed, seed, log);
 
             // send request to log if possible
-            log->info("storage request getting threads success: {}, {} threads", succeed, key_threads.size());
+            // log->info("storage request getting threads success: {}, {} threads", succeed, key_threads.size());
             if (key_threads.size() > 0) {
               kHashRingUtil->issue_log_request(
                 wt.request_response_connect_address(), request_type, txn_id,
                 key, payload, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
-              log->info("storage request issued log request for txn_id {} type {}", txn_id, request_type);
+              // log->info("storage request issued log request for txn_id {} type {}", txn_id, request_type);
             }
 
             pending_requests[key].push_back( 
@@ -158,7 +158,7 @@ void storage_request_handler(
           // release lock
           AnnaError error = AnnaError::NO_ERROR;
           process_txn_commit(txn_id, key, error, serializer, stored_key_map);
-
+          // log->info("storage request process_txn_commit error {}", error);
           tp->set_error(error);
 
           if (error != AnnaError::NO_ERROR) {
@@ -194,7 +194,7 @@ void storage_request_handler(
                                        stored_key_map);
             tp->set_error(error);
             
-            log->info("storage request process_txn_abort error {}", error);
+            // log->info("storage request process_txn_abort error {}", error);
           }
         } else {
           log->error("Unknown request type {} in user request handler.",
