@@ -39,11 +39,12 @@ double get_zipf_prob(unsigned rank, double skew, double base) {
   return pow(rank, -1 * skew) / base;
 }
 
-void receive(TxnClientInterface *client) {
+vector<TxnResponse> receive(TxnClientInterface *client) {
   vector<TxnResponse> responses = client->receive_txn_async();
   while (responses.size() == 0) {
     responses = client->receive_txn_async();
   }
+  return responses;
 }
 
 int sample(int n, unsigned &seed, double base,
@@ -135,10 +136,7 @@ void run(const unsigned &thread_id,
           client.start_txn(client_id);
 
           // get txn id
-          vector<TxnResponse> responses = client.receive_txn_async();
-          while (responses.size() == 0) {
-            responses = client.receive_txn_async();
-          }
+          vector<TxnResponse> responses = receive(&client);
           auto txn_id = responses[0].txn_id();
 
           // warm up cache
@@ -160,6 +158,7 @@ void run(const unsigned &thread_id,
       } else if (mode == "TPS") {
         // To measure Transactions per second
         // TPS:<num_txns>:<zipf>
+        log->info("num_txns\ttotal_time\taborted_txns");
 
         unsigned num_txns = stod(v[1]);
         double zipf = stod(v[2]);
@@ -191,6 +190,9 @@ void run(const unsigned &thread_id,
         // map of txn index to (gets completed, puts completed, txn_id) tuple
         map<unsigned, std::tuple<unsigned, unsigned, string>> actions_done;
 
+        // set of txn_ids that aborted
+        std::set<std::string> aborted_txns = {};
+
         for (unsigned i = 0; i < num_txns; i++) {
           actions_done.insert(pair<unsigned, std::tuple<unsigned, unsigned, string>>(i, std::tuple<unsigned, unsigned, string>(0, 0, "")));
         }
@@ -211,10 +213,7 @@ void run(const unsigned &thread_id,
             client.start_txn(client_id);
 
             // set txn id
-            vector<TxnResponse> responses = client.receive_txn_async();
-            while (responses.size() == 0) {
-              responses = client.receive_txn_async();
-            }
+            vector<TxnResponse> responses = receive(&client);
             txn_id = responses[0].txn_id();
             // log->info("[TPS] START TXN {}", txn_id);
           } else {
@@ -244,7 +243,13 @@ void run(const unsigned &thread_id,
               client.txn_put(client_id, txn_id, key, payload);
               // log->info("[TPS] TXN PUT {}, {}", txn_id, key);
             }
-            receive(&client);
+            vector<TxnResponse> responses = receive(&client);
+            TxnKeyTuple tuple = responses[0].tuples(0);
+
+            if (tuple.error() == AnnaError::FAILED_OP) {
+              // txn aborted, add to set
+              aborted_txns.insert(txn_id);
+            }
 
             if (type) {
               g++;
@@ -268,7 +273,7 @@ void run(const unsigned &thread_id,
         total_time = std::chrono::duration_cast<std::chrono::milliseconds>(
                           benchmark_end - benchmark_start)
                           .count();
-        log->info("TPS{}:{}\t{}", num_txns, zipf, total_time);
+        log->info("{}\t{}\t{}", num_txns, total_time, aborted_txns.size());
 
         UserFeedback feedback;
 
