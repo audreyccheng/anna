@@ -109,7 +109,7 @@ void run(const unsigned &thread_id,
   vector<zmq::pollitem_t> pollitems = {
       {static_cast<void *>(command_puller), 0, ZMQ_POLLIN, 0}};
 
-  auto client_id = "0";
+  auto client_id = std::to_string(thread_id);
 
   while (true) {
     kZmqUtil->poll(-1, &pollitems);
@@ -125,34 +125,38 @@ void run(const unsigned &thread_id,
       unsigned num_keys = 1000;
 
       if (mode == "CACHE") {
-        client.clear_cache();
-        auto warmup_start = std::chrono::system_clock::now();
+        if (thread_id > 0) {
+          log->info("Received cache warming command, not thread 0");
+        } else {
+          client.clear_cache();
+          auto warmup_start = std::chrono::system_clock::now();
 
-        // create dummy txn for warming cache
-        client.start_txn(client_id);
+          // create dummy txn for warming cache
+          client.start_txn(client_id);
 
-        // get txn id
-        vector<TxnResponse> responses = client.receive_txn_async();
-        while (responses.size() == 0) {
-          responses = client.receive_txn_async();
-        }
-        auto txn_id = responses[0].txn_id();
+          // get txn id
+          vector<TxnResponse> responses = client.receive_txn_async();
+          while (responses.size() == 0) {
+            responses = client.receive_txn_async();
+          }
+          auto txn_id = responses[0].txn_id();
 
-        // warm up cache
-        for (unsigned i = 1; i <= num_keys; i++) {
-          log->info("Warming up cache for key {}.", i);
-          client.txn_put(client_id, txn_id, generate_key(i), "payload");
+          // warm up cache
+          for (unsigned i = 1; i <= num_keys; i++) {
+            log->info("Warming up cache for key {}.", i);
+            client.txn_put(client_id, txn_id, generate_key(i), "payload");
+            receive(&client);
+          }
+
+          // commit dummy txn
+          client.commit_txn(client_id, txn_id);
           receive(&client);
+
+          auto warmup_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::system_clock::now() - warmup_start)
+                                .count();
+          log->info("Warming cache took {} ms", warmup_time);
         }
-
-        // commit dummy txn
-        client.commit_txn(client_id, txn_id);
-        receive(&client);
-
-        auto warmup_time = std::chrono::duration_cast<std::chrono::milliseconds>(
-                               std::chrono::system_clock::now() - warmup_start)
-                               .count();
-        log->info("Puts took {} ms", warmup_time);
       } else if (mode == "TPS") {
         // To measure Transactions per second
         // TPS:<num_txns>:<zipf>
