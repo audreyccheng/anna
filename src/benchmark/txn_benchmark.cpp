@@ -158,7 +158,6 @@ void run(const unsigned &thread_id,
       } else if (mode == "TPS") {
         // To measure Transactions per second
         // TPS:<num_txns>:<zipf>
-        log->info("num_txns\ttotal_time\taborted_txns");
 
         unsigned num_txns = stod(v[1]);
         double zipf = stod(v[2]);
