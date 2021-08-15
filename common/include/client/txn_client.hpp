@@ -69,7 +69,7 @@ class TxnClient : public TxnClientInterface {
       socket_cache_(SocketCache(&context_, ZMQ_PUSH)),
       key_address_puller_(zmq::socket_t(context_, ZMQ_PULL)),
       response_puller_(zmq::socket_t(context_, ZMQ_PULL)),
-      log_(spdlog::basic_logger_mt("client_log", "client_log.txt", true)),
+      log_(spdlog::basic_logger_mt("client_log_" + std::to_string(tid), "client_log_" + std::to_string(tid) + ".txt", true)),
       timeout_(timeout) {
     // initialize logger
     log_->flush_on(spdlog::level::info);
