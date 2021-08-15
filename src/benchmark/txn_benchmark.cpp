@@ -268,7 +268,7 @@ void run(const unsigned &thread_id,
         total_time = std::chrono::duration_cast<std::chrono::milliseconds>(
                           benchmark_end - benchmark_start)
                           .count();
-        log->info("TPS{}:{}\t{}", total_time);
+        log->info("TPS{}:{}\t{}", num_txns, zipf, total_time);
 
         UserFeedback feedback;
 
