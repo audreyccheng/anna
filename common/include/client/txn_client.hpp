@@ -33,10 +33,8 @@ struct PendingTxn {
 
 inline string get_client_id_from_txn_id(const string& txn_id) {
   string::size_type n_id;
-  string::size_type n_time;
 
-  n_id = txn_id.find(":"); // TODO(@accheng): update to constant
-  n_time = txn_id.find(":", n_id + 1);
+  n_id = txn_id.find("-"); // TODO(@accheng): update to constant
   string client_id = txn_id.substr(0, n_id);
   return client_id;
 }

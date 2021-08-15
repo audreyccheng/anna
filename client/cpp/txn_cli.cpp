@@ -88,6 +88,10 @@ void handle_request(TxnClientInterface *client, string input) {
     } else {
       std::cout << "Failure: " << tuple.error() << std::endl;
     }
+
+    if (response.error() == AnnaError::FAILED_OP) {
+      std::cout << "Transaction " << response.txn_id() << " ABORTED" << std::endl;
+    }
   } else if (v[0] == "TXN_PUT") {
     auto client_id = "0";
     // client must enter txn_id, key, and value
@@ -109,6 +113,10 @@ void handle_request(TxnClientInterface *client, string input) {
       std::cout << "Success!" << std::endl;
     } else {
       std::cout << "Failure: " << tuple.error() << std::endl;
+    }
+
+    if (response.error() == AnnaError::FAILED_OP) {
+      std::cout << "Transaction " << response.txn_id() << " ABORTED" << std::endl;
     }
   } else if (v[0] == "COMMIT_TXN") {
     auto client_id = "0";

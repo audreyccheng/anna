@@ -44,3 +44,5 @@ replication:
   log: 1
   minimum: 1
   local: 1
+benchmark:
+    - localhost

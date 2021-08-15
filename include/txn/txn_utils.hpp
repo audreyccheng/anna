@@ -100,6 +100,7 @@ public:
                        AnnaError &error) = 0;
   virtual void commit(const string& txn_id, const Key &key,
                       AnnaError &error) = 0;
+  virtual void abort(const string& txn_id, const Key &key, AnnaError &error) = 0;
   virtual bool get_is_primary(const Key &key, AnnaError &error) = 0;
   virtual unsigned size() = 0;
   virtual void remove(const string& txn_id, const Key &key) = 0;
@@ -153,6 +154,10 @@ public:
     // nothing needs to be done
   }
 
+  void abort(const string& txn_id, const Key &key, AnnaError &error) {
+    // nothing needs to be done
+  }
+
   bool get_is_primary(const Key &key, AnnaError &error) {
     return true;
   }
@@ -201,6 +206,10 @@ public:
 
   void commit(const string& txn_id, const Key &key, AnnaError &error) {
     lock_node_->commit(txn_id, key, error);
+  }
+
+  void abort(const string& txn_id, const Key &key, AnnaError &error) {
+    lock_node_->abort(txn_id, key, error);
   }
 
   bool get_is_primary(const Key &key, AnnaError &error) {
@@ -402,6 +411,10 @@ public:
 
   void commit(const string& txn_id, const Key &key, AnnaError &error) {
     mvcc_node_->commit(txn_id, key, error);
+  }
+
+  void abort(const string& txn_id, const Key &key, AnnaError &error) {
+    // Not used by MVCC; could garbage collect here
   }
 
   bool get_is_primary(const Key &key, AnnaError &error) {

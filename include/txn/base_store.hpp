@@ -214,6 +214,23 @@ public:
     }
   }
 
+  void abort(const string& txn_id, const K &k, AnnaError &error) {
+    std::cout << txn_id << " serializer abort" << std::endl;
+    // check this key exists
+    if (db.find(k) == db.end()) {
+      error = AnnaError::FAILED_OP;
+      return;
+    }
+
+    if (db.at(k).holds_wlock(txn_id)) {
+      std::cout << txn_id << " release wlock on " << k << std::endl;
+      db.at(k).release_wlock(txn_id);
+    } else if (db.at(k).holds_rlock(txn_id)) {
+      std::cout << txn_id << " release wlock on " << k << std::endl;
+      db.at(k).release_rlock(txn_id);
+    }
+  }
+
   void release_wlock(const string& txn_id, const K &k) {
     if (db.find(k) != db.end()) {
       db.at(k).release_wlock(txn_id);
@@ -284,11 +301,10 @@ class MVCCVersion {
 };
 
 inline long get_tts(const string& txn_id) {
-  string::size_type n_id;
-  string::size_type n_time;
+  string::size_type n_rand;
 
-  n_id = txn_id.find(":"); // TODO(@accheng): update to constant
-  string tts_string = txn_id.substr(n_id + 1);
+  n_rand = txn_id.find(":"); // TODO(@accheng): update to constant
+  string tts_string = txn_id.substr(n_rand + 1);
   return stol(tts_string);
 }
 

@@ -58,6 +58,8 @@ enum RequestType {
   PREPARE_TXN = 6;
 
   COMMIT_TXN = 7;
+
+  ABORT_TXN = 8;
 }
 
 enum LatticeType { 

@@ -44,7 +44,7 @@ void node_join_handler(unsigned thread_id, unsigned &seed, Address public_ip,
 
     // only thread 0 communicates with other nodes and receives join messages
     // and it communicates that information to non-0 threads on its own machine
-    if (thread_id <= 1) { // LOCAL_CHANGE
+    if (thread_id == 0) {
       // send my IP to the new server node
       kZmqUtil->send_string(
           Tier_Name(kSelfTier) + ":" + public_ip + ":" + private_ip + ":" +
@@ -74,7 +74,7 @@ void node_join_handler(unsigned thread_id, unsigned &seed, Address public_ip,
       }
 
       // tell all worker threads about the new node join
-      for (unsigned tid = 2; tid < kThreadNum; tid++) { // LOCAL_CHANGE
+      for (unsigned tid = 1; tid < kThreadNum; tid++) {
         kZmqUtil->send_string(serialized,
                               &pushers[ServerThread(public_ip, private_ip, tid)
                                            .node_join_connect_address()]);
