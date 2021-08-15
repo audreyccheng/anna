@@ -32,17 +32,16 @@ unsigned kRoutingThreadCount = 1;
 unsigned kDefaultLocalReplication = 1;
 
 int main(int argc, char *argv[]) {
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " <benchmark_threads>" << std::endl;
+  if (argc != 1) {
+    std::cerr << "Usage: " << argv[0] << std::endl;
     return 1;
   }
-
-  unsigned thread_num = atoi(argv[1]);
 
   // read the YAML conf
   vector<Address> benchmark_address;
   YAML::Node conf = YAML::LoadFile("conf/anna-config.yml");
   YAML::Node benchmark = conf["benchmark"];
+  unsigned thread_num = conf["threads"]["benchmark"].as<unsigned>();
 
   for (const YAML::Node &node : benchmark) {
     benchmark_address.push_back(node.as<Address>());
