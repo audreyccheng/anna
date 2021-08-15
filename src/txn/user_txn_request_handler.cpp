@@ -31,7 +31,7 @@ void user_txn_request_handler(
     Key key = tuple.key();
     string payload = tuple.payload();
 
-    log->info("Received user_txn_request of type {} for key {}", request_type, key);
+    // log->info("Received user_txn_request of type {} for key {}", request_type, key);
 
     // Key key = txn_id;
     if (request_type == RequestType::START_TXN) {
@@ -49,7 +49,7 @@ void user_txn_request_handler(
     if (succeed) {
       suc = "true";
     }
-    log->info("User txn request getting {} threads success: {}", threads.size(), suc);
+    // log->info("User txn request getting {} threads success: {}", threads.size(), suc);
 
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
@@ -123,7 +123,7 @@ void user_txn_request_handler(
             ServerThreadList key_threads = {};
 
             for (const Tier &tier : kStorageTiers) {
-              log->info("Getting threads for storage tiers");
+              // log->info("Getting threads for storage tiers");
               key_threads = kHashRingUtil->get_responsible_threads(
                   wt.replication_response_connect_address(), request_type, 
                   txn_id, key, is_metadata(key), 
@@ -135,7 +135,7 @@ void user_txn_request_handler(
 
               if (!succeed) { // this means we don't have the replication factor for
                               // the key
-                log->info("Adding request type {} key {} to pending_requests", request_type, key);
+                // log->info("Adding request type {} key {} to pending_requests", request_type, key);
                 pending_requests[txn_id].push_back(
                   PendingTxnRequest(request_type, txn_id, key, payload,
                                     response_address, response_id));
@@ -195,8 +195,8 @@ void user_txn_request_handler(
                     txn_id, op_key, is_metadata(op_key), 
                     global_hash_rings, local_hash_rings, key_replication_map, 
                     pushers, {tier}, succeed, seed, log);
-                log->info("Getting threads for storage tiers for key {} value {} tier {} key_threads size {} suc {}", 
-                  op_key, op_payload, tier, key_threads.size(), succeed);
+                // log->info("Getting threads for storage tiers for key {} value {} tier {} key_threads size {} suc {}", 
+                //   op_key, op_payload, tier, key_threads.size(), succeed);
                 
                 if (key_threads.size() > 0) {
                   break;
@@ -211,7 +211,7 @@ void user_txn_request_handler(
                 }
               }
 
-              log->info("user_txn_request ops size {} abort_txn {}", ops.size(), abort_txn);
+              // log->info("user_txn_request ops size {} abort_txn {}", ops.size(), abort_txn);
               if (abort_txn) {
                 break;
               } else {
@@ -219,7 +219,7 @@ void user_txn_request_handler(
               }
             }
 
-            log->info("user_txn_request commit threads {} abort_txn {}", all_key_threads.size(), abort_txn);
+            // log->info("user_txn_request commit threads {} abort_txn {}", all_key_threads.size(), abort_txn);
 
             // TODO(@accheng): send abort to client
             if (abort_txn) {
@@ -233,26 +233,26 @@ void user_txn_request_handler(
                 kHashRingUtil->issue_storage_request(
                   wt.request_response_connect_address(), RequestType::PREPARE_TXN, txn_id, // TODO(@accheng) : don't send payload
                   op_key, op_payload, all_key_threads[i][0], pushers); // TODO(@accheng): how should we choose thread?
-                log->info("user_txn_request sending storage request  txn_id {} key {}", txn_id, key);
+                // log->info("user_txn_request sending storage request  txn_id {} key {}", txn_id, key);
 
                 pending_requests[txn_id].push_back(
                     PendingTxnRequest(RequestType::PREPARE_TXN, txn_id, op_key,
                                       op_payload, response_address, response_id));
-                log->info("Adding request type {} key {} to pending_requests", RequestType::PREPARE_TXN, key);
+                // log->info("Adding request type {} key {} to pending_requests", RequestType::PREPARE_TXN, key);
               }
               // this is the commit response we want to send back to the client
               // both key and op_key are txn_id
               pending_requests[txn_id].push_back(
                   PendingTxnRequest(RequestType::COMMIT_TXN, txn_id, key,
                                     "" /* payload */, response_address, response_id));
-              log->info("Adding commit request type pending_requests size {}", pending_requests[txn_id].size());
+              // log->info("Adding commit request type pending_requests size {}", pending_requests[txn_id].size());
             }
             // response.set_error() = error;
 
           }
         } else {
-          log->error("Unknown request type {} in user request handler.",
-                     request_type);
+          // log->error("Unknown request type {} in user request handler.",
+          //            request_type);
         }
 
         if (tuple.address_cache_size() > 0 &&
@@ -264,7 +264,7 @@ void user_txn_request_handler(
         access_count += 1;
       }
     } else {
-      log->info("UTR: inserting into pending_requests");
+      // log->info("UTR: inserting into pending_requests");
       pending_requests[txn_id].push_back(
           PendingTxnRequest(request_type, txn_id, key, payload,
                             response_address, response_id));

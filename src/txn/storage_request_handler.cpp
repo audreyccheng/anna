@@ -44,7 +44,7 @@ void storage_request_handler(
     Key key = tuple.key();
     string payload = tuple.payload();
 
-    log->info("Received storage_request type {} for txn id {} key {}", request_type, txn_id, key);
+    // log->info("Received storage_request type {} for txn id {} key {}", request_type, txn_id, key);
 
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), request_type, txn_id, 

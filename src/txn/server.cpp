@@ -497,7 +497,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
     }
 
     if (pollitems[5].revents & ZMQ_POLLIN) {
-      log->info("Received storage_request");
+      // log->info("Received storage_request");
       auto work_start = std::chrono::system_clock::now();
 
       string serialized = kZmqUtil->recv_string(&storage_request_puller);
@@ -516,7 +516,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
     }
 
     if (pollitems[6].revents & ZMQ_POLLIN) {
-      log->info("Received log_request");
+      // log->info("Received log_request");
       auto work_start = std::chrono::system_clock::now();
 
       string serialized = kZmqUtil->recv_string(&log_request_puller);
