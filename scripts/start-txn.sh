@@ -1,5 +1,7 @@
 cp conf/anna-txn.yml conf/anna-config.yml
 
+trap 'kill %1; kill %2; kill %3' SIGINT
+
 ./build/target/kvs/anna-monitor &
 MPID=$!
 ./build/target/kvs/anna-route &
