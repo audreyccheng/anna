@@ -5,10 +5,12 @@ TXN_NODE_INSTANCE_ID = 'i-096b191e5f3c0e94e'
 MEM_NODE_INSTANCE_ID = 'i-02a968d7be0607695'
 LOG_NODE_INSTANCE_ID = 'i-005f739d8615dd7d2'
 
-TXN_THREADS=1
-MEM_THREADS=6
-LOG_THREADS=6
-BENCHMARK_THREADS=6
+TXN_THREADS = 1
+MEM_THREADS = 6
+LOG_THREADS = 6
+BENCHMARK_THREADS = 6
+
+EC2_KEY_FILE = '~/west-region-key.pem'
 
 ec2 = boto3.client('ec2')
 
@@ -89,11 +91,11 @@ log_config = generate_config(get_public_ip(txn_instance), get_private_ip(txn_ins
 
 # Write the provided config into the instance's ~/anna/conf/anna-config.yml
 def write_config(instance, config):
-  cmd = ['ssh', '-o', 'StrictHostKeyChecking=accept-new', '-i', '~/west-region-key.pem', f'ubuntu@{get_public_ip(instance)}', 'cat - > anna/conf/anna-config.yml']
+  cmd = ['ssh', '-o', 'StrictHostKeyChecking=accept-new', '-i', EC2_KEY_FILE, f'ubuntu@{get_public_ip(instance)}', 'cat - > anna/conf/anna-config.yml']
   p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
 
   for chunki in range(0, len(config), 1024):
-    chunk = config[chunki:chunki + 1024]
+    chunk = config[chunki : chunki + 1024]
     p.stdin.write(bytearray(chunk, 'utf-8'))
 
 write_config(txn_instance, txn_config)
