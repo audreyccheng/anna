@@ -96,7 +96,6 @@ def write_config(instance, config):
     chunk = config[chunki:chunki + 1024]
     p.stdin.write(bytearray(chunk, 'utf-8'))
 
-print(mem_config)
 write_config(txn_instance, txn_config)
 write_config(mem_instance, mem_config)
 write_config(log_instance, log_config)
