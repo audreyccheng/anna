@@ -275,6 +275,7 @@ public:
       getline(f, element);
 
       db[k] = LockElement(element, is_primary.at(0) == '1');
+      db.at(k).assign_primary(is_primary.at(0) == '1');
       f.close();
       return true;
     }
@@ -376,6 +377,7 @@ public:
            AnnaError &error, const bool &is_primary) {
     if (db.find(k) == db.end()) {
       db[k] = LockElement("", is_primary);
+      db.at(k).assign_primary(is_primary);
     }
 
     if (db.at(k).acquire_wlock(txn_id)) {
