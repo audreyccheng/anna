@@ -210,6 +210,7 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
   LogSerializer *log_serializer;
 
   BaseSerializer *lock_serializer;
+  BaseSerializer *disk_lock_serializer;
   BaseSerializer *mvcc_serializer;
 
   if (kSelfTier == Tier::TXN || kSelfTier == Tier::MEMORY || 
@@ -219,6 +220,15 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
 
     LockStore *lock_node = new LockStore();
     lock_serializer = new LockStoreSerializer(lock_node);
+
+    YAML::Node conf = YAML::LoadFile("conf/anna-config.yml");
+    string ebs_root_ = conf["ebs"].as<string>();
+    if (ebs_root_.back() != '/') {
+      ebs_root_ += "/";
+    }
+
+    DiskLockStore *disk_lock_node = new DiskLockStore(thread_id, ebs_root_);
+    disk_lock_serializer = new DiskLockStoreSerializer(disk_lock_node);
 
     MVCCStore *mvcc_node = new MVCCStore();
     mvcc_serializer = new MVCCStoreSerializer(mvcc_node);
@@ -234,7 +244,11 @@ void run(unsigned thread_id, Address public_ip, Address private_ip,
   storage_serializers[SerializabilityProtocol::MVCC] = mvcc_serializer;
 
   if (kSerializabilityProtocol == SerializabilityProtocol::LOCKING) {
-    base_serializer = lock_serializer;
+    if (kSelfTier == Tier::MEMORY) {
+      base_serializer = lock_serializer;
+    } else if (kSelfTier == Tier::DISK) {
+      base_serializer = disk_lock_serializer;
+    }
   } else if (kSerializabilityProtocol == SerializabilityProtocol::MVCC) {
     base_serializer = mvcc_serializer;
   } else {

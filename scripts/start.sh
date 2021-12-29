@@ -11,7 +11,7 @@ if [ "$TYPE" = "txn" ]; then
   ./build/target/kvs/anna-route &
   ./build/target/kvs/anna-txn &
   ./build/cli/anna-txn-cli conf/anna-config.yml
-elif [ "$TYPE" = "memory" ] || [[ "$TYPE" = "log" ]] ; then
+elif [ "$TYPE" = "memory" ] || [ "$TYPE" = "ebs" ] || [[ "$TYPE" = "log" ]] ; then
   ./build/target/kvs/anna-txn
 elif [ "$TYPE" = "txn-bench" ]; then
   trap 'kill %1; kill %2; kill %3; kill %4' SIGINT

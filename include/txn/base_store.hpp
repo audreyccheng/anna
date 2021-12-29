@@ -92,6 +92,10 @@ class LockElement {
     return false;
   }
 
+  const bool is_used() const {
+    return rlocks.size() > 0 || wlock.length() > 0;
+  }
+
   const bool &get_is_primary() const { return is_primary; }
 
   bool acquire_wlock(const string& txn_id) {
@@ -240,6 +244,192 @@ public:
   unsigned size() { return db.size(); }
 
   void remove(const K &k) { db.erase(k); }
+};
+
+template <typename K> class DiskLockNode {
+protected:
+  map<K, LockElement> db;
+  unsigned thread_id;
+  string ebs_root;
+
+public:
+  DiskLockNode<K>(unsigned &thread_id, const string &ebs_root) {
+    this->thread_id = thread_id;
+    this->ebs_root = ebs_root;
+  }
+
+  /**
+   * Reads the value of key k from disk into in-memory map. 
+   * Returns true if success, false if key doesn't exist on disk.
+   */
+  bool read_disk(const K &k) {
+    // Key not being used right now, check if stored in disk
+    string fname = ebs_root + "/" + std::to_string(thread_id) + "/" + k;
+    std::fstream f(fname, std::ios::in | std::ios::binary);
+    if (f) {
+      // Key exists on disk, read it into the map
+      // Stored as <is_primary>\n<value>
+      string is_primary;
+      string element;
+      getline(f, is_primary);
+      getline(f, element);
+
+      db[k] = LockElement(element, is_primary.at(0) == '1');
+      f.close();
+      return true;
+    }
+    f.close();
+
+    return false;
+  }
+
+  /**
+   * Removes key k from in-memory map iff it is no longer used. Writes value to disk.
+   */
+  void purge_key(const K &k) {
+    if (db.find(k) != db.end() && db.at(k).is_used()) {
+      if (db.at(k).reveal().length() == 0) {
+        // Empty value, remove from disk
+        remove(k);
+        return;
+      }
+
+      // Write it back to disk
+      string fname = ebs_root + "/" + std::to_string(thread_id) + "/" + k;
+      std::fstream f(fname, std::ios::in | std::ios::binary);
+      f << db.at(k).get_is_primary() << "\n" << db.at(k).reveal();
+      f.close();
+      db.erase(k);
+    }
+  }
+
+  string get(const string& txn_id, const K &k, AnnaError &error) {
+    if (db.find(k) == db.end()) {
+      // Key not being used right now
+      if (!read_disk(k)) {
+        // Key not on disk either, doesn't exist
+        error = AnnaError::KEY_DNE;
+        return "";
+      }
+    }
+
+    // TODO(@accheng): return some value even if no rlock?
+    if (!db.at(k).acquire_rlock(txn_id)) {
+      error = AnnaError::FAILED_OP;
+    }
+    return db.at(k).reveal();
+  }
+
+  string reveal_element(const K &k, AnnaError &error) {
+    if (db.find(k) == db.end()) {
+      // Key not being used right now
+      if (!read_disk(k)) {
+        // Key not on disk either, doesn't exist
+        error = AnnaError::KEY_DNE;
+        return "";
+      }
+    }
+
+    string s = db.at(k).reveal();
+    purge_key(k);
+    return s;
+  }
+
+  string reveal_temp_element(const K &k, AnnaError &error) {
+    if (db.find(k) == db.end()) {
+      // Key not being used right now
+      if (!read_disk(k)) {
+        // Key not on disk either, doesn't exist
+        error = AnnaError::KEY_DNE;
+        return "";
+      }
+    }
+
+    string s = db.at(k).temp_reveal();
+    purge_key(k);
+    return s;
+  }
+
+  void release_rlock(const string& txn_id, const K &k) {
+    if (db.find(k) != db.end()) {
+      db.at(k).release_rlock(txn_id);
+      purge_key(k);
+    }
+  }
+
+  bool get_is_primary(const K &k, AnnaError &error) {
+    if (db.find(k) == db.end()) {
+      // Key not being used right now
+      if (!read_disk(k)) {
+        // Key not on disk either, doesn't exist
+        error = AnnaError::FAILED_OP;
+        return false;
+      }
+    }
+
+    bool is_primary = db.at(k).get_is_primary();
+    purge_key(k);
+    return is_primary;
+  }
+
+  void put(const string& txn_id, const K &k, const string &v,
+           AnnaError &error, const bool &is_primary) {
+    if (db.find(k) == db.end()) {
+      db[k] = LockElement("", is_primary);
+    }
+
+    if (db.at(k).acquire_wlock(txn_id)) {
+      db.at(k).update_temp_value(v);
+    } else {
+      error = AnnaError::FAILED_OP;
+    }
+  }
+
+  void commit(const string& txn_id, const K &k, AnnaError &error) {
+    // Check this key is being used
+    if (db.find(k) == db.end()) {
+      error = AnnaError::FAILED_OP;
+      return;
+    }
+
+    if (db.at(k).holds_wlock(txn_id)) {
+      db.at(k).update_value();
+      db.at(k).release_wlock(txn_id);
+    } else if (db.at(k).holds_rlock(txn_id)) {
+      db.at(k).release_rlock(txn_id);
+    }
+  }
+
+  void abort(const string& txn_id, const K &k, AnnaError &error) {
+    std::cout << txn_id << " serializer abort" << std::endl;
+    // check this key exists
+    if (db.find(k) == db.end()) {
+      error = AnnaError::FAILED_OP;
+      return;
+    }
+
+    if (db.at(k).holds_wlock(txn_id)) {
+      std::cout << txn_id << " release wlock on " << k << std::endl;
+      db.at(k).release_wlock(txn_id);
+    } else if (db.at(k).holds_rlock(txn_id)) {
+      std::cout << txn_id << " release wlock on " << k << std::endl;
+      db.at(k).release_rlock(txn_id);
+    }
+  }
+
+  void release_wlock(const string& txn_id, const K &k) {
+    if (db.find(k) != db.end()) {
+      db.at(k).release_wlock(txn_id);
+      purge_key(k);
+    }
+  }
+
+  unsigned size() { return db.size(); }
+
+  void remove(const K &k) {
+    db.erase(k);
+    std::remove((ebs_root + "/" + std::to_string(thread_id) + "/" + k).c_str());
+  }
 };
 
 // template <typename T>

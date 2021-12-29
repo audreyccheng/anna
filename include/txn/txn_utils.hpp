@@ -25,6 +25,7 @@
 typedef TxnNode BaseTxn;
 typedef BaseNode<Key, string> BaseStore;
 typedef LockNode<Key> LockStore;
+typedef DiskLockNode<Key> DiskLockStore;
 typedef MVCCNode<Key> MVCCStore;
 // typedef LogNode<Operation> BaseLog;
 
@@ -223,66 +224,25 @@ public:
 };
 
 class DiskLockStoreSerializer : public BaseSerializer {
-  unsigned tid_;
-  string ebs_root_;
-  LockStore *lock_node_;
+  DiskLockStore *disk_lock_node_;
 
 public:
-  DiskLockStoreSerializer(unsigned &tid,
-                          LockStore *lock_node) : tid_(tid), lock_node_(lock_node) {
-    // TODO(@accheng): should locks and values be kept in memory?
-    YAML::Node conf = YAML::LoadFile("conf/anna-config.yml");
-
-    ebs_root_ = conf["ebs"].as<string>();
-
-    if (ebs_root_.back() != '/') {
-      ebs_root_ += "/";
-    }
-  }
+  DiskLockStoreSerializer(DiskLockStore *disk_lock_node) : disk_lock_node_(disk_lock_node) {}
 
   string reveal_element(const Key &key, AnnaError &error) {
-    // TODO(@accheng: Update
-    return "";
+    return disk_lock_node_->reveal_element(key, error);
   }
 
   string reveal_temp_element(const Key &key, AnnaError &error) {
-    // TODO(@accheng: Update
-    return "";
+    return disk_lock_node_->reveal_temp_element(key, error);
   }
 
   bool get_is_primary(const Key &key, AnnaError &error) {
-    return true;
+    return disk_lock_node_->get_is_primary(key, error);
   }
 
   string get(const string& txn_id, const Key &key, AnnaError &error) {
-    string value;
-
-    // open a new filestream for reading in a binary
-    // check if this value has been modified by this txn
-    string tfname = ebs_root_ + "ebs_" + std::to_string(tid_) + "/" + txn_id + "/" + key; // TODO(@accheng): should we have multiversions?
-    std::fstream tinput(tfname, std::ios::in | std::ios::binary);
-
-    if (!tinput) {
-      // try to read from current value
-      string fname = ebs_root_ + "ebs_" + std::to_string(tid_) + "/" + key;
-      std::fstream input(tfname, std::ios::in | std::ios::binary);
-      if (!input) {
-        error = AnnaError::KEY_DNE;
-      } else {
-        getline(input, value); // TODO(@accheng): should only ever be 1 line?
-        return value;
-      }
-    // TODO(@accheng): do we need this?
-    // } else if (!value.ParseFromIstream(&input)) {
-    //   std::cerr << "Failed to parse payload." << std::endl;
-    //   error = AnnaError::KEY_DNE;
-    } else {
-      getline(tinput, value);
-      if (value == "") {
-        error = AnnaError::KEY_DNE;
-      }
-    }
-    return value;
+    return disk_lock_node_->get(txn_id, key, error);
   }
 
   void notify_dne_get(const string& txn_id, const Key &key, AnnaError &error) {
@@ -291,44 +251,7 @@ public:
 
   void put(const string& txn_id, const Key &key, const string &serialized,
            AnnaError &error, const bool &is_primary) {
-    // LWWValue input_value;
-    // input_value.ParseFromString(serialized);
-
-    string original_value;
-
-    string fname = ebs_root_ + "ebs_" + std::to_string(tid_) + "/" + txn_id + "/" + key;
-    std::fstream input(fname, std::ios::in | std::ios::binary);
-
-    // if (!input) { // in this case, this key has never been seen before, so we
-                  // attempt to create a new file for it
-
-    // ios::trunc means that we overwrite the existing file
-    std::fstream output(fname,
-                        std::ios::out | std::ios::trunc | std::ios::binary);
-
-    output << serialized;
-      // if (!serialized.SerializeToOstream(&output)) {
-      //   std::cerr << "Failed to write payload." << std::endl;
-      // }
-      // return output.tellp();
-    // } else if (!original_value.ParseFromIstream(
-    //                &input)) { // if we have seen the key before, attempt to
-    //                           // parse what was there before
-    //   std::cerr << "Failed to parse payload." << std::endl;
-    //   return 0;
-    // } else {
-    //   // if (input_value.timestamp() >= original_value.timestamp()) {
-    //     std::fstream output(fname,
-    //                         std::ios::out | std::ios::trunc | std::ios::binary);
-    //     output << serialized;
-    //     // if (!serialized.SerializeToOstream(&output)) {
-    //     //   std::cerr << "Failed to write payload" << std::endl;
-    //     // }
-    //     // return output.tellp();
-    //   } else {
-    //     // return input.tellp();
-    //   }
-    // }
+    disk_lock_node_->put(txn_id, key, serialized, error, is_primary);
   }
 
   void prepare(const string& txn_id, const Key &key, AnnaError &error) {
@@ -336,36 +259,17 @@ public:
   }
 
   void commit(const string& txn_id, const Key &key, AnnaError &error) {
-    // TODO(@accheng): update
-    lock_node_->release_rlock(txn_id, key);
-    lock_node_->release_wlock(txn_id, key);
-    
-    // check if value was updated for this transaction
-    string value;
-    string tfname = ebs_root_ + "ebs_" + std::to_string(tid_) + "/" + txn_id + "/" + key;
-    std::fstream tinput(tfname, std::ios::in | std::ios::binary);
-    if (!tinput) {
-      return; // nothing needs to be done if this was only a read operation
-    } else {
-      getline(tinput, value);
-      std::remove(tfname.c_str());
-    }
-
-    if (value != "") {
-      string fname = ebs_root_ + "ebs_" + std::to_string(tid_) + "/" + key;
-      // ios::trunc means that we overwrite the existing file
-      std::fstream output(fname,
-                          std::ios::out | std::ios::trunc | std::ios::binary);
-      output << value;
-    }
+    disk_lock_node_->commit(txn_id, key, error);
   }
 
-  void remove(const string& txn_id, const Key &key) {
-    string fname = ebs_root_ + "ebs_" + std::to_string(tid_) + "/" + txn_id + "/" + key;
+  void abort(const string& txn_id, const Key &key, AnnaError &error) {
+    disk_lock_node_->abort(txn_id, key, error);
+  }
 
-    if (std::remove(fname.c_str()) != 0) {
-      std::cerr << "Error deleting file" << std::endl;
-    }
+  unsigned size() { return disk_lock_node_->size(); }
+
+  void remove(const string& txn_id, const Key &key) {
+    disk_lock_node_->remove(key);
   }
 };
 
