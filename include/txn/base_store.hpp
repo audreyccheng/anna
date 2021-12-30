@@ -264,7 +264,7 @@ public:
    */
   bool read_disk(const K &k) {
     // Key not being used right now, check if stored in disk
-    string fname = ebs_root + "/" + std::to_string(thread_id) + "/" + k;
+    string fname = ebs_root + std::to_string(thread_id) + "/" + k;
     std::fstream f(fname, std::ios::in | std::ios::binary);
     if (f) {
       // Key exists on disk, read it into the map
@@ -276,6 +276,8 @@ public:
 
       db[k] = LockElement(element, is_primary.at(0) == '1');
       db.at(k).assign_primary(is_primary.at(0) == '1');
+      db.at(k).update_temp_value(element);
+      db.at(k).update_value();
       f.close();
       return true;
     }
@@ -289,7 +291,7 @@ public:
    */
   void purge_key(const K &k) {
     std::cout << "purging key " << k << std::endl;
-    if (db.find(k) != db.end() && db.at(k).is_used()) {
+    if (db.find(k) != db.end() && !db.at(k).is_used()) {
       if (db.at(k).reveal().length() == 0) {
         // Empty value, remove from disk
         remove(k);
@@ -298,9 +300,9 @@ public:
 
       std::cout << "not empty, writing back to disk " << std::endl;
       // Write it back to disk
-      string fname = ebs_root + "/" + std::to_string(thread_id) + "/" + k;
-      std::fstream f(fname, std::ios::in | std::ios::binary);
-      f << db.at(k).get_is_primary() << "\n" << db.at(k).reveal();
+      string fname = ebs_root + std::to_string(thread_id) + "/" + k;
+      std::fstream f(fname, std::ios::out | std::ios::binary);
+      f << db.at(k).get_is_primary() << "\n" << db.at(k).reveal() << "\n";
       f.close();
       db.erase(k);
     }
