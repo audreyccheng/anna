@@ -96,6 +96,20 @@ vector<Operation> process_get_ops(
   return std::move(res);
 }
 
+vector<Key> process_get_keys(const string &txn_id, AnnaError &error,
+          TxnSerializer *serializer,
+          map<Key, TxnKeyProperty> &stored_txn_map) {
+  auto ops = process_get_ops(txn_id, error, serializer, stored_txn_map);
+  std::set<Key> keys;
+
+  for (unsigned i = 0; i < ops.size(); i++) {
+    keys.insert(ops[i].get_key());
+  }
+
+  vector<Key> output(keys.begin(), keys.end());
+  return output;
+}
+
 void process_commit_txn(const string &txn_id, AnnaError &error, 
                         TxnSerializer *serializer,
                         map<Key, TxnKeyProperty> &stored_txn_map) {
@@ -108,7 +122,7 @@ string process_txn_get(const string &txn_id, const Key &key,
                        map<Key, TxnKeyProperty> &stored_key_map) {
   auto res = serializer->get(txn_id, key, error);
   // if read is successful, read lock is now held
-  if (error == AnnaError::NO_ERROR) {
+  if (error == AnnaError::NO_ERROR || error == AnnaError::KEY_DNE) {
     stored_key_map[key].lock_ = 1;
   }
   return std::move(res);
@@ -138,6 +152,13 @@ void process_txn_commit(const string &txn_id, const Key &key,
   serializer->commit(txn_id, key, error);
   stored_key_map[key].lock_ = 0;
   // TODO(@accheng): update
+}
+
+void process_txn_abort(const string &txn_id, const Key &key,
+                        AnnaError &error, BaseSerializer *serializer,
+                        map<Key, TxnKeyProperty> &stored_key_map) {
+  serializer->abort(txn_id, key, error);
+  stored_key_map[key].lock_ = 0;
 }
 
 void process_log(const string &txn_id, const Key &key,
@@ -180,3 +201,8 @@ bool is_primary_replica(const Key &key,
     return false;
   }
 }
+
+bool should_abort(AnnaError error) {
+  return error != AnnaError::NO_ERROR && error != AnnaError::KEY_DNE && error != AnnaError::TXN_DNE;
+}
+

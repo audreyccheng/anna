@@ -142,6 +142,11 @@ vector<Operation> process_get_ops(
           TxnSerializer *serializer,
           map<Key, TxnKeyProperty> &stored_txn_map);
 
+vector<Key> process_get_keys(
+          const string &txn_id, AnnaError &error,
+          TxnSerializer *serializer,
+          map<Key, TxnKeyProperty> &stored_txn_map);
+
 void process_commit_txn(const string &txn_id, AnnaError &error, 
                         TxnSerializer *serializer,
                         map<Key, TxnKeyProperty> &stored_txn_map);
@@ -163,6 +168,10 @@ void process_txn_commit(const string &txn_id, const Key &key,
                         AnnaError &error, BaseSerializer *serializer,
                         map<Key, TxnKeyProperty> &stored_key_map);
 
+void process_txn_abort(const string &txn_id, const Key &key,
+                        AnnaError &error, BaseSerializer *serializer,
+                        map<Key, TxnKeyProperty> &stored_key_map);
+
 void process_log(const string &txn_id, const Key &key,
                  const string &payload, AnnaError &error,
                  LogSerializer *serializer);
@@ -172,6 +181,6 @@ bool is_primary_replica(const Key &key,
                         GlobalRingMap &global_hash_rings,
                         LocalRingMap &local_hash_rings, ServerThread &st);
 
-
+bool should_abort(AnnaError error);
 
 #endif // INCLUDE_TXN_TXN_HANDLERS_HPP_

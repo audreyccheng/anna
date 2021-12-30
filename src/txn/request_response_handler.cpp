@@ -11,7 +11,7 @@ void request_response_handler(
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
     ServerThread &wt, TxnSerializer *txn_serializer, BaseSerializer *base_serializer, 
     LogSerializer *log_serializer, SocketCache &pushers) {
-  log->info("Received request_response in handler");
+  // log->info("Received request_response in handler");
   TxnResponse response;
   response.ParseFromString(serialized);
 
@@ -31,7 +31,7 @@ void request_response_handler(
 
   bool succeed;
 
-  log->info("Received request_response key {} tuple_key {} type {}", key, tuple_key, response.type());
+  // log->info("Received request_response key {} tuple_key {} type {}", key, tuple_key, response.type());
   if (pending_requests.find(key) != pending_requests.end()) {
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), response.type(), 
@@ -43,7 +43,7 @@ void request_response_handler(
     if (succeed) {
       suc = "true";
     }
-    log->info("request_response request getting threads success: {}", suc);
+    // log->info("request_response request getting threads success: {}", suc);
 
     if (succeed) {
       bool responsible =
@@ -53,16 +53,16 @@ void request_response_handler(
       if (responsible) {
         suc = "true";
       }
-      log->info("request_response request getting threads responsible: {}", suc);
-      log->info("request_response pending_requests[key] {} size {} ", key, pending_requests[key].size());
+      // log->info("request_response request getting threads responsible: {}", suc);
+      // log->info("request_response pending_requests[key] {} size {} ", key, pending_requests[key].size());
 
       vector<unsigned> indices; // get requests with this tuple_key
       RequestTypeMap request_map; // map request types of this transaction
       for (unsigned i = 0; i < pending_requests[key].size(); ++i) {
         auto request = pending_requests[key][i];
-        log->info("iterating request type {} key {}", request.type_, request.key_);
+        // log->info("iterating request type {} key {}", request.type_, request.key_);
         if (request.key_ == tuple_key && request.type_ == response.type()) {
-          log->info("found index {}", i);
+          // log->info("found index {}", i);
           indices.push_back(i);
         }
         if (request_map.find(request.type_) == request_map.end()) {
@@ -72,7 +72,7 @@ void request_response_handler(
           request_map[request.type_].push_back(i);
         }
       }
-      log->info("made request map");
+      // log->info("made request map");
 
       unsigned erase_count = 0; // update index as requests are removed
       for (const unsigned &index : indices) {
@@ -80,7 +80,7 @@ void request_response_handler(
         auto now = std::chrono::system_clock::now();
 
         if (!responsible && request.addr_ != "") {
-          log->info("Req_resp_handler if 1");
+          // log->info("Req_resp_handler if 1");
           TxnResponse response;
 
           response.set_type(request.type_);
@@ -100,7 +100,7 @@ void request_response_handler(
           response.SerializeToString(&serialized_response);
           kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
         } else if (responsible && request.addr_ == "") {
-          log->info("Req_resp_handler if 2");
+          // log->info("Req_resp_handler if 2");
           // TODO(@accheng): only storage COMMIT_TXN?
           if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK &&
               request.type_ == RequestType::COMMIT_TXN) {
@@ -109,7 +109,7 @@ void request_response_handler(
             log->error("Received a request with no response address.");
           }
         } else if (responsible && request.addr_ != "") {
-          log->info("Req_resp_handler if 3");
+          // log->info("Req_resp_handler if 3");
           bool send_response = true;
 
           TxnResponse rep_response;
@@ -125,13 +125,29 @@ void request_response_handler(
 
           /* TXN tier */
           if (kSelfTier == Tier::TXN) {
-          	auto serializer = txn_serializer;
-          	// handle response from storage tier
-          	if (request.type_ == RequestType::TXN_GET || request.type_ == RequestType::TXN_PUT) {
+            auto serializer = txn_serializer;
+            // handle response from storage tier
+            if (request.type_ == RequestType::TXN_GET || request.type_ == RequestType::TXN_PUT) {
               rep_response.set_txn_id(request.txn_id_);
-          	  if (tuple.error() != AnnaError::NO_ERROR) {
-                  // TODO(@accheng): need to abort txn
+              if (should_abort(tuple.error())) {
+                rep_response.set_error(AnnaError::FAILED_OP);
+                // TODO(@darkterbear): need to abort txn
 
+                // Send ABORT_TXN request to storage tier for each key touched
+                vector<Key> keys = process_get_keys(key, error, serializer, stored_key_map);
+                for (Key k : keys) {
+                  ServerThread thread = kHashRingUtil->get_responsible_threads(
+                          wt.replication_response_connect_address(), RequestType::ABORT_TXN, 
+                          response.txn_id(), k, is_metadata(k), 
+                          global_hash_rings, local_hash_rings, key_replication_map, 
+                          pushers, kStorageTiers, succeed, seed, log)[0];
+
+                  kHashRingUtil->issue_storage_request(
+                        wt.request_response_connect_address(), RequestType::ABORT_TXN, response.txn_id(), 
+                        k, "", thread, pushers);
+
+                  // log->info("req_resp storage request ABORT txn_id {} key {}", response.txn_id(), k);
+                }
               }
               tp->set_key(tuple_key);
               tp->set_error(error);
@@ -143,10 +159,10 @@ void request_response_handler(
               // check if any PREPARE_TXNs are still pending
               // if not, move onto commit phase
               if (request_map[request.type_].size() == 1) {
-                log->info("req_resp only 1 prepare key {} txn_id {}", tuple_key, key);
+                // log->info("req_resp only 1 prepare key {} txn_id {}", tuple_key, key);
                 AnnaError error = AnnaError::NO_ERROR;
                 auto ops = process_get_ops(key, error, serializer, stored_key_map);
-                log->info("req_resp process_get_ops size {}", ops.size());
+                // log->info("req_resp process_get_ops size {}", ops.size());
                 tp->set_error(error);
                 // TODO(@accheng): should txn abort if there is an error here?
                 if (error != AnnaError::NO_ERROR) {
@@ -156,7 +172,7 @@ void request_response_handler(
                            request_map[RequestType::COMMIT_TXN].size() != 1) {
                   log->error("Unable to find client request to commit");
                 } else {
-                  log->info("req_resp commit in map size {}", request_map[RequestType::COMMIT_TXN].size());
+                  // log->info("req_resp commit in map size {}", request_map[RequestType::COMMIT_TXN].size());
                   TxnResponse commit_response;
                   commit_response.set_type(RequestType::COMMIT_TXN);
                   commit_response.set_txn_id(key);
@@ -182,8 +198,8 @@ void request_response_handler(
                       if (key_threads.size() > 0) {
                         break;
                       }
-                      log->info("Getting threads for storage tiers for key {} value {} tier {} key_threads size {} suc {}", 
-                        op_key, op_payload, tier, key_threads.size(), succeed);
+                      // log->info("Getting threads for storage tiers for key {} value {} tier {} key_threads size {} suc {}", 
+                        // op_key, op_payload, tier, key_threads.size(), succeed);
 
                       if (!succeed) { // this means we don't have the replication factor for
                                       // the key
@@ -194,7 +210,7 @@ void request_response_handler(
                       }
                     }
 
-                    log->info("user_txn_request ops size {} abort_txn {}", ops.size(), abort_txn);
+                    // log->info("user_txn_request ops size {} abort_txn {}", ops.size(), abort_txn);
                     if (abort_txn) {
                       break;
                     } else {
@@ -215,7 +231,7 @@ void request_response_handler(
                       kHashRingUtil->issue_storage_request(
                         wt.request_response_connect_address(), RequestType::COMMIT_TXN, key, 
                         op_key, op_payload, all_key_threads[i][0], pushers); // TODO(@accheng): how should we choose thread?
-                      log->info("req_resp sending storage request  txn_id {} key {}", key, op_key);
+                      // log->info("req_resp sending storage request  txn_id {} key {}", key, op_key);
 
                       pending_requests[key].push_back(
                           PendingTxnRequest(RequestType::COMMIT_TXN, key, op_key, op_payload,
@@ -240,16 +256,16 @@ void request_response_handler(
     		          }
                 }
               }
-              log->info("request_response pending_requests[key] {} size {} ", key, pending_requests[key].size());
+              // log->info("request_response pending_requests[key] {} size {} ", key, pending_requests[key].size());
           	} else if (request.type_ == RequestType::COMMIT_TXN) {
               // response sent to client after prepare phase
               send_response = false;
               // check if any commits pending, otherwise finalize commit
               if (request_map[request.type_].size() == 1) {
                 process_commit_txn(key, error, serializer, stored_key_map);
-                log->info("request_response process_commit_txn key {} error {}", key, error);
+                // log->info("request_response process_commit_txn key {} error {}", key, error);
                 auto temp_val = base_serializer->reveal_element(key, error);
-                log->info("***** request_response now holds at key {} value {} error {}", key, temp_val, error);
+                // log->info("***** request_response now holds at key {} value {} error {}", key, temp_val, error);
 
 
                 // Log commit on coordinator
@@ -263,7 +279,7 @@ void request_response_handler(
                   kHashRingUtil->issue_log_request(
                     wt.request_response_connect_address(), request.type_, key,
                     key, payload, log_key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
-                  log->info("request response issued log request for txn_id {} type {}", key, request.type_);
+                  // log->info("request response issued log request for txn_id {} type {}", key, request.type_);
                 }
               }
             } else {
@@ -297,7 +313,7 @@ void request_response_handler(
             /* LOG tier */
             if (request.type_ == RequestType::PREPARE_TXN || 
                 request.type_ == RequestType::COMMIT_TXN) {
-              log->info("Logged for txn {}, type {} ", key, request.type_);
+              // log->info("Logged for txn {}, type {} ", key, request.type_);
               process_log(key, tuple_key, payload, error, serializer); // TODO(@accheng): update
           	  tp->set_error(error);
             } else {

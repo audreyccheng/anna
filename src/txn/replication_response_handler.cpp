@@ -24,7 +24,7 @@ void replication_response_handler(
     map<Key, KeyReplication> &key_replication_map, set<Key> &local_changeset,
     ServerThread &wt, TxnSerializer *txn_serializer, BaseSerializer *base_serializer, 
     LogSerializer *log_serializer, SocketCache &pushers) {
-  log->info("Received replication_response request");
+  // log->info("Received replication_response request");
   TxnResponse response;
   response.ParseFromString(serialized);
 
@@ -47,8 +47,8 @@ void replication_response_handler(
     txn_tier = true;
   }
 
-  log->info("Received replication_response request type {} txn_id {} key {} tier {}",
-    response.type(), response.txn_id(), key, key_tier);
+  // log->info("Received replication_response request type {} txn_id {} key {} tier {}",
+    // response.type(), response.txn_id(), key, key_tier);
 
   if (error == AnnaError::NO_ERROR) {
     // TODO(@accheng): update; this is called in for replication_change only
@@ -66,13 +66,13 @@ void replication_response_handler(
       key_replication_map[key].local_replication_[local.tier()] = local.value();
     }
   } else if (error == AnnaError::KEY_DNE || error == AnnaError::TXN_DNE) {
-    log->info("replication_response request KEY_DNE");
+    // log->info("replication_response request KEY_DNE");
     // KEY_DNE means that the receiving thread was responsible for the metadata
     // but didn't have any values stored -- we use the default rep factor
     // init_tier_replication(key_replication_map, tuple_key, key_tier);
     init_replication(key_replication_map, tuple_key);
     // log->info("replication_response init_tier_replication tier {} key {}", key_tier, tuple_key);
-    log->info("replication_response init_replication key {}", tuple_key);
+    // log->info("replication_response init_replication key {}", tuple_key);
   } else if (error == AnnaError::WRONG_THREAD) {
     // this means that the node that received the rep factor request was not
     // responsible for that metadata
@@ -91,7 +91,7 @@ void replication_response_handler(
   bool succeed;
 
   if (pending_requests.find(key) != pending_requests.end()) {
-    log->info("replication_response request found key {}", key);
+    // log->info("replication_response request found key {}", key);
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), response.type(), 
         response.txn_id(), key, is_metadata(key),
@@ -102,7 +102,7 @@ void replication_response_handler(
     if (succeed) {
       suc = "true";
     }
-    log->info("replication_response request getting threads success: {}", suc);
+    // log->info("replication_response request getting threads success: {}", suc);
 
     if (succeed) {
       bool responsible =
@@ -112,7 +112,7 @@ void replication_response_handler(
       if (responsible) {
         suc = "true";
       }
-      log->info("replication_response request getting threads responsible: {}", suc);
+      // log->info("replication_response request getting threads responsible: {}", suc);
 
       vector<unsigned> indices; // get requests with this tuple_key
       RequestTypeMap request_map; // map request types of this transaction
@@ -140,7 +140,7 @@ void replication_response_handler(
         auto now = std::chrono::system_clock::now();
 
         if (!responsible && request.addr_ != "") {
-          log->info("Rep_resp_handler if 1");
+          // log->info("Rep_resp_handler if 1");
           TxnResponse response;
 
           response.set_type(request.type_);
@@ -160,7 +160,7 @@ void replication_response_handler(
           response.SerializeToString(&serialized_response);
           kZmqUtil->send_string(serialized_response, &pushers[request.addr_]);
         } else if (responsible && request.addr_ == "") {
-          log->info("Rep_resp_handler if 2");
+          // log->info("Rep_resp_handler if 2");
           // TODO(@accheng): only storage COMMIT_TXN?
           if (kSelfTier == Tier::MEMORY || kSelfTier == Tier::DISK &&
               request.type_ == RequestType::COMMIT_TXN) {
@@ -169,7 +169,7 @@ void replication_response_handler(
             log->error("Received a request with no response address.");
           }
         } else if (responsible && request.addr_ != "") {
-          log->info("Rep_resp_handler if 3");
+          // log->info("Rep_resp_handler if 3");
           bool send_response = true;
 
           TxnResponse rep_response;
@@ -220,8 +220,8 @@ void replication_response_handler(
                   if (succeed) {
                     suc = "true";
                   }
-                  log->info("replication_response request getting threads for tuple_key {} success {} key_threads size {}",
-                    tuple_key, suc, key_threads.size());
+                  // log->info("replication_response request getting threads for tuple_key {} success {} key_threads size {}",
+                  //   tuple_key, suc, key_threads.size());
 
                   if (key_threads.size() > 0) {
                     break;
@@ -236,7 +236,7 @@ void replication_response_handler(
                 // TODO(@accheng): should just be one request?
                 // send request to storage tier
                 if (key_threads.size() > 0) {
-                  log->info("replication_response issuing storage request");
+                  // log->info("replication_response issuing storage request");
                   kHashRingUtil->issue_storage_request(
                     wt.request_response_connect_address(), request.type_, key, tuple_key, 
                     request.payload_, key_threads[0], pushers); // TODO(@accheng): how should we choose thread?
@@ -283,7 +283,7 @@ void replication_response_handler(
             if (request.type_ == RequestType::TXN_GET) {
               if (stored_key_map.find(key) == stored_key_map.end()) {
                 tp->set_error(AnnaError::KEY_DNE);
-
+                stored_key_map[key].lock_ = 1;
                 AnnaError notify_error = AnnaError::NO_ERROR;
                 base_serializer->notify_dne_get(response.txn_id(), key, notify_error);
               } else {
@@ -291,7 +291,7 @@ void replication_response_handler(
                 auto res = process_txn_get(request.txn_id_, key, error,
                                            serializer, 
                                            stored_key_map);
-                log->info("replication_response process_txn_get payload {} error {}", res, error);
+                // log->info("replication_response process_txn_get payload {} error {}", res, error);
                 tp->set_payload(res);
                 tp->set_error(error);
               }
@@ -299,9 +299,9 @@ void replication_response_handler(
               AnnaError error = AnnaError::NO_ERROR;
               process_txn_put(request.txn_id_, key, request.payload_, error,
                               is_primary, serializer, stored_key_map);
-              log->info("replication_response process_txn_put payload{} error {}", request.payload_, error);
+              // log->info("replication_response process_txn_put payload{} error {}", request.payload_, error);
               auto temp_val = base_serializer->reveal_temp_element(key, error);
-              log->info("***** storage request now holds at key {} temp_value {} error {}", key, temp_val, error);
+              // log->info("***** storage request now holds at key {} temp_value {} error {}", key, temp_val, error);
               tp->set_error(error);
 
               local_changeset.insert(key);
@@ -372,7 +372,7 @@ void replication_response_handler(
             /* LOG tier */
             if (request.type_ == RequestType::PREPARE_TXN || 
                 request.type_ == RequestType::COMMIT_TXN) {
-              log->info("Logged for txn {}, type {} ", request.txn_id_, request.type_);
+              // log->info("Logged for txn {}, type {} ", request.txn_id_, request.type_);
               process_log(request.txn_id_, key, request.payload_, error, serializer); // TODO(@accheng): update
               tp->set_error(error);
             } else {

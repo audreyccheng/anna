@@ -27,7 +27,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
     GlobalRingMap &global_hash_rings, LocalRingMap &local_hash_rings,
     map<Key, KeyReplication> &key_replication_map, SocketCache &pushers,
     const vector<Tier> &tiers, bool &succeed, unsigned &seed, logger log) {
-  log->info("getting responsive threads, type {}, txn_id {}, key {}, metadata {}", request_type, txn_id, key, metadata);
+  // log->info("getting responsive threads, type {}, txn_id {}, key {}, metadata {}", request_type, txn_id, key, metadata);
   if (metadata) {
     succeed = true;
     // TODO(@accheng): where should metadata be kept?
@@ -35,7 +35,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
     if (tiers.size() > 0) {
       meta_key_tier = tiers[0];
     } else {
-      meta_key_tier = Tier::MEMORY; // get_random_tier(); // TODO(@accheng): this should never happen?
+      meta_key_tier = Tier::DISK; // get_random_tier(); // TODO(@accheng): this should never happen?
     }
     return kHashRingUtil->get_responsible_threads_metadata(
         key, global_hash_rings[meta_key_tier], local_hash_rings[meta_key_tier]);
@@ -43,7 +43,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
     ServerThreadList result;
 
     if (key_replication_map.find(key) == key_replication_map.end()) {
-      log->info("key not in key_replication_map");
+      // log->info("key not in key_replication_map");
       // If this a transaction id, only the txnal tier should be responsible for it
       if (tiers.size() > 0 && tiers[0] == Tier::TXN) {
         kHashRingUtil->issue_replication_factor_request(
@@ -56,7 +56,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
             global_hash_rings[Tier::LOG], local_hash_rings[Tier::LOG],
             pushers, seed, log);
       } else { // TODO(@accheng): set which tier to replicate key at
-        Tier key_tier = Tier::MEMORY; // get_random_tier();
+        Tier key_tier = Tier::DISK; // get_random_tier();
         kHashRingUtil->issue_replication_factor_request(
             response_address, request_type, txn_id, key, key_tier,
             global_hash_rings[key_tier], local_hash_rings[key_tier], 
@@ -65,15 +65,15 @@ ServerThreadList HashRingUtil::get_responsible_threads(
       succeed = false;
     } else {
       for (const Tier &tier : tiers) {
-        for(auto it = key_replication_map[key].global_replication_.cbegin(); it != key_replication_map[key].global_replication_.cend(); ++it)
-        {
-          log->info("replication for key {}, {}: {}", key, it->first, it->second);
-        }
+        // for(auto it = key_replication_map[key].global_replication_.cbegin(); it != key_replication_map[key].global_replication_.cend(); ++it)
+        // {
+        //   log->info("replication for key {}, {}: {}", key, it->first, it->second);
+        // }
         
         ServerThreadList threads = responsible_global(
             key, key_replication_map[key].global_replication_[tier],
             global_hash_rings[tier]);
-        log->info("hash_ring get responsible_global tier {} size {}", tier, threads.size());
+        // log->info("hash_ring get responsible_global tier {} size {}", tier, threads.size());
 
         for (const ServerThread &thread : threads) {
           Address public_ip = thread.public_ip();
@@ -81,7 +81,7 @@ ServerThreadList HashRingUtil::get_responsible_threads(
           set<unsigned> tids = responsible_local(
               key, key_replication_map[key].local_replication_[tier],
               local_hash_rings[tier]);
-          log->info("hash_ring get responsible_local tier {} size {}", tier, tids.size());
+          // log->info("hash_ring get responsible_local tier {} size {}", tier, tids.size());
 
           for (const unsigned &tid : tids) {
             result.push_back(ServerThread(public_ip, private_ip, tid));
@@ -234,7 +234,7 @@ void HashRingUtilInterface::issue_replication_factor_request(
     GlobalHashRing &global_memory_hash_ring,
     LocalHashRing &local_memory_hash_ring, SocketCache &pushers,
     unsigned &seed, logger log) {
-  log->info("Issused replication_factor_request");
+  // log->info("Issused replication_factor_request");
   Key replication_key = get_metadata_key(key, MetadataType::replication);
   auto threads = kHashRingUtil->get_responsible_threads_metadata(
       replication_key, global_memory_hash_ring, local_memory_hash_ring);
@@ -244,7 +244,7 @@ void HashRingUtilInterface::issue_replication_factor_request(
     return;
   }
 
-  log->info("Found {} metadata threads", threads.size());
+  // log->info("Found {} metadata threads", threads.size());
 
   Address target_address;
   // TODO(@accheng): change from random thread to primary one
@@ -275,7 +275,7 @@ void HashRingUtilInterface::issue_replication_factor_request(
   key_request.SerializeToString(&serialized);
   kZmqUtil->send_string(serialized, &pushers[target_address]);
 
-  log->info("Sent replication_factor_request to address {}", target_address);
+  // log->info("Sent replication_factor_request to address {}", target_address);
 }
 
 void HashRingUtilInterface::issue_storage_request(

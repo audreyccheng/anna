@@ -27,14 +27,14 @@ const unsigned kMetadataLocalReplicationFactor = 1;
 const unsigned kVirtualThreadNum = 3000;
 
 const vector<Tier> kAllTiers = {
-    Tier::MEMORY,
     Tier::DISK,
+    Tier::MEMORY,
     Tier::TXN,
     Tier::LOG}; // TODO(vikram): Is there a better way to make this vector?
 
 const vector<Tier> kStorageTiers = {
-    Tier::MEMORY,
-    Tier::DISK
+    Tier::DISK,
+    Tier::MEMORY
 };
 
 const unsigned kSloWorst = 3000;

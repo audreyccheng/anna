@@ -39,11 +39,12 @@ double get_zipf_prob(unsigned rank, double skew, double base) {
   return pow(rank, -1 * skew) / base;
 }
 
-void receive(TxnClientInterface *client) {
+vector<TxnResponse> receive(TxnClientInterface *client) {
   vector<TxnResponse> responses = client->receive_txn_async();
   while (responses.size() == 0) {
     responses = client->receive_txn_async();
   }
+  return responses;
 }
 
 int sample(int n, unsigned &seed, double base,
@@ -80,7 +81,7 @@ int sample(int n, unsigned &seed, double base,
 }
 
 string generate_key(unsigned n) {
-  return string(8 - std::to_string(n).length(), '0') + std::to_string(n);
+  return std::string(8 - std::to_string(n).length(), '0') + std::to_string(n);
 }
 
 void run(const unsigned &thread_id,
@@ -88,7 +89,7 @@ void run(const unsigned &thread_id,
          const vector<MonitoringThread> &monitoring_threads,
          const Address &ip) {
   TxnClient client(routing_threads, ip, thread_id, 10000);
-  string log_file = "log_" + std::to_string(thread_id) + ".txt";
+  string log_file = "blog_" + std::to_string(thread_id) + ".txt";
   string logger_name = "benchmark_log_" + std::to_string(thread_id);
   auto log = spdlog::basic_logger_mt(logger_name, log_file, true);
   log->flush_on(spdlog::level::info);
@@ -109,64 +110,66 @@ void run(const unsigned &thread_id,
   vector<zmq::pollitem_t> pollitems = {
       {static_cast<void *>(command_puller), 0, ZMQ_POLLIN, 0}};
 
-  auto client_id = "0";
+  auto client_id = std::to_string(thread_id);
 
   while (true) {
     kZmqUtil->poll(-1, &pollitems);
 
     if (pollitems[0].revents & ZMQ_POLLIN) {
       string msg = kZmqUtil->recv_string(&command_puller);
-      log->info("Received benchmark command: {}", msg);
+      // log->info("Received benchmark command: {}", msg);
 
       vector<string> v;
       split(msg, ':', v);
       string mode = v[0];
 
+      unsigned num_keys = 1000;
+
       if (mode == "CACHE") {
-        // CACHE:<number of keys>
-        unsigned num_keys = stoi(v[1]);
+        if (thread_id > 0) {
+          // log->info("Received cache warming command, not thread 0");
+        } else {
+          client.clear_cache();
+          auto warmup_start = std::chrono::system_clock::now();
 
-        client.clear_cache();
-        auto warmup_start = std::chrono::system_clock::now();
+          // create dummy txn for warming cache
+          client.start_txn(client_id);
 
-        // create dummy txn for warming cache
-        client.start_txn(client_id);
+          // get txn id
+          vector<TxnResponse> responses = receive(&client);
+          auto txn_id = responses[0].txn_id();
 
-        // get txn id
-        vector<TxnResponse> responses = client.receive_txn_async();
-        while (responses.size() == 0) {
-          responses = client.receive_txn_async();
-        }
-        auto txn_id = responses[0].txn_id();
+          // warm up cache
+          for (unsigned i = 1; i <= num_keys; i++) {
+            // log->info("Warming up cache for key {}.", i);
+            client.txn_put(client_id, txn_id, generate_key(i), "payload");
+            receive(&client);
+          }
 
-        // warm up cache
-        for (unsigned i = 1; i <= num_keys; i++) {
-          log->info("Warming up cache for key {}.", i);
-          client.txn_get(0, txn_id, generate_key(i));
+          // commit dummy txn
+          client.commit_txn(client_id, txn_id);
           receive(&client);
+
+          auto warmup_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::system_clock::now() - warmup_start)
+                                .count();
+          log->info("Warming cache took {} ms", warmup_time);
         }
+      } else if (mode == "TPS") {
+        // To measure Transactions per second
+        // TPS:<num_txns>:<zipf>
 
-        // commit dummy txn
-        client.commit_txn(client_id, txn_id);
-        receive(&client);
-
-        auto warmup_time = std::chrono::duration_cast<std::chrono::seconds>(
-                               std::chrono::system_clock::now() - warmup_start)
-                               .count();
-        log->info("Cache warm-up took {} seconds.", warmup_time);
-      } else if (mode == "LOAD") {
-        // LOAD:<num_txns>:<actions_per_txn>:<len>
-        unsigned num_txns = stoi(v[1]);
-        unsigned actions_per_txn = stoi(v[2]);
-        unsigned num_keys = stoi(v[3]);
-        unsigned length = stoi(v[4]);
-        double zipf = stod(v[5]);
-
+        unsigned num_txns = stod(v[1]);
+        double zipf = stod(v[2]);
+        unsigned gets_per_txn = 1;
+        unsigned puts_per_txn = 1;
+        auto payload = "payload";
+        
         map<unsigned, double> sum_probs;
         double base;
 
         if (zipf > 0) {
-          log->info("Zipf coefficient is {}.", zipf);
+          // log->info("Zipf coefficient is {}.", zipf);
           base = get_base(num_keys, zipf);
           sum_probs[0] = 0;
 
@@ -174,7 +177,7 @@ void run(const unsigned &thread_id,
             sum_probs[i] = sum_probs[i - 1] + base / pow((double)i, zipf);
           }
         } else {
-          log->info("Using a uniform random distribution.");
+          // log->info("Using a uniform random distribution.");
         }
 
         auto benchmark_start = std::chrono::system_clock::now();
@@ -183,11 +186,14 @@ void run(const unsigned &thread_id,
                               benchmark_end - benchmark_start)
                               .count();
 
-        // map of txn index to # actions completed, txn_id pair
-        map<unsigned, pair<unsigned, string>> actions_done;
+        // map of txn index to (gets completed, puts completed, txn_id) tuple
+        map<unsigned, std::tuple<unsigned, unsigned, string>> actions_done;
+
+        // set of txn_ids that aborted
+        std::set<std::string> aborted_txns = {};
 
         for (unsigned i = 0; i < num_txns; i++) {
-          actions_done.insert(pair<unsigned, pair<unsigned, string>>(i, pair<unsigned, string>(0, "")));
+          actions_done.insert(pair<unsigned, std::tuple<unsigned, unsigned, string>>(i, std::tuple<unsigned, unsigned, string>(0, 0, "")));
         }
 
         while (true) {
@@ -197,23 +203,28 @@ void run(const unsigned &thread_id,
           auto it = actions_done.begin();
           std::advance(it, rand() % actions_done.size());
           unsigned i = it->first;
-          unsigned n = (it->second).first;
-          string txn_id = (it->second).second;
+          unsigned& g = std::get<0>(it->second);
+          unsigned& p = std::get<1>(it->second);
+          string& txn_id = std::get<2>(it->second);
 
           if (txn_id.empty()) {
             // start this txn
             client.start_txn(client_id);
 
             // set txn id
-            vector<TxnResponse> responses = client.receive_txn_async();
-            while (responses.size() == 0) {
-              responses = client.receive_txn_async();
-            }
-            (it->second).second = responses[0].txn_id();
+            vector<TxnResponse> responses = receive(&client);
+            txn_id = responses[0].txn_id();
+            // log->info("[TPS] START TXN {}", txn_id);
           } else {
             // do an action for this txn
             // true for get, false for put
-            bool type = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) >= 0.5 ? true : false;
+            bool type;
+
+            if (g < gets_per_txn) {
+              type = true;
+            } else {
+              type = false;
+            }
 
             // get a random key
             unsigned k;
@@ -226,12 +237,28 @@ void run(const unsigned &thread_id,
 
             if (type) {
               client.txn_get(client_id, txn_id, key);
+              // log->info("[TPS] TXN GET {}, {}", txn_id, key);
             } else {
-              client.txn_put(client_id, txn_id, key, string(length, 'a'));
+              client.txn_put(client_id, txn_id, key, payload);
+              // log->info("[TPS] TXN PUT {}, {}", txn_id, key);
             }
-            receive(&client);
+            vector<TxnResponse> responses = receive(&client);
+            TxnKeyTuple tuple = responses[0].tuples(0);
 
-            if (++((it->second).first) >= actions_per_txn) {
+            if (tuple.error() == AnnaError::FAILED_OP) {
+              // txn aborted, add to set
+              aborted_txns.insert(txn_id);
+            }
+
+            if (type) {
+              g++;
+            } else {
+              p++;
+            }
+
+            if (g >= gets_per_txn && p >= puts_per_txn) {
+              // log->info("[TPS] COMMIT TXN {}", txn_id);
+
               // finished last action for this txn, commit
               client.commit_txn(client_id, txn_id);
               receive(&client);
@@ -242,10 +269,10 @@ void run(const unsigned &thread_id,
         }
 
         benchmark_end = std::chrono::system_clock::now();
-        total_time = std::chrono::duration_cast<std::chrono::seconds>(
+        total_time = std::chrono::duration_cast<std::chrono::milliseconds>(
                           benchmark_end - benchmark_start)
                           .count();
-        log->info("Finished; took {} seconds.", total_time);
+        log->info("{}\t{}\t{}", num_txns, total_time, aborted_txns.size());
 
         UserFeedback feedback;
 
@@ -260,45 +287,6 @@ void run(const unsigned &thread_id,
               serialized_latency,
               &pushers[thread.feedback_report_connect_address()]);
         }
-      } else if (mode == "WARM") {
-        // WARM:<number of keys>:<length of values>:<threads>
-        unsigned num_keys = stoi(v[1]);
-        unsigned length = stoi(v[2]);
-        unsigned total_threads = stoi(v[3]);
-        unsigned range = num_keys / total_threads;
-        unsigned start = thread_id * range + 1;
-        unsigned end = thread_id * range + 1 + range;
-
-        // create dummy txn for warming cache
-        client.start_txn(client_id);
-
-        // get txn id
-        vector<TxnResponse> responses = client.receive_txn_async();
-        while (responses.size() == 0) {
-          responses = client.receive_txn_async();
-        }
-        auto txn_id = responses[0].txn_id();
-
-        Key key;
-        auto warmup_start = std::chrono::system_clock::now();
-
-        for (unsigned i = start; i < end; i++) {
-          if (i % 50000 == 0) {
-            log->info("Creating key {}.", i);
-          }
-
-          client.txn_put(client_id, txn_id, generate_key(i), string(length, 'a'));
-          receive(&client);
-        }
-
-        // commit dummy txn
-        client.commit_txn(client_id, txn_id);
-        receive(&client);
-
-        auto warmup_time = std::chrono::duration_cast<std::chrono::seconds>(
-                               std::chrono::system_clock::now() - warmup_start)
-                               .count();
-        log->info("Warming up data took {} seconds.", warmup_time);
       } else {
         log->info("{} is an invalid mode.", mode);
       }

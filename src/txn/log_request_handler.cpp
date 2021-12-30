@@ -44,7 +44,7 @@ void log_request_handler(
     Key key = tuple.key();
     string payload = tuple.payload();
 
-    log->info("Received log_request of type {} for key {}", request_type, key);
+    // log->info("Received log_request of type {} for key {}", request_type, key);
 
     ServerThreadList threads = kHashRingUtil->get_responsible_threads(
         wt.replication_response_connect_address(), request_type, txn_id, 
@@ -56,7 +56,7 @@ void log_request_handler(
     if (succeed) {
       suc = "true";
     }
-    log->info("Log request getting threads success: {}", suc);
+    // log->info("Log request getting threads success: {}", suc);
     
     if (succeed) {
       if (std::find(threads.begin(), threads.end(), wt) == threads.end()) {
