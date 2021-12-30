@@ -288,6 +288,7 @@ public:
    * Removes key k from in-memory map iff it is no longer used. Writes value to disk.
    */
   void purge_key(const K &k) {
+    std::cout << "purging key " << k << std::endl;
     if (db.find(k) != db.end() && db.at(k).is_used()) {
       if (db.at(k).reveal().length() == 0) {
         // Empty value, remove from disk
@@ -295,6 +296,7 @@ public:
         return;
       }
 
+      std::cout << "not empty, writing back to disk " << std::endl;
       // Write it back to disk
       string fname = ebs_root + "/" + std::to_string(thread_id) + "/" + k;
       std::fstream f(fname, std::ios::in | std::ios::binary);
@@ -394,11 +396,14 @@ public:
       return;
     }
 
+    std::cout << "Committing " << k << std::endl;
     if (db.at(k).holds_wlock(txn_id)) {
+      std::cout << "had write lock" << std::endl;
       db.at(k).update_value();
-      db.at(k).release_wlock(txn_id);
+      release_wlock(txn_id, k);
     } else if (db.at(k).holds_rlock(txn_id)) {
-      db.at(k).release_rlock(txn_id);
+      std::cout << "had read lock" << std::endl;
+      release_rlock(txn_id, k);
     }
   }
 
@@ -411,16 +416,15 @@ public:
     }
 
     if (db.at(k).holds_wlock(txn_id)) {
-      std::cout << txn_id << " release wlock on " << k << std::endl;
-      db.at(k).release_wlock(txn_id);
+      release_wlock(txn_id, k);
     } else if (db.at(k).holds_rlock(txn_id)) {
-      std::cout << txn_id << " release wlock on " << k << std::endl;
-      db.at(k).release_rlock(txn_id);
+      release_rlock(txn_id, k);
     }
   }
 
   void release_wlock(const string& txn_id, const K &k) {
     if (db.find(k) != db.end()) {
+      std::cout << txn_id << " release wlock on " << k << std::endl;
       db.at(k).release_wlock(txn_id);
       purge_key(k);
     }
