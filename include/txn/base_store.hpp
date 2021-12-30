@@ -219,7 +219,6 @@ public:
   }
 
   void abort(const string& txn_id, const K &k, AnnaError &error) {
-    std::cout << txn_id << " serializer abort" << std::endl;
     // check this key exists
     if (db.find(k) == db.end()) {
       error = AnnaError::FAILED_OP;
@@ -265,6 +264,7 @@ public:
   bool read_disk(const K &k) {
     // Key not being used right now, check if stored in disk
     string fname = ebs_root + std::to_string(thread_id) + "/" + k;
+    // TODO: create dir if DNE
     std::fstream f(fname, std::ios::in | std::ios::binary);
     if (f) {
       // Key exists on disk, read it into the map
@@ -290,16 +290,16 @@ public:
    * Removes key k from in-memory map iff it is no longer used. Writes value to disk.
    */
   void purge_key(const K &k) {
-    std::cout << "purging key " << k << std::endl;
     if (db.find(k) != db.end() && !db.at(k).is_used()) {
       if (db.at(k).reveal().length() == 0) {
         // Empty value, remove from disk
         remove(k);
         return;
       }
-
-      std::cout << "not empty, writing back to disk " << std::endl;
+      
       // Write it back to disk
+
+      // TODO: create dir if DNE
       string fname = ebs_root + std::to_string(thread_id) + "/" + k;
       std::fstream f(fname, std::ios::out | std::ios::binary);
       f << db.at(k).get_is_primary() << "\n" << db.at(k).reveal() << "\n";
@@ -398,19 +398,15 @@ public:
       return;
     }
 
-    std::cout << "Committing " << k << std::endl;
     if (db.at(k).holds_wlock(txn_id)) {
-      std::cout << "had write lock" << std::endl;
       db.at(k).update_value();
       release_wlock(txn_id, k);
     } else if (db.at(k).holds_rlock(txn_id)) {
-      std::cout << "had read lock" << std::endl;
       release_rlock(txn_id, k);
     }
   }
 
   void abort(const string& txn_id, const K &k, AnnaError &error) {
-    std::cout << txn_id << " serializer abort" << std::endl;
     // check this key exists
     if (db.find(k) == db.end()) {
       error = AnnaError::FAILED_OP;
@@ -426,7 +422,6 @@ public:
 
   void release_wlock(const string& txn_id, const K &k) {
     if (db.find(k) != db.end()) {
-      std::cout << txn_id << " release wlock on " << k << std::endl;
       db.at(k).release_wlock(txn_id);
       purge_key(k);
     }
