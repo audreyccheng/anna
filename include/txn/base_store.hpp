@@ -263,8 +263,7 @@ public:
    */
   bool read_disk(const K &k) {
     // Key not being used right now, check if stored in disk
-    string fname = ebs_root + std::to_string(thread_id) + "/" + k;
-    // TODO: create dir if DNE
+    string fname = ebs_root + std::to_string(thread_id) + "-" + k;
     std::fstream f(fname, std::ios::in | std::ios::binary);
     if (f) {
       // Key exists on disk, read it into the map
@@ -300,7 +299,7 @@ public:
       // Write it back to disk
 
       // TODO: create dir if DNE
-      string fname = ebs_root + std::to_string(thread_id) + "/" + k;
+      string fname = ebs_root + std::to_string(thread_id) + "-" + k;
       std::fstream f(fname, std::ios::out | std::ios::binary);
       f << db.at(k).get_is_primary() << "\n" << db.at(k).reveal() << "\n";
       f.close();
@@ -431,7 +430,7 @@ public:
 
   void remove(const K &k) {
     db.erase(k);
-    std::remove((ebs_root + "/" + std::to_string(thread_id) + "/" + k).c_str());
+    std::remove((ebs_root + std::to_string(thread_id) + "-" + k).c_str());
   }
 };
 
